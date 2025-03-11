@@ -16,6 +16,7 @@ import {
   Bars3Icon,
   XMarkIcon,
   VideoCameraIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 
 interface DiscussionTopic {
@@ -37,11 +38,40 @@ interface DiscussionGroup {
   topics: DiscussionTopic[];
 }
 
+interface Question {
+  id: string;
+  text: string;
+  options: string[];
+  correctAnswer: number;
+  completed?: boolean;
+  selectedAnswer?: number;
+}
+
+interface CourseContent {
+  id: string;
+  title: string;
+  content: string;
+  questions: Question[];
+  completed?: boolean;
+}
+
+interface Unit {
+  id: number;
+  code: string;
+  name: string;
+  instructor: string;
+  progress: number;
+  nextClass: string;
+  content: CourseContent[];
+  resources: { id: number; title: string; type: string; downloadUrl: string; }[];
+  assignments: { id: number; title: string; dueDate: string; status: string; }[];
+}
+
 const StudentDashboard = () => {
   const [activeMenu, setActiveMenu] = useState('courses');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const [currentUnits] = useState([
+  const [currentUnits, setCurrentUnits] = useState<Unit[]>([
     {
       id: 1,
       code: 'CS 301',
@@ -49,6 +79,7 @@ const StudentDashboard = () => {
       instructor: 'Dr. Sarah Chen',
       progress: 65,
       nextClass: '2:30 PM Today',
+      content: [],
       resources: [
         { id: 1, title: 'Introduction to ML Algorithms', type: 'pdf', downloadUrl: '#' },
         { id: 2, title: 'Python ML Libraries', type: 'doc', downloadUrl: '#' },
@@ -65,6 +96,7 @@ const StudentDashboard = () => {
       instructor: 'Prof. James Wilson',
       progress: 70,
       nextClass: '10:00 AM Tomorrow',
+      content: [],
       resources: [
         { id: 1, title: 'Cryptography Basics', type: 'pdf', downloadUrl: '#' },
         { id: 2, title: 'Security Protocols', type: 'pdf', downloadUrl: '#' },
@@ -81,6 +113,7 @@ const StudentDashboard = () => {
       instructor: 'Dr. Michael Chang',
       progress: 60,
       nextClass: '11:30 AM Today',
+      content: [],
       resources: [
         { id: 1, title: 'Neural Network Architectures', type: 'pdf', downloadUrl: '#' },
         { id: 2, title: 'Deep Learning Frameworks', type: 'doc', downloadUrl: '#' },
@@ -96,6 +129,7 @@ const StudentDashboard = () => {
       instructor: 'Dr. Emily Brooks',
       progress: 75,
       nextClass: '2:00 PM Tomorrow',
+      content: [],
       resources: [
         { id: 1, title: 'IS Strategy Framework', type: 'pdf', downloadUrl: '#' },
         { id: 2, title: 'Case Studies', type: 'pdf', downloadUrl: '#' },
@@ -111,6 +145,7 @@ const StudentDashboard = () => {
       instructor: 'Prof. Lisa Martinez',
       progress: 68,
       nextClass: '9:00 AM Tomorrow',
+      content: [],
       resources: [
         { id: 1, title: 'Mobile App Development', type: 'pdf', downloadUrl: '#' },
         { id: 2, title: 'UI/UX Guidelines', type: 'pdf', downloadUrl: '#' },
@@ -126,6 +161,7 @@ const StudentDashboard = () => {
       instructor: 'Dr. Robert Kim',
       progress: 72,
       nextClass: '4:00 PM Today',
+      content: [],
       resources: [
         { id: 1, title: 'Multimedia Processing', type: 'pdf', downloadUrl: '#' },
         { id: 2, title: 'Compression Techniques', type: 'doc', downloadUrl: '#' },
@@ -237,35 +273,35 @@ const StudentDashboard = () => {
       day: 'Monday',
       classes: [
         { id: 1, unit: 'Machine Learning', code: 'CS 301', time: '09:00 - 11:00', room: 'Lab 101', instructor: 'Dr. Sarah Chen' },
-        { id: 2, unit: 'Neural Networks', code: 'CS 303', time: '14:00 - 16:00', room: 'Lab 203', instructor: 'Dr. Michael Chang' },
+        { id: 2, unit: 'Neural Networks', code: 'CS 303', time: '14:00 - 16:00', room: 'Lab 203', instructor: 'Dr. Michael Chang' }
       ]
     },
     {
       day: 'Tuesday',
       classes: [
         { id: 3, unit: 'Network Security', code: 'CS 302', time: '11:00 - 13:00', room: 'Room 105', instructor: 'Prof. James Wilson' },
-        { id: 4, unit: 'Mobile Computing', code: 'CS 305', time: '14:00 - 16:00', room: 'Lab 102', instructor: 'Prof. Lisa Martinez' },
+        { id: 4, unit: 'Mobile Computing', code: 'CS 305', time: '14:00 - 16:00', room: 'Lab 102', instructor: 'Prof. Lisa Martinez' }
       ]
     },
     {
       day: 'Wednesday',
       classes: [
         { id: 5, unit: 'Strategic Information Systems', code: 'CS 304', time: '09:00 - 11:00', room: 'Room 201', instructor: 'Dr. Emily Brooks' },
-        { id: 6, unit: 'Multimedia Systems', code: 'CS 306', time: '14:00 - 16:00', room: 'Lab 204', instructor: 'Dr. Robert Kim' },
+        { id: 6, unit: 'Multimedia Systems', code: 'CS 306', time: '14:00 - 16:00', room: 'Lab 204', instructor: 'Dr. Robert Kim' }
       ]
     },
     {
       day: 'Thursday',
       classes: [
         { id: 7, unit: 'Machine Learning', code: 'CS 301', time: '11:00 - 13:00', room: 'Lab 101', instructor: 'Dr. Sarah Chen' },
-        { id: 8, unit: 'Network Security', code: 'CS 302', time: '14:00 - 16:00', room: 'Room 105', instructor: 'Prof. James Wilson' },
+        { id: 8, unit: 'Network Security', code: 'CS 302', time: '14:00 - 16:00', room: 'Room 105', instructor: 'Prof. James Wilson' }
       ]
     },
     {
       day: 'Friday',
       classes: [
         { id: 9, unit: 'Neural Networks', code: 'CS 303', time: '09:00 - 11:00', room: 'Lab 203', instructor: 'Dr. Michael Chang' },
-        { id: 10, unit: 'Mobile Computing', code: 'CS 305', time: '14:00 - 16:00', room: 'Lab 102', instructor: 'Prof. Lisa Martinez' },
+        { id: 10, unit: 'Mobile Computing', code: 'CS 305', time: '14:00 - 16:00', room: 'Lab 102', instructor: 'Prof. Lisa Martinez' }
       ]
     }
   ]);
@@ -370,6 +406,135 @@ const StudentDashboard = () => {
   const [selectedGroup, setSelectedGroup] = useState<DiscussionGroup | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<DiscussionTopic | null>(null);
 
+  // Add new state for content modal
+  const [isContentModalOpen, setIsContentModalOpen] = useState(false);
+  const [selectedContent, setSelectedContent] = useState<CourseContent | null>(null);
+
+  // Add new function to handle answering questions
+  const handleAnswerQuestion = (unitId: number, contentId: string, questionId: string, selectedAnswer: number) => {
+    setCurrentUnits(units => units.map(unit => {
+      if (unit.id === unitId) {
+        const newContent = unit.content.map(content => {
+          if (content.id === contentId) {
+            const newQuestions = content.questions.map(question => {
+              if (question.id === questionId) {
+                return {
+                  ...question,
+                  completed: true,
+                  selectedAnswer
+                };
+              }
+              return question;
+            });
+
+            // Calculate if all questions are completed
+            const allQuestionsCompleted = newQuestions.every(q => q.completed);
+            
+            return {
+              ...content,
+              questions: newQuestions,
+              completed: allQuestionsCompleted
+            };
+          }
+          return content;
+        });
+
+        // Calculate new progress based on completed content
+        const totalContent = unit.content.length;
+        const completedContent = newContent.filter(c => c.completed).length;
+        const newProgress = totalContent > 0 ? (completedContent / totalContent) * 100 : 0;
+
+        return {
+          ...unit,
+          content: newContent,
+          progress: newProgress
+        };
+      }
+      return unit;
+    }));
+  };
+
+  // Add ContentModal component
+  const ContentModal = ({ 
+    isOpen, 
+    onClose, 
+    content, 
+    unitId 
+  }: { 
+    isOpen: boolean; 
+    onClose: () => void; 
+    content: CourseContent | null;
+    unitId: number;
+  }) => {
+    if (!isOpen || !content) return null;
+
+    return (
+      <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div className="relative top-20 mx-auto p-5 border w-[95%] max-w-4xl shadow-lg rounded-md bg-white">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-medium text-gray-900">{content.title}</h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-500">
+              <XMarkIcon className="h-6 w-6" />
+            </button>
+          </div>
+
+          <div className="prose max-w-none mb-8">
+            {content.content}
+          </div>
+
+          <div className="space-y-6">
+            <h4 className="text-lg font-medium text-gray-900">Questions</h4>
+            {content.questions.map((question, index) => (
+              <div 
+                key={question.id} 
+                className={`p-4 rounded-lg ${
+                  question.completed 
+                    ? 'bg-gray-50' 
+                    : 'bg-white border'
+                }`}
+              >
+                <p className="font-medium mb-4">{index + 1}. {question.text}</p>
+                <div className="space-y-2">
+                  {question.options.map((option, optionIndex) => (
+                    <button
+                      key={optionIndex}
+                      onClick={() => handleAnswerQuestion(unitId, content.id, question.id, optionIndex)}
+                      disabled={question.completed}
+                      className={`w-full text-left p-3 rounded-lg transition-colors ${
+                        question.completed
+                          ? question.selectedAnswer === optionIndex
+                            ? question.selectedAnswer === question.correctAnswer
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                            : question.correctAnswer === optionIndex
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-600'
+                          : 'hover:bg-blue-50 border'
+                      }`}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+                {question.completed && (
+                  <p className={`mt-2 text-sm ${
+                    question.selectedAnswer === question.correctAnswer
+                      ? 'text-green-600'
+                      : 'text-red-600'
+                  }`}>
+                    {question.selectedAnswer === question.correctAnswer
+                      ? '✓ Correct answer!'
+                      : `✗ Incorrect. The correct answer was: ${question.options[question.correctAnswer]}`}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderContent = () => {
     switch (activeMenu) {
       case 'courses':
@@ -411,6 +576,43 @@ const StudentDashboard = () => {
                             {course.nextClass}
                           </span>
                         </div>
+                      </div>
+
+                      {/* Course Content Section */}
+                      <div className="mt-4 space-y-2">
+                        <h4 className="text-sm font-medium text-gray-700">Course Content</h4>
+                        {course.content.length > 0 ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {course.content.map(item => (
+                              <button
+                                key={item.id}
+                                onClick={() => {
+                                  setSelectedContent(item);
+                                  setIsContentModalOpen(true);
+                                }}
+                                className={`p-3 rounded-lg text-left transition-colors ${
+                                  item.completed
+                                    ? 'bg-green-50 hover:bg-green-100'
+                                    : 'bg-gray-50 hover:bg-gray-100'
+                                }`}
+                              >
+                                <div className="flex items-center">
+                                  <DocumentTextIcon className={`w-5 h-5 mr-2 ${
+                                    item.completed ? 'text-green-500' : 'text-blue-500'
+                                  }`} />
+                                  <div>
+                                    <h5 className="font-medium">{item.title}</h5>
+                                    <p className="text-sm text-gray-600">
+                                      {item.questions.filter(q => q.completed).length} of {item.questions.length} completed
+                                    </p>
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-500 italic">No content added yet</p>
+                        )}
                       </div>
 
                       {/* Progress Bar */}
@@ -1136,31 +1338,38 @@ const StudentDashboard = () => {
                   </button>
                 </div>
 
-                <div className="bg-white rounded-xl shadow-sm divide-y">
-                  {selectedGroup.topics.map((topic) => (
-                    <div 
-                      key={topic.id}
-                      className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
-                      onClick={() => setSelectedTopic(topic)}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-medium text-lg">{topic.title}</h3>
-                          <p className="text-gray-600 mt-1">{topic.lastMessage}</p>
-                          <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
-                            <span>{topic.replies} replies</span>
-                            <span>•</span>
-                            <span>{topic.timestamp}</span>
-                          </div>
+                <div className="bg-white rounded-xl shadow-sm p-6">
+                  <div className="space-y-6">
+                    {/* Sample messages - in a real app, these would come from your backend */}
+                    <div className="flex space-x-4">
+                      <div className="flex-shrink-0">
+                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                          <span className="text-blue-600 font-medium">JD</span>
                         </div>
-                        {topic.unread > 0 && (
-                          <span className="bg-red-100 text-red-600 px-2 py-1 rounded-full text-sm">
-                            {topic.unread} new
-                          </span>
-                        )}
+                      </div>
+                      <div className="flex-grow">
+                        <div className="flex items-center space-x-2">
+                          <span className="font-medium">John Doe</span>
+                          <span className="text-gray-500 text-sm">2 hours ago</span>
+                        </div>
+                        <p className="mt-1 text-gray-800">{selectedTopic.lastMessage}</p>
                       </div>
                     </div>
-                  ))}
+
+                    {/* Reply box */}
+                    <div className="mt-6 border-t pt-6">
+                      <textarea
+                        rows={4}
+                        className="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                        placeholder="Write your reply..."
+                      />
+                      <div className="mt-4 flex justify-end">
+                        <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                          Post Reply
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (

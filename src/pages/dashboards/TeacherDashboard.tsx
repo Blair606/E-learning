@@ -14,9 +14,11 @@ import {
   VideoCameraIcon,
   ClockIcon,
   Cog6ToothIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import CreateAssignmentModal from '../../components/modals/CreateAssignmentModal';
 import CreateDiscussionGroupModal from '../../components/modals/CreateDiscussionGroupModal';
+import AddCourseContentModal from '../../components/modals/AddCourseContentModal';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { Assignment } from '../../store/slices/assignmentSlice';
 import {
@@ -79,14 +81,56 @@ interface ScheduledClass {
   recording?: string;
 }
 
+interface CourseContent {
+  id: string;
+  title: string;
+  content: string;
+  questions: {
+    id: string;
+    text: string;
+    options: string[];
+    correctAnswer: number;
+  }[];
+}
+
+interface Course {
+  id: number;
+  name: string;
+  students: number;
+  nextClass: string;
+  progress: number;
+  content: CourseContent[];
+}
+
 const TeacherDashboard = () => {
   const navigate = useNavigate();
   const { user } = useSelector((state: RootState) => state.auth);
   const [activeTab, setActiveTab] = useState('overview');
-  const [courses] = useState([
-    { id: 1, name: 'Advanced Mathematics', students: 30, nextClass: '2:30 PM Today', progress: 75 },
-    { id: 2, name: 'Computer Science', students: 25, nextClass: '10:00 AM Tomorrow', progress: 60 },
-    { id: 3, name: 'Physics 101', students: 28, nextClass: '1:15 PM Tomorrow', progress: 80 },
+  const [courses, setCourses] = useState<Course[]>([
+    { 
+      id: 1, 
+      name: 'Advanced Mathematics', 
+      students: 30, 
+      nextClass: '2:30 PM Today', 
+      progress: 75,
+      content: []
+    },
+    { 
+      id: 2, 
+      name: 'Computer Science', 
+      students: 25, 
+      nextClass: '10:00 AM Tomorrow', 
+      progress: 60,
+      content: []
+    },
+    { 
+      id: 3, 
+      name: 'Physics 101', 
+      students: 28, 
+      nextClass: '1:15 PM Tomorrow', 
+      progress: 80,
+      content: []
+    },
   ]);
 
   const [discussionGroups, setDiscussionGroups] = useState([
@@ -189,6 +233,9 @@ const TeacherDashboard = () => {
 
   const [isScheduleClassModalOpen, setIsScheduleClassModalOpen] = useState(false);
 
+  const [isAddContentModalOpen, setIsAddContentModalOpen] = useState(false);
+  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
+
   const navItems = [
     { id: 'overview', icon: BookOpenIcon, label: 'Overview' },
     { id: 'discussions', icon: ChatBubbleLeftRightIcon, label: 'Discussions' },
@@ -290,6 +337,20 @@ const TeacherDashboard = () => {
     }
 
     setIsNotificationModalOpen(false);
+  };
+
+  const handleAddContent = (content: CourseContent) => {
+    if (selectedCourseId) {
+      setCourses(courses.map(course => {
+        if (course.id === selectedCourseId) {
+          return {
+            ...course,
+            content: [...course.content, content]
+          };
+        }
+        return course;
+      }));
+    }
   };
 
   const renderContent = () => {
@@ -672,6 +733,206 @@ const TeacherDashboard = () => {
           </div>
         );
 
+      case 'overview':
+        return (
+          <div className="space-y-6">
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+              <div className="bg-white p-6 rounded-xl shadow-sm">
+                <div className="flex items-center">
+                  <UsersIcon className="w-12 h-12 text-blue-500" />
+                  <div className="ml-4">
+                    <h3 className="text-sm font-medium text-gray-500">Total Students</h3>
+                    <p className="text-2xl font-semibold text-gray-800">{studentStats.totalStudents}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-xl shadow-sm">
+                <div className="flex items-center">
+                  <CalendarIcon className="w-12 h-12 text-green-500" />
+                  <div className="ml-4">
+                    <h3 className="text-sm font-medium text-gray-500">Avg. Attendance</h3>
+                    <p className="text-2xl font-semibold text-gray-800">{studentStats.averageAttendance}%</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-xl shadow-sm">
+                <div className="flex items-center">
+                  <AcademicCapIcon className="w-12 h-12 text-purple-500" />
+                  <div className="ml-4">
+                    <h3 className="text-sm font-medium text-gray-500">Avg. Grade</h3>
+                    <p className="text-2xl font-semibold text-gray-800">{studentStats.averageGrade}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-xl shadow-sm">
+                <div className="flex items-center">
+                  <ChatBubbleLeftRightIcon className="w-12 h-12 text-yellow-500" />
+                  <div className="ml-4">
+                    <h3 className="text-sm font-medium text-gray-500">Active Discussions</h3>
+                    <p className="text-2xl font-semibold text-gray-800">{studentStats.activeDiscussions}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Course Overview */}
+              <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm">
+                <h2 className="text-xl font-semibold mb-4">Your Courses</h2>
+                <div className="space-y-4">
+                  {courses.map(course => (
+                    <div key={course.id} className="border p-4 rounded-lg hover:border-blue-500 transition-colors">
+                      <div className="flex justify-between items-center mb-2">
+                        <h3 className="font-medium text-lg">{course.name}</h3>
+                        <span className="text-sm text-gray-500">{course.students} Students</span>
+                      </div>
+                      
+                      {/* Course Content Section */}
+                      <div className="mt-4 space-y-2">
+                        <div className="flex justify-between items-center">
+                          <h4 className="text-sm font-medium text-gray-700">Course Content</h4>
+                          <button
+                            onClick={() => {
+                              setSelectedCourseId(course.id);
+                              setIsAddContentModalOpen(true);
+                            }}
+                            className="flex items-center text-sm text-blue-600 hover:text-blue-800"
+                          >
+                            <PlusIcon className="w-4 h-4 mr-1" />
+                            Add Content
+                          </button>
+                        </div>
+                        
+                        {course.content.length > 0 ? (
+                          <div className="space-y-2">
+                            {course.content.map(item => (
+                              <div key={item.id} className="bg-gray-50 p-3 rounded-lg">
+                                <div className="flex items-center">
+                                  <DocumentTextIcon className="w-5 h-5 text-blue-500 mr-2" />
+                                  <div>
+                                    <h5 className="font-medium">{item.title}</h5>
+                                    <p className="text-sm text-gray-600">
+                                      {item.questions.length} questions
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-500 italic">No content added yet</p>
+                        )}
+                      </div>
+
+                      <div className="flex justify-between items-center text-sm text-gray-500 mt-4">
+                        <span>Next Class: {course.nextClass}</span>
+                        <span>Progress: {course.progress}%</span>
+                      </div>
+                      <div className="mt-2 bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full"
+                          style={{ width: `${course.progress}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Upcoming Tasks */}
+              <div className="bg-white p-6 rounded-xl shadow-sm">
+                <h2 className="text-xl font-semibold mb-4">Pending Tasks</h2>
+                <div className="space-y-4">
+                  {upcomingTasks.map(task => (
+                    <div key={task.id} className="border p-4 rounded-lg hover:border-blue-500 transition-colors">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="text-sm font-medium text-blue-600">{task.type}</span>
+                          <h3 className="font-medium mt-1">{task.task}</h3>
+                          <p className="text-sm text-gray-500">Due: {task.deadline}</p>
+                        </div>
+                        <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                          {task.count} items
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Class Overview Section */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              {courses.map((classData) => (
+                <div 
+                  key={classData.id}
+                  className="bg-white rounded-lg shadow p-6 cursor-pointer hover:shadow-lg transition"
+                  onClick={() => setSelectedClassOverview({
+                    id: classData.id,
+                    year: 1,
+                    className: classData.name,
+                    totalStudents: classData.students,
+                    averagePerformance: classData.progress,
+                    students: []
+                  })}
+                >
+                  <h3 className="text-xl font-bold mb-4">{classData.name}</h3>
+                  <p>Total Students: {classData.students}</p>
+                  <p>Average Performance: {classData.progress}%</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Analytics Section */}
+            {selectedClassOverview && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold">{selectedClassOverview.className} Analytics</h2>
+                  <button
+                    className="bg-blue-500 text-white px-4 py-2 rounded"
+                    onClick={() => setShowIndividualStudent(!showIndividualStudent)}
+                  >
+                    {showIndividualStudent ? 'Show Class Overview' : 'Show Individual Students'}
+                  </button>
+                </div>
+
+                {/* Class Performance Chart */}
+                {!showIndividualStudent ? (
+                  <BarChart
+                    width={1000}
+                    height={400}
+                    data={[selectedClassOverview]}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="className" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="averagePerformance" fill="#8884d8" name="Class Average Performance" />
+                  </BarChart>
+                ) : (
+                  // Individual Students Performance Chart
+                  <BarChart
+                    width={1000}
+                    height={400}
+                    data={selectedClassOverview.students}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="performance" fill="#82ca9d" name="Student Performance" />
+                  </BarChart>
+                )}
+              </div>
+            )}
+          </div>
+        );
+
       default:
         return (
           <div className="space-y-6">
@@ -986,6 +1247,13 @@ const TeacherDashboard = () => {
           setScheduledClasses([...scheduledClasses, newClass]);
           setIsScheduleClassModalOpen(false);
         }}
+      />
+
+      <AddCourseContentModal
+        isOpen={isAddContentModalOpen}
+        onClose={() => setIsAddContentModalOpen(false)}
+        onSubmit={handleAddContent}
+        courseId={selectedCourseId || 0}
       />
 
       {/* Add Admin Access Button if user has admin privileges */}
