@@ -27,6 +27,7 @@ import axios from "axios";
 import UserManagementModal from "../../components/modals/UserManagementModal";
 import Finance from "./admincomponents/Finance";
 import Departments from "./admincomponents/Departments";
+import CreateSchoolModal, { SchoolFormData } from "../../components/modals/CreateSchoolModal";
 
 // Add Course related interfaces
 interface Course {
@@ -51,7 +52,29 @@ interface Course {
   prerequisites: string[];
 }
 
+// Add School interface
+interface School {
+  id: string;
+  name: string;
+  code: string;
+  description: string;
+  status: "active" | "inactive";
+  departments: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Add Department interface
+interface Department {
+  id: string;
+  name: string;
+  code: string;
+  schoolId: string;
+  description: string;
+  status: "active" | "inactive";
+  createdAt: string;
+  updatedAt: string;
+}
 
 // Add new interfaces for settings
 interface SystemSettings {
@@ -182,7 +205,32 @@ const AdminDashboard = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [userModalMode, setUserModalMode] = useState<"edit" | "delete">("edit");
 
-  
+  // Add state for schools
+  const [schools, setSchools] = useState<School[]>([
+    {
+      id: "1",
+      name: "School of Pure and Applied Sciences",
+      code: "SPAS",
+      description: "School offering pure and applied sciences programs",
+      status: "active",
+      departments: ["Computer Science", "Mathematics", "Physics"],
+      createdAt: "2024-01-01",
+      updatedAt: "2024-01-01",
+    },
+    {
+      id: "2",
+      name: "School of Business and Economics",
+      code: "SBE",
+      description: "School offering business and economics programs",
+      status: "active",
+      departments: ["Business Administration", "Economics", "Finance"],
+      createdAt: "2024-01-01",
+      updatedAt: "2024-01-01",
+    },
+  ]);
+
+  const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
+  const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
 
   async function deleteUser(userId: string) {
     try {
@@ -239,8 +287,6 @@ const AdminDashboard = () => {
     },
   });
 
-
-
   const handleCreateCourse = (courseData: CourseFormData) => {
     const newCourse: Course = {
       ...courseData,
@@ -272,9 +318,37 @@ const AdminDashboard = () => {
     setUsers([...users, newUser]);
   };
 
-  const renderContent = () => {
-    
+  const handleCreateSchool = (schoolData: SchoolFormData) => {
+    const newSchool: School = {
+      ...schoolData,
+      id: String(schools.length + 1),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    setSchools([...schools, newSchool]);
+  };
 
+  const handleEditSchool = (schoolData: SchoolFormData) => {
+    setSchools(
+      schools.map((school) =>
+        school.id === selectedSchool?.id
+          ? {
+              ...school,
+              ...schoolData,
+              updatedAt: new Date().toISOString(),
+            }
+          : school
+      )
+    );
+  };
+
+  const handleDeleteSchool = (schoolId: string) => {
+    if (window.confirm("Are you sure you want to delete this school?")) {
+      setSchools(schools.filter((school) => school.id !== schoolId));
+    }
+  };
+
+  const renderContent = () => {
     switch (activeTab) {
       case "overview":
         return (
@@ -375,6 +449,151 @@ const AdminDashboard = () => {
                 </div>
               </div>
             </div>
+          </div>
+        );
+
+      case "schools":
+        return (
+          <div className="space-y-4 sm:space-y-6">
+            {/* Header with Actions */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
+                School Management
+              </h2>
+              <button
+                onClick={() => {
+                  setSelectedSchool(null);
+                  setIsSchoolModalOpen(true);
+                }}
+                className="flex-1 sm:flex-none bg-purple-500 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors flex items-center justify-center"
+              >
+                <BuildingLibraryIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                <span className="text-sm sm:text-base">Add New School</span>
+              </button>
+            </div>
+
+            {/* Schools Table */}
+            <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200">
+              <div className="overflow-x-auto">
+                <div className="inline-block min-w-full align-middle">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th
+                          scope="col"
+                          className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          School Name
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          Code
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          Departments
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          Status
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider"
+                        >
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {schools.map((school) => (
+                        <tr key={school.id} className="hover:bg-gray-50">
+                          <td className="px-3 sm:px-6 py-2 sm:py-4">
+                            <div className="text-xs sm:text-sm font-medium text-gray-900">
+                              {school.name}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {school.description}
+                            </div>
+                          </td>
+                          <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+                            <div className="text-xs sm:text-sm text-gray-500">
+                              {school.code}
+                            </div>
+                          </td>
+                          <td className="px-3 sm:px-6 py-2 sm:py-4">
+                            <div className="flex flex-wrap gap-1">
+                              {school.departments.map((dept) => (
+                                <span
+                                  key={dept}
+                                  className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800"
+                                >
+                                  {dept}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+                            <span
+                              className={`px-2 py-1 text-xs sm:text-sm font-medium rounded-full ${
+                                school.status === "active"
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {school.status}
+                            </span>
+                          </td>
+                          <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
+                            <div className="flex space-x-2 sm:space-x-3">
+                              <button
+                                onClick={() => {
+                                  setSelectedSchool(school);
+                                  setIsSchoolModalOpen(true);
+                                }}
+                                className="text-blue-600 hover:text-blue-900"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteSchool(school.id)}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* School Create/Edit Modal */}
+            <CreateSchoolModal
+              isOpen={isSchoolModalOpen}
+              onClose={() => {
+                setIsSchoolModalOpen(false);
+                setSelectedSchool(null);
+              }}
+              onSubmit={(schoolData) => {
+                if (selectedSchool) {
+                  handleEditSchool(schoolData);
+                } else {
+                  handleCreateSchool(schoolData);
+                }
+                setIsSchoolModalOpen(false);
+              }}
+              editData={selectedSchool || undefined}
+            />
           </div>
         );
 
@@ -1395,13 +1614,10 @@ const AdminDashboard = () => {
           <nav className="space-y-2">
             {[
               { id: "overview", icon: ChartBarIcon, label: "Overview" },
+              { id: "schools", icon: BuildingLibraryIcon, label: "Schools" },
+              { id: "departments", icon: BuildingLibraryIcon, label: "Departments" },
               { id: "users", icon: UsersIcon, label: "User Management" },
               { id: "courses", icon: BookOpenIcon, label: "Course Management" },
-              {
-                id: "departments",
-                icon: BuildingLibraryIcon,
-                label: "Departments",
-              },
               {
                 id: "finance",
                 icon: CurrencyDollarIcon,
