@@ -23,7 +23,7 @@ import { User, Student, Teacher } from "../../types/user";
 
 import "react-datepicker/dist/react-datepicker.css";
 
-import axios from "axios";
+import { userService } from '../../services/userService';
 import UserManagementModal from "../../components/modals/UserManagementModal";
 import Finance from "./admincomponents/Finance";
 import Departments from "./admincomponents/Departments";
@@ -129,9 +129,8 @@ const AdminDashboard = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await axios.get("http://localhost:5000/api/users/users");
-      console.log(response.data);
-      setUsers(response.data); // Assuming the response data is an array of users
+      const usersData = await userService.getUsers();
+      setUsers(usersData);
     } catch (error) {
       console.error("Error fetching users:", error);
       alert("Failed to fetch users. Please try again later.");
@@ -234,9 +233,7 @@ const AdminDashboard = () => {
 
   async function deleteUser(userId: string) {
     try {
-      const response = await axios.delete(
-        `http://localhost:5000/api/users/${userId}`
-      );
+      const response = await userService.deleteUser(userId);
 
       if (response.status === 200 || response.status === 204) {
         // Remove user from local state
@@ -247,7 +244,7 @@ const AdminDashboard = () => {
       }
     } catch (error: unknown) {
       console.error("Error deleting user:", error);
-      if (axios.isAxiosError(error)) {
+      if (userService.isAxiosError(error)) {
         throw new Error(
           error.response?.data?.message || "Failed to delete user"
         );
@@ -1527,10 +1524,7 @@ const AdminDashboard = () => {
           }
         }
       } else if (userData) {
-        const response = await axios.put(
-          `http://localhost:5000/api/users/${selectedUser?.id}`,
-          userData
-        );
+        const response = await userService.updateUser(selectedUser?.id, userData);
         if (response.status === 200) {
           alert("User updated successfully");
           setSelectedUser(null);
