@@ -1,96 +1,132 @@
-import { databases, account } from '../config/appwrite';
-import { DATABASE_ID, COLLECTIONS } from '../config/appwrite';
-import { ID, Query } from 'appwrite';
 import { User } from '../types/user';
 
-export const userService = {
-    // Get all users
-    async getUsers() {
-        try {
-            const response = await databases.listDocuments(
-                DATABASE_ID,
-                COLLECTIONS.USERS
-            );
-            return response.documents;
-        } catch (error) {
-            console.error('Error fetching users:', error);
-            throw error;
-        }
-    },
+const API_URL = 'http://localhost/E-learning/api';
 
-    // Get user by ID
-    async getUserById(userId: string) {
-        try {
-            const response = await databases.getDocument(
-                DATABASE_ID,
-                COLLECTIONS.USERS,
-                userId
-            );
-            return response;
-        } catch (error) {
-            console.error('Error fetching user:', error);
-            throw error;
-        }
-    },
+interface LoginResponse {
+    success: boolean;
+    token: string;
+    user: User;
+}
 
-    // Create new user
-    async createUser(userData: Omit<User, '$id'>) {
-        try {
-            const response = await databases.createDocument(
-                DATABASE_ID,
-                COLLECTIONS.USERS,
-                ID.unique(),
-                userData
-            );
-            return response;
-        } catch (error) {
-            console.error('Error creating user:', error);
-            throw error;
-        }
-    },
+interface ApiError {
+    error: string;
+}
 
-    // Update user
-    async updateUser(userId: string, userData: Partial<User>) {
-        try {
-            const response = await databases.updateDocument(
-                DATABASE_ID,
-                COLLECTIONS.USERS,
-                userId,
-                userData
-            );
-            return response;
-        } catch (error) {
-            console.error('Error updating user:', error);
-            throw error;
+class UserService {
+    private async handleResponse<T>(response: Response): Promise<T> {
+        const data = await response.json();
+        console.log('API Response:', {
+            status: response.status,
+            statusText: response.statusText,
+            data: data
+        });
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'An error occurred');
         }
-    },
+        
+        return data;
+    }
 
-    // Delete user
-    async deleteUser(userId: string) {
+    async login(email: string, password: string): Promise<LoginResponse> {
         try {
-            await databases.deleteDocument(
-                DATABASE_ID,
-                COLLECTIONS.USERS,
-                userId
-            );
-        } catch (error) {
-            console.error('Error deleting user:', error);
-            throw error;
-        }
-    },
+            console.log('Attempting login with:', { email });
+            const response = await fetch(`${API_URL}/auth/login.php`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ email, password }),
+            });
 
-    // Get users by role
-    async getUsersByRole(role: string) {
-        try {
-            const response = await databases.listDocuments(
-                DATABASE_ID,
-                COLLECTIONS.USERS,
-                [Query.equal('role', role)]
-            );
-            return response.documents;
+            const data = await response.json();
+            console.log('Login response:', {
+                status: response.status,
+                data: data
+            });
+            
+            if (!response.ok) {
+                throw new Error(data.error || 'Login failed');
+            }
+            
+            if (!data.success) {
+                throw new Error(data.error || 'Login failed');
+            }
+            
+            return data;
         } catch (error) {
-            console.error('Error fetching users by role:', error);
+            console.error('Login error:', error);
             throw error;
         }
     }
-}; 
+
+    async createUser(userData: Omit<User, 'id'> & { password: string }): Promise<User> {
+        try {
+            console.log('Attempting to create user:', { ...userData, password: '[REDACTED]' });
+            const response = await fetch(`${API_URL}/auth/register.php`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(userData),
+            });
+
+            const data = await response.json();
+            console.log('Registration response:', {
+                status: response.status,
+                data: data
+            });
+            
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to create user');
+            }
+            
+            if (!data.success) {
+                throw new Error(data.error || 'Failed to create user');
+            }
+            
+            return data.user;
+        } catch (error) {
+            console.error('Registration error:', error);
+            throw error;
+        }
+    }
+
+    async getAllUsers(): Promise<User[]> {
+        const token = localStorage.getItem('token');
+        if (!token) throw new Error('No authentication token found');
+
+        const response = await fetch(`${API_URL}/users/get_all.php`, {
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json'
+            },
+        });
+        return this.handleResponse<User[]>(response);
+    }
+
+    async updateUserStatus(userId: string, status: string): Promise<User> {
+        const token = localStorage.getItem('token');
+        if (!token) throw new Error('No authentication token found');
+
+        const response = await fetch(`${API_URL}/users/update_status.php`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ userId, status }),
+        });
+        return this.handleResponse<User>(response);
+    }
+
+    async logout(): Promise<void> {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+    }
+}
+
+export const userService = new UserService(); 

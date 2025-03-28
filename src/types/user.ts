@@ -1,12 +1,14 @@
 export interface User {
-    $id: string;
-    $createdAt: string;
-    $updatedAt: string;
+    id?: string;
+    $id?: string;
+    $createdAt?: string;
+    $updatedAt?: string;
     firstName: string;
     lastName: string;
     email: string;
-    role: 'admin' | 'teacher' | 'student';
-    status: 'active' | 'inactive';
+    password?: string;
+    role: 'admin' | 'teacher' | 'student' | 'parent';
+    status?: 'active' | 'inactive' | 'suspended';
     phone?: string;
     address?: string;
     profilePicture?: string;
@@ -36,6 +38,13 @@ export interface Teacher extends User {
     }[];
 }
 
+export interface Parent extends User {
+    role: 'parent';
+    children?: string[];
+    phone: string;
+    address: string;
+}
+
 export interface Guardian {
   name: string;
   relationship: string;
@@ -45,4 +54,4 @@ export interface Guardian {
   nationalId: string;
 }
 
-export type User = Student | Teacher; 
+export type User = Student | Teacher | Parent; 

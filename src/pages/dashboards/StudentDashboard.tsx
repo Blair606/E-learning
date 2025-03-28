@@ -410,6 +410,17 @@ const StudentDashboard = () => {
   const [isContentModalOpen, setIsContentModalOpen] = useState(false);
   const [selectedContent, setSelectedContent] = useState<CourseContent | null>(null);
 
+  // Add new state for guardian details
+  const [guardianDetails, setGuardianDetails] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phoneNumber: '',
+    relationship: '',
+    address: '',
+    isRegistered: false
+  });
+
   // Add new function to handle answering questions
   const handleAnswerQuestion = (unitId: number, contentId: string, questionId: string, selectedAnswer: number) => {
     setCurrentUnits(units => units.map(unit => {
@@ -452,6 +463,23 @@ const StudentDashboard = () => {
       }
       return unit;
     }));
+  };
+
+  // Add new function to handle guardian registration
+  const handleGuardianRegistration = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      // Here you would typically make an API call to register the guardian
+      // For now, we'll just update the local state
+      setGuardianDetails(prev => ({
+        ...prev,
+        isRegistered: true
+      }));
+      // You would also need to create a guardian account in your backend
+      // with the phone number as password and the provided email
+    } catch (error) {
+      console.error('Failed to register guardian:', error);
+    }
   };
 
   // Add ContentModal component
@@ -1141,6 +1169,111 @@ const StudentDashboard = () => {
                 </div>
               </div>
 
+              {/* Guardian Information */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-3">Guardian Information</h3>
+                {guardianDetails.isRegistered ? (
+                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-medium text-green-800">
+                          {guardianDetails.firstName} {guardianDetails.lastName}
+                        </h4>
+                        <p className="text-sm text-green-700">{guardianDetails.relationship}</p>
+                        <p className="text-sm text-green-700">{guardianDetails.email}</p>
+                        <p className="text-sm text-green-700">{guardianDetails.phoneNumber}</p>
+                      </div>
+                      <button 
+                        onClick={() => setGuardianDetails(prev => ({ ...prev, isRegistered: false }))}
+                        className="text-sm text-green-600 hover:text-green-700"
+                      >
+                        Edit Details
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <form onSubmit={handleGuardianRegistration} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">First Name</label>
+                        <input
+                          type="text"
+                          required
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          value={guardianDetails.firstName}
+                          onChange={(e) => setGuardianDetails(prev => ({ ...prev, firstName: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Last Name</label>
+                        <input
+                          type="text"
+                          required
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                          value={guardianDetails.lastName}
+                          onChange={(e) => setGuardianDetails(prev => ({ ...prev, lastName: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Relationship</label>
+                      <select
+                        required
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        value={guardianDetails.relationship}
+                        onChange={(e) => setGuardianDetails(prev => ({ ...prev, relationship: e.target.value }))}
+                      >
+                        <option value="">Select relationship</option>
+                        <option value="Father">Father</option>
+                        <option value="Mother">Mother</option>
+                        <option value="Guardian">Guardian</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Email</label>
+                      <input
+                        type="email"
+                        required
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        value={guardianDetails.email}
+                        onChange={(e) => setGuardianDetails(prev => ({ ...prev, email: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Phone Number</label>
+                      <input
+                        type="tel"
+                        required
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        value={guardianDetails.phoneNumber}
+                        onChange={(e) => setGuardianDetails(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                      />
+                      <p className="mt-1 text-sm text-gray-500">
+                        This will be used as the password for guardian login
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Address</label>
+                      <textarea
+                        required
+                        rows={3}
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        value={guardianDetails.address}
+                        onChange={(e) => setGuardianDetails(prev => ({ ...prev, address: e.target.value }))}
+                      />
+                    </div>
+                    <div className="flex justify-end">
+                      <button
+                        type="submit"
+                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                      >
+                        Register Guardian
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+
               {/* Achievements */}
               <div>
                 <h3 className="text-lg font-semibold mb-3">Achievements</h3>
@@ -1154,8 +1287,8 @@ const StudentDashboard = () => {
                 </div>
               </div>
 
-              {/* Add this new section for semester activation status */}
-              <div className="mb-6">
+              {/* Current Semester Status */}
+              <div className="mt-6">
                 <h3 className="text-lg font-semibold mb-3">Current Semester Status</h3>
                 <div className="p-4 rounded-lg border-2 border-gray-100">
                   <div className="flex justify-between items-center mb-4">

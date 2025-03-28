@@ -7,21 +7,19 @@ interface SignUpError {
     message: string;
 }
 
-const SignUp: React.FC = () => {
+const AdminSignUp: React.FC = () => {
     const navigate = useNavigate();
     const [formData, setFormData] = useState({
         email: '',
         password: '',
         confirmPassword: '',
         firstName: '',
-        lastName: '',
-        role: 'student' as User['role'],
-        status: 'active' as User['status']
+        lastName: ''
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
@@ -32,26 +30,27 @@ const SignUp: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        setLoading(true);
 
         if (formData.password !== formData.confirmPassword) {
             setError('Passwords do not match');
-            setLoading(false);
             return;
         }
 
+        setLoading(true);
+
         try {
-            await userService.createUser({
+            const userData: Omit<User, 'id'> = {
+                $id: '',
+                $createdAt: new Date().toISOString(),
+                $updatedAt: new Date().toISOString(),
                 email: formData.email,
                 firstName: formData.firstName,
                 lastName: formData.lastName,
-                role: formData.role,
-                status: formData.status,
-                $id: '', // Will be set by the server
-                $createdAt: new Date().toISOString(),
-                $updatedAt: new Date().toISOString()
-            });
-            navigate(`/signin/${formData.role}`);
+                role: 'admin',
+                status: 'active'
+            };
+            await userService.createUser(userData);
+            navigate('/signin/admin');
         } catch (err) {
             const error = err as SignUpError;
             setError(error.message || 'Failed to create account');
@@ -65,7 +64,7 @@ const SignUp: React.FC = () => {
             <div className="max-w-md w-full space-y-8">
                 <div>
                     <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-                        Create your account
+                        Administrator Sign Up
                     </h2>
                 </div>
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -144,27 +143,11 @@ const SignUp: React.FC = () => {
                                 name="confirmPassword"
                                 type="password"
                                 required
-                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                                 placeholder="Confirm Password"
                                 value={formData.confirmPassword}
                                 onChange={handleChange}
                             />
-                        </div>
-                        <div>
-                            <label htmlFor="role" className="sr-only">
-                                Role
-                            </label>
-                            <select
-                                id="role"
-                                name="role"
-                                required
-                                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                                value={formData.role}
-                                onChange={handleChange}
-                            >
-                                <option value="student">Student</option>
-                                <option value="teacher">Teacher</option>
-                            </select>
                         </div>
                     </div>
 
@@ -180,8 +163,8 @@ const SignUp: React.FC = () => {
                 </form>
                 <div className="text-center">
                     <p className="text-sm text-gray-600">
-                        Already have an account?{' '}
-                        <a href="/signin" className="font-medium text-indigo-600 hover:text-indigo-500">
+                        Already have an admin account?{' '}
+                        <a href="/signin/admin" className="font-medium text-indigo-600 hover:text-indigo-500">
                             Sign in
                         </a>
                     </p>
@@ -191,4 +174,4 @@ const SignUp: React.FC = () => {
     );
 };
 
-export default SignUp; 
+export default AdminSignUp; 

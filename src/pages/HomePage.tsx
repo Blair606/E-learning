@@ -1,53 +1,35 @@
-import { useDispatch } from 'react-redux';
-import { setUser } from '../store/slices/authSlice';
 import { useNavigate } from 'react-router-dom';
 import {
   UserGroupIcon,
   AcademicCapIcon,
   UserIcon,
-  Bars3Icon,
-  XMarkIcon,
 } from '@heroicons/react/24/outline';
-import { useState } from 'react';
 import Navbar from '../layout/Navbar';
 import Footer from '../layout/Footer';
 
 const HomePage = () => {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
-
-  const handleLogin = (role: 'teacher' | 'student' | 'admin') => {
-    dispatch(setUser({
-      id: '1',
-      name: `Test ${role.charAt(0).toUpperCase() + role.slice(1)}`,
-      email: `test${role}@example.com`,
-      role,
-      isAdmin: role === 'teacher'
-    }));
-
-    navigate(role === 'admin' ? '/admin' : `/dashboard/${role}`);
-  };
 
   const roles = [
     {
       title: 'Student Portal',
       description: 'Access your courses, assignments, and track your academic progress',
       icon: UserIcon,
-      path: '/dashboard/student',
+      path: '/login/student',
       color: 'bg-blue-500 hover:bg-blue-600',
     },
     {
       title: 'Teacher Portal',
       description: 'Manage courses, students, and track academic performance',
       icon: AcademicCapIcon,
-      path: '/dashboard/teacher',
+      path: '/login/teacher',
       color: 'bg-green-500 hover:bg-green-600',
     },
     {
       title: 'Parent Portal',
       description: 'Monitor your child\'s progress and manage finances',
       icon: UserGroupIcon,
-      path: '/dashboard/parent',
+      path: '/login/parent',
       color: 'bg-purple-500 hover:bg-purple-600',
     },
   ];
@@ -83,7 +65,7 @@ const HomePage = () => {
                 </div>
                 <div className="p-4 md:p-6">
                   <button
-                    onClick={() => handleLogin(role.path.split('/')[2] as 'teacher' | 'student' | 'admin')}
+                    onClick={() => navigate(role.path)}
                     className="w-full bg-gray-900 text-white py-2 md:py-3 px-4 md:px-6 rounded-lg hover:bg-gray-800 transition-colors"
                   >
                     Access Portal

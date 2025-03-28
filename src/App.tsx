@@ -1,64 +1,23 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import HomePage from './pages/HomePage'
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router } from 'react-router-dom';
+import { Provider } from 'react-redux';
+import { store } from './store';
+import AppRoutes from './routes';
+import { initializeAuth } from './store/slices/authSlice';
 
-import StudentDashboard from './pages/dashboards/StudentDashboard'
-import TeacherDashboard from './pages/dashboards/TeacherDashboard'
-import ParentDashboard from './pages/dashboards/ParentDashboard'
-import AdminDashboard from './pages/dashboards/AdminDashboard'
-import { Provider } from 'react-redux'
-import { store } from './store/store'
-import ProtectedRoute from './components/ProtectedRoute'
-import Login from './pages/Login'
-import SignUpPage from './pages/SignUpPage'
-import { AuthProvider } from './contexts/AuthContext'
+const App: React.FC = () => {
+    useEffect(() => {
+        // Initialize auth state from localStorage
+        store.dispatch(initializeAuth());
+    }, []);
 
-function App() {
-  return (
-    // <AuthProvider>
-      <Provider store={store}>
-        <Router>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route 
-              path="/dashboard/student" 
-              element={
-                // <ProtectedRoute requiredRole="student">
-                  <StudentDashboard />
-                // </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/dashboard/teacher" 
-              element={
-                // <ProtectedRoute requiredRole="teacher">
-                  <TeacherDashboard />
-                // </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/dashboard/parent" 
-              element={
-                // <ProtectedRoute requiredRole="parent">
-                  <ParentDashboard />
-                // </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin" 
-              element={
-                // <ProtectedRoute requiredRole="admin">
-                  <AdminDashboard />
-                // </ProtectedRoute>
-              } 
-            />
-            <Route path='/signin' element={<Login /> } />
-            <Route path='/signup' element={<SignUpPage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Router>
-      </Provider>
-    // </AuthProvider>
-  )
-}
+    return (
+        <Provider store={store}>
+            <Router>
+                <AppRoutes />
+            </Router>
+        </Provider>
+    );
+};
 
-export default App
+export default App;
