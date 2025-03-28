@@ -11,6 +11,21 @@ interface ApiError {
     error: string;
 }
 
+// Helper function to convert snake_case to camelCase
+const convertToCamelCase = (obj: any): any => {
+    if (Array.isArray(obj)) {
+        return obj.map(item => convertToCamelCase(item));
+    }
+    if (obj !== null && typeof obj === 'object') {
+        return Object.keys(obj).reduce((result, key) => {
+            const camelKey = key.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+            result[camelKey] = convertToCamelCase(obj[key]);
+            return result;
+        }, {} as any);
+    }
+    return obj;
+};
+
 class UserService {
     async login(email: string, password: string): Promise<LoginResponse> {
         try {
@@ -28,7 +43,7 @@ class UserService {
             return {
                 success: true,
                 token: data.token,
-                user: data.user
+                user: convertToCamelCase(data.user)
             };
         } catch (error) {
             if (error instanceof Error) {
@@ -47,7 +62,7 @@ class UserService {
                 throw new Error(data.error || 'Failed to create user');
             }
             
-            return data.user;
+            return convertToCamelCase(data.user);
         } catch (error) {
             if (error instanceof Error) {
                 throw new Error(error.message);
@@ -59,7 +74,7 @@ class UserService {
     async getAllUsers(): Promise<User[]> {
         try {
             const response = await api.get('/users/index.php');
-            return response.data;
+            return convertToCamelCase(response.data);
         } catch (error) {
             if (error instanceof Error) {
                 throw new Error(error.message);
@@ -71,7 +86,7 @@ class UserService {
     async updateUserStatus(userId: string, status: string): Promise<User> {
         try {
             const response = await api.post('/users/update_status.php', { userId, status });
-            return response.data;
+            return convertToCamelCase(response.data);
         } catch (error) {
             if (error instanceof Error) {
                 throw new Error(error.message);

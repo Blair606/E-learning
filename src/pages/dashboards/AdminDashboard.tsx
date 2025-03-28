@@ -735,7 +735,7 @@ const AdminDashboard = () => {
                         <tr key={user.id} className="hover:bg-gray-50">
                           <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
                             <div className="text-xs sm:text-sm font-medium text-gray-900">
-                              {user.firstName}
+                              {user.firstName} {user.lastName}
                             </div>
                           </td>
                           <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">

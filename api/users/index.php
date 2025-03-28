@@ -68,7 +68,7 @@ switch($method) {
             }
         } else {
             // Get all users
-            $query = "SELECT id, email, role, created_at FROM users";
+            $query = "SELECT id, email, role, created_at, first_name, last_name, status FROM users";
             $stmt = $db->prepare($query);
             $stmt->execute();
             
