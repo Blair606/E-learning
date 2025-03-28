@@ -41,23 +41,30 @@ const TeacherSignIn: React.FC = () => {
 
         try {
             const response = await userService.login(formData.email, formData.password);
+            console.log('Login response:', response);
+            
             if (response.token && (response.user.role === 'teacher' || response.user.role === 'admin')) {
+                console.log('User role:', response.user.role);
                 dispatch(setUser(response.user));
                 localStorage.setItem('token', response.token);
                 localStorage.setItem('user', JSON.stringify(response.user));
                 
                 // Redirect based on role
                 if (response.user.role === 'admin') {
+                    console.log('Redirecting to admin dashboard');
                     navigate('/dashboard/admin');
                 } else {
                     const from = (location.state as LocationState)?.from?.pathname || '/dashboard/teacher';
+                    console.log('Redirecting to teacher dashboard');
                     navigate(from);
                 }
             } else {
+                console.log('Invalid role:', response.user.role);
                 setError('This account is not registered as a teacher or admin');
             }
         } catch (err) {
             const error = err as SignInError;
+            console.error('Login error:', error);
             setError(error.message || 'Failed to sign in');
         } finally {
             setLoading(false);

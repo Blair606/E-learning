@@ -98,7 +98,7 @@ class UserService {
         const token = localStorage.getItem('token');
         if (!token) throw new Error('No authentication token found');
 
-        const response = await fetch(`${API_URL}/users/get_all.php`, {
+        const response = await fetch(`${API_URL}/users/index.php`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Accept': 'application/json'

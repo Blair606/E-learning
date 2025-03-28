@@ -7,8 +7,13 @@ header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers
 
 include_once '../config/database.php';
 
-$database = new Database();
-$db = $database->getConnection();
+try {
+    $db = getConnection();
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(array("message" => "Database connection failed"));
+    exit();
+}
 
 $method = $_SERVER['REQUEST_METHOD'];
 

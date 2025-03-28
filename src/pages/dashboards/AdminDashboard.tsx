@@ -129,7 +129,7 @@ const AdminDashboard = () => {
 
   const fetchUsers = async () => {
     try {
-      const usersData = await userService.getUsers();
+      const usersData = await userService.getAllUsers();
       setUsers(usersData);
     } catch (error) {
       console.error("Error fetching users:", error);
