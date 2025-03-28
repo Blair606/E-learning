@@ -14,37 +14,27 @@ interface ApiError {
 
 class UserService {
     private async handleResponse<T>(response: Response): Promise<T> {
-        const data = await response.json();
-        console.log('API Response:', {
-            status: response.status,
-            statusText: response.statusText,
-            data: data
-        });
-        
         if (!response.ok) {
-            throw new Error(data.error || 'An error occurred');
+            const errorData = await response.json().catch(() => ({ message: 'Network error occurred' }));
+            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
         }
         
+        const data = await response.json();
         return data;
     }
 
     async login(email: string, password: string): Promise<LoginResponse> {
         try {
-            console.log('Attempting login with:', { email });
             const response = await fetch(`${API_URL}/auth/login.php`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify({ email, password }),
+                body: JSON.stringify({ email, password })
             });
 
             const data = await response.json();
-            console.log('Login response:', {
-                status: response.status,
-                data: data
-            });
             
             if (!response.ok) {
                 throw new Error(data.error || 'Login failed');
@@ -55,7 +45,6 @@ class UserService {
             }
             
             if (!data.token || !data.user) {
-                console.error('Invalid response format:', data);
                 throw new Error('Invalid response format from server');
             }
             
@@ -65,7 +54,6 @@ class UserService {
                 user: data.user
             };
         } catch (error) {
-            console.error('Login error:', error);
             if (error instanceof Error) {
                 throw new Error(error.message);
             }
@@ -75,21 +63,16 @@ class UserService {
 
     async createUser(userData: Omit<User, 'id'> & { password: string }): Promise<User> {
         try {
-            console.log('Attempting to create user:', { ...userData, password: '[REDACTED]' });
             const response = await fetch(`${API_URL}/auth/register.php`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify(userData),
+                body: JSON.stringify(userData)
             });
 
             const data = await response.json();
-            console.log('Registration response:', {
-                status: response.status,
-                data: data
-            });
             
             if (!response.ok) {
                 throw new Error(data.error || 'Failed to create user');
@@ -101,8 +84,10 @@ class UserService {
             
             return data.user;
         } catch (error) {
-            console.error('Registration error:', error);
-            throw error;
+            if (error instanceof Error) {
+                throw new Error(error.message);
+            }
+            throw new Error('An unexpected error occurred during registration');
         }
     }
 
@@ -110,29 +95,43 @@ class UserService {
         const token = localStorage.getItem('token');
         if (!token) throw new Error('No authentication token found');
 
-        const response = await fetch(`${API_URL}/users/index.php`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/json'
-            },
-        });
-        return this.handleResponse<User[]>(response);
+        try {
+            const response = await fetch(`${API_URL}/users/index.php`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+            return this.handleResponse<User[]>(response);
+        } catch (error) {
+            if (error instanceof Error) {
+                throw new Error(error.message);
+            }
+            throw new Error('Failed to fetch users');
+        }
     }
 
     async updateUserStatus(userId: string, status: string): Promise<User> {
         const token = localStorage.getItem('token');
         if (!token) throw new Error('No authentication token found');
 
-        const response = await fetch(`${API_URL}/users/update_status.php`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({ userId, status }),
-        });
-        return this.handleResponse<User>(response);
+        try {
+            const response = await fetch(`${API_URL}/users/update_status.php`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ userId, status })
+            });
+            return this.handleResponse<User>(response);
+        } catch (error) {
+            if (error instanceof Error) {
+                throw new Error(error.message);
+            }
+            throw new Error('Failed to update user status');
+        }
     }
 
     async logout(): Promise<void> {
