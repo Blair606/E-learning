@@ -28,6 +28,7 @@ import UserManagementModal from "../../components/modals/UserManagementModal";
 import Finance from "./admincomponents/Finance";
 import Departments from "./admincomponents/Departments";
 import CreateSchoolModal, { SchoolFormData } from "../../components/modals/CreateSchoolModal";
+import { schoolService, School } from '../../services/schoolService';
 
 // Add Course related interfaces
 interface Course {
@@ -205,31 +206,24 @@ const AdminDashboard = () => {
   const [userModalMode, setUserModalMode] = useState<"edit" | "delete">("edit");
 
   // Add state for schools
-  const [schools, setSchools] = useState<School[]>([
-    {
-      id: "1",
-      name: "School of Pure and Applied Sciences",
-      code: "SPAS",
-      description: "School offering pure and applied sciences programs",
-      status: "active",
-      departments: ["Computer Science", "Mathematics", "Physics"],
-      createdAt: "2024-01-01",
-      updatedAt: "2024-01-01",
-    },
-    {
-      id: "2",
-      name: "School of Business and Economics",
-      code: "SBE",
-      description: "School offering business and economics programs",
-      status: "active",
-      departments: ["Business Administration", "Economics", "Finance"],
-      createdAt: "2024-01-01",
-      updatedAt: "2024-01-01",
-    },
-  ]);
+  const [schools, setSchools] = useState<School[]>([]);
 
   const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
+
+  useEffect(() => {
+    const fetchSchools = async () => {
+      try {
+        const schoolsData = await schoolService.getAllSchools();
+        setSchools(schoolsData);
+      } catch (error) {
+        console.error('Error fetching schools:', error);
+        // You might want to show an error message to the user here
+      }
+    };
+
+    fetchSchools();
+  }, []);
 
   async function deleteUser(userId: string) {
     try {
@@ -315,34 +309,55 @@ const AdminDashboard = () => {
     setUsers([...users, newUser]);
   };
 
-  const handleCreateSchool = (schoolData: SchoolFormData) => {
-    const newSchool: School = {
-      ...schoolData,
-      id: String(schools.length + 1),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    setSchools([...schools, newSchool]);
-  };
-
-  const handleEditSchool = (schoolData: SchoolFormData) => {
-    setSchools(
-      schools.map((school) =>
-        school.id === selectedSchool?.id
-          ? {
-              ...school,
-              ...schoolData,
-              updatedAt: new Date().toISOString(),
-            }
-          : school
-      )
-    );
-  };
-
-  const handleDeleteSchool = (schoolId: string) => {
-    if (window.confirm("Are you sure you want to delete this school?")) {
-      setSchools(schools.filter((school) => school.id !== schoolId));
+  const handleCreateSchool = async (schoolData: SchoolFormData) => {
+    try {
+      const response = await schoolService.createSchool(schoolData);
+      // Refresh the schools list
+      const updatedSchools = await schoolService.getAllSchools();
+      setSchools(updatedSchools);
+      return true;
+    } catch (error) {
+      console.error('Error creating school:', error);
+      // You might want to show an error message to the user here
+      return false;
     }
+  };
+
+  const handleEditSchool = async (schoolData: SchoolFormData) => {
+    try {
+      if (!selectedSchool) return false;
+      
+      const response = await schoolService.updateSchool({
+        ...schoolData,
+        id: selectedSchool.id
+      });
+      
+      // Refresh the schools list
+      const updatedSchools = await schoolService.getAllSchools();
+      setSchools(updatedSchools);
+      return true;
+    } catch (error) {
+      console.error('Error updating school:', error);
+      // You might want to show an error message to the user here
+      return false;
+    }
+  };
+
+  const handleDeleteSchool = async (schoolId: string) => {
+    if (window.confirm("Are you sure you want to delete this school?")) {
+      try {
+        const response = await schoolService.deleteSchool(parseInt(schoolId));
+        // Refresh the schools list
+        const updatedSchools = await schoolService.getAllSchools();
+        setSchools(updatedSchools);
+        return true;
+      } catch (error) {
+        console.error('Error deleting school:', error);
+        // You might want to show an error message to the user here
+        return false;
+      }
+    }
+    return false;
   };
 
   const renderContent = () => {

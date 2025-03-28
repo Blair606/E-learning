@@ -1,6 +1,5 @@
+import api from '../config/api';
 import { User } from '../types/user';
-
-const API_URL = 'http://localhost/E-learning/api';
 
 interface LoginResponse {
     success: boolean;
@@ -13,32 +12,10 @@ interface ApiError {
 }
 
 class UserService {
-    private async handleResponse<T>(response: Response): Promise<T> {
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ message: 'Network error occurred' }));
-            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        return data;
-    }
-
     async login(email: string, password: string): Promise<LoginResponse> {
         try {
-            const response = await fetch(`${API_URL}/auth/login.php`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({ email, password })
-            });
-
-            const data = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(data.error || 'Login failed');
-            }
+            const response = await api.post('/auth/login.php', { email, password });
+            const data = response.data;
             
             if (!data.success) {
                 throw new Error(data.error || 'Login failed');
@@ -63,20 +40,8 @@ class UserService {
 
     async createUser(userData: Omit<User, 'id'> & { password: string }): Promise<User> {
         try {
-            const response = await fetch(`${API_URL}/auth/register.php`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify(userData)
-            });
-
-            const data = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to create user');
-            }
+            const response = await api.post('/auth/register.php', userData);
+            const data = response.data;
             
             if (!data.success) {
                 throw new Error(data.error || 'Failed to create user');
@@ -92,17 +57,9 @@ class UserService {
     }
 
     async getAllUsers(): Promise<User[]> {
-        const token = localStorage.getItem('token');
-        if (!token) throw new Error('No authentication token found');
-
         try {
-            const response = await fetch(`${API_URL}/users/index.php`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                }
-            });
-            return this.handleResponse<User[]>(response);
+            const response = await api.get('/users/index.php');
+            return response.data;
         } catch (error) {
             if (error instanceof Error) {
                 throw new Error(error.message);
@@ -112,20 +69,9 @@ class UserService {
     }
 
     async updateUserStatus(userId: string, status: string): Promise<User> {
-        const token = localStorage.getItem('token');
-        if (!token) throw new Error('No authentication token found');
-
         try {
-            const response = await fetch(`${API_URL}/users/update_status.php`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({ userId, status })
-            });
-            return this.handleResponse<User>(response);
+            const response = await api.post('/users/update_status.php', { userId, status });
+            return response.data;
         } catch (error) {
             if (error instanceof Error) {
                 throw new Error(error.message);
@@ -135,8 +81,14 @@ class UserService {
     }
 
     async logout(): Promise<void> {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        try {
+            await api.post('/auth/logout.php');
+        } catch (error) {
+            console.error('Error during logout:', error);
+        } finally {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+        }
     }
 }
 

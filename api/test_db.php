@@ -10,14 +10,14 @@ try {
         throw new Exception("Failed to connect to database");
     }
 
-    // Check if users table exists
-    $tables = $conn->query("SHOW TABLES LIKE 'users'")->fetchAll();
+    // Check if schools table exists
+    $tables = $conn->query("SHOW TABLES LIKE 'schools'")->fetchAll();
     if (empty($tables)) {
-        throw new Exception("Users table does not exist");
+        throw new Exception("Schools table does not exist");
     }
 
     // Check table structure
-    $columns = $conn->query("DESCRIBE users")->fetchAll();
+    $columns = $conn->query("DESCRIBE schools")->fetchAll();
     
     echo json_encode([
         'status' => 'success',

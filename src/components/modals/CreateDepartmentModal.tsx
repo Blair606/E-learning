@@ -1,13 +1,14 @@
-import { Fragment } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
+import { departmentService, Department, CreateDepartmentData, UpdateDepartmentData } from '../../services/departmentService';
+import { schoolService } from '../../services/schoolService';
 
 export interface DepartmentFormData {
-  id?: string;
+  id?: number;
   name: string;
   code: string;
-  school: 'SASA' | 'SBE' | 'SED' | 'SEES' | 'SHHS' | 'HSSS' | 'SPAS';
-  head: string;
+  school_id: number;
   description: string;
   status: 'active' | 'inactive';
 }
@@ -20,24 +21,87 @@ interface CreateDepartmentModalProps {
 }
 
 const CreateDepartmentModal = ({ isOpen, onClose, onSubmit, editData }: CreateDepartmentModalProps) => {
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const formData = new FormData(e.target as HTMLFormElement);
-    const data: DepartmentFormData = {
-      name: formData.get('name') as string,
-      code: formData.get('code') as string,
-      school: formData.get('school') as DepartmentFormData['school'],
-      head: formData.get('head') as string,
-      description: formData.get('description') as string,
-      status: formData.get('status') as 'active' | 'inactive',
-    };
-
-    if (editData?.id) {
-      data.id = editData.id;
+  const [formData, setFormData] = useState<DepartmentFormData>(
+    editData || {
+      name: '',
+      code: '',
+      school_id: 0,
+      description: '',
+      status: 'active'
     }
+  );
+  const [schools, setSchools] = useState<{ id: number; name: string }[]>([]);
+  const [error, setError] = useState<string>('');
 
-    onSubmit(data);
-    onClose();
+  useEffect(() => {
+    const fetchSchools = async () => {
+      try {
+        const schoolsData = await schoolService.getAllSchools();
+        setSchools(schoolsData);
+      } catch (err) {
+        setError('Failed to load schools');
+        console.error('Error loading schools:', err);
+      }
+    };
+    fetchSchools();
+  }, []);
+
+  // Function to generate department code from name
+  const generateDepartmentCode = (name: string): string => {
+    if (!name.trim()) return '';
+    
+    // Split the name into words and filter out common words
+    const words = name.toLowerCase().split(' ');
+    const filteredWords = words.filter(word => 
+      !['of', 'and', 'the', 'in', 'at', 'on', 'for', 'to'].includes(word)
+    );
+    
+    // Take first letter of each word and join them
+    const initials = filteredWords.map(word => word[0]).join('');
+    
+    // If we have more than 3 letters, take first 3
+    // If we have less than 3 letters, pad with first letter
+    let code = initials.length >= 3 
+        ? initials.slice(0, 3).toUpperCase()
+        : (initials + initials[0].repeat(3 - initials.length)).toUpperCase();
+
+    // Add a random number to ensure uniqueness
+    const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    return `${code}${randomNum}`;
+  };
+
+  // Update code when name changes
+  useEffect(() => {
+    if (!editData && formData.name) {
+      setFormData(prev => ({
+        ...prev,
+        code: generateDepartmentCode(prev.name)
+      }));
+    }
+  }, [formData.name, editData]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    try {
+      if (editData?.id) {
+        const updateData: UpdateDepartmentData = {
+          ...formData,
+          id: editData.id
+        };
+        await departmentService.updateDepartment(updateData);
+      } else {
+        const createData: CreateDepartmentData = {
+          ...formData
+        };
+        await departmentService.createDepartment(createData);
+      }
+      onSubmit(formData);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    }
   };
 
   return (
@@ -81,6 +145,12 @@ const CreateDepartmentModal = ({ isOpen, onClose, onSubmit, editData }: CreateDe
                   </button>
                 </Dialog.Title>
 
+                {error && (
+                  <div className="mt-2 text-sm text-red-600">
+                    {error}
+                  </div>
+                )}
+
                 <form onSubmit={handleSubmit} className="mt-4 space-y-4">
                   <div>
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700">
@@ -88,9 +158,9 @@ const CreateDepartmentModal = ({ isOpen, onClose, onSubmit, editData }: CreateDe
                     </label>
                     <input
                       type="text"
-                      name="name"
                       id="name"
-                      defaultValue={editData?.name}
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                       required
                       className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-purple-500"
                       placeholder="Enter department name"
@@ -103,13 +173,19 @@ const CreateDepartmentModal = ({ isOpen, onClose, onSubmit, editData }: CreateDe
                     </label>
                     <input
                       type="text"
-                      name="code"
                       id="code"
-                      defaultValue={editData?.code}
+                      value={formData.code}
+                      onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value }))}
                       required
                       className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-purple-500"
                       placeholder="Enter department code"
+                      readOnly={!editData}
                     />
+                    {!editData && (
+                      <p className="mt-1 text-sm text-gray-500">
+                        Department code is automatically generated from the department name
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -117,36 +193,19 @@ const CreateDepartmentModal = ({ isOpen, onClose, onSubmit, editData }: CreateDe
                       School
                     </label>
                     <select
-                      name="school"
                       id="school"
-                      defaultValue={editData?.school}
+                      value={formData.school_id}
+                      onChange={(e) => setFormData(prev => ({ ...prev, school_id: Number(e.target.value) }))}
                       required
                       className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-purple-500"
                     >
                       <option value="">Select a school</option>
-                      <option value="SASA">SASA</option>
-                      <option value="SBE">SBE</option>
-                      <option value="SED">SED</option>
-                      <option value="SEES">SEES</option>
-                      <option value="SHHS">SHHS</option>
-                      <option value="HSSS">HSSS</option>
-                      <option value="SPAS">SPAS</option>
+                      {schools.map(school => (
+                        <option key={school.id} value={school.id}>
+                          {school.name}
+                        </option>
+                      ))}
                     </select>
-                  </div>
-
-                  <div>
-                    <label htmlFor="head" className="block text-sm font-medium text-gray-700">
-                      Department Head
-                    </label>
-                    <input
-                      type="text"
-                      name="head"
-                      id="head"
-                      defaultValue={editData?.head}
-                      required
-                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-purple-500"
-                      placeholder="Enter department head name"
-                    />
                   </div>
 
                   <div>
@@ -154,9 +213,9 @@ const CreateDepartmentModal = ({ isOpen, onClose, onSubmit, editData }: CreateDe
                       Description
                     </label>
                     <textarea
-                      name="description"
                       id="description"
-                      defaultValue={editData?.description}
+                      value={formData.description}
+                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                       required
                       rows={3}
                       className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-purple-500"
@@ -169,9 +228,9 @@ const CreateDepartmentModal = ({ isOpen, onClose, onSubmit, editData }: CreateDe
                       Status
                     </label>
                     <select
-                      name="status"
                       id="status"
-                      defaultValue={editData?.status}
+                      value={formData.status}
+                      onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as 'active' | 'inactive' }))}
                       required
                       className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none focus:ring-purple-500"
                     >

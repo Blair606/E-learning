@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 
 export interface SchoolFormData {
@@ -32,6 +32,40 @@ const CreateSchoolModal: React.FC<CreateSchoolModalProps> = ({
     }
   );
   const [newDepartment, setNewDepartment] = useState("");
+
+  // Function to generate school code from name
+  const generateSchoolCode = (name: string): string => {
+    if (!name.trim()) return "";
+    
+    // Split the name into words and filter out common words
+    const words = name.toLowerCase().split(' ');
+    const filteredWords = words.filter(word => 
+      !['of', 'and', 'the', 'in', 'at', 'on', 'for', 'to'].includes(word)
+    );
+    
+    // Take first letter of each word and join them
+    const initials = filteredWords.map(word => word[0]).join('');
+    
+    // If we have more than 3 letters, take first 3
+    // If we have less than 3 letters, pad with first letter
+    let code = initials.length >= 3 
+        ? initials.slice(0, 3).toUpperCase()
+        : (initials + initials[0].repeat(3 - initials.length)).toUpperCase();
+
+    // Add a random number to ensure uniqueness
+    const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    return `${code}${randomNum}`;
+  };
+
+  // Update code when name changes
+  useEffect(() => {
+    if (!editData && formData.name) {
+      setFormData(prev => ({
+        ...prev,
+        code: generateSchoolCode(prev.name)
+      }));
+    }
+  }, [formData.name, editData]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,7 +134,13 @@ const CreateSchoolModal: React.FC<CreateSchoolModalProps> = ({
               }
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-purple-500 focus:border-purple-500"
               required
+              readOnly={!editData}
             />
+            {!editData && (
+              <p className="mt-1 text-sm text-gray-500">
+                School code is automatically generated from the school name
+              </p>
+            )}
           </div>
 
           <div>

@@ -2,6 +2,9 @@
 require_once '../config/database.php';
 require_once '../config/cors.php';
 
+// Handle CORS
+handleCORS();
+
 header('Content-Type: application/json');
 
 try {
@@ -48,6 +51,7 @@ try {
     unset($user['password']);
 
     // Return success response with user data and token
+    http_response_code(200);
     echo json_encode([
         'success' => true,
         'token' => $token,
