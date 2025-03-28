@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   BookOpenIcon,
   CalendarIcon,
@@ -406,19 +406,25 @@ const StudentDashboard = () => {
   const [selectedGroup, setSelectedGroup] = useState<DiscussionGroup | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<DiscussionTopic | null>(null);
 
-  // Add new state for content modal
-  const [isContentModalOpen, setIsContentModalOpen] = useState(false);
-  const [selectedContent, setSelectedContent] = useState<CourseContent | null>(null);
+  // Update the guardian state to support multiple guardians
+  const [guardians, setGuardians] = useState<Array<{
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber: string;
+    relationship: string;
+    address: string;
+    nationalId: string;
+  }>>([]);
 
-  // Add new state for guardian details
-  const [guardianDetails, setGuardianDetails] = useState({
+  const [currentGuardian, setCurrentGuardian] = useState({
     firstName: '',
     lastName: '',
     email: '',
     phoneNumber: '',
     relationship: '',
     address: '',
-    isRegistered: false
+    nationalId: '',
   });
 
   // Add new function to handle answering questions
@@ -465,102 +471,186 @@ const StudentDashboard = () => {
     }));
   };
 
-  // Add new function to handle guardian registration
+  // Add this function to handle question selection
+  const handleQuestionSelect = (unitId: number, contentId: string, questionId: string, selectedAnswer: number) => {
+    handleAnswerQuestion(unitId, contentId, questionId, selectedAnswer);
+  };
+
+  // Update the handleGuardianRegistration function
   const handleGuardianRegistration = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // Here you would typically make an API call to register the guardian
-      // For now, we'll just update the local state
-      setGuardianDetails(prev => ({
-        ...prev,
-        isRegistered: true
-      }));
-      // You would also need to create a guardian account in your backend
-      // with the phone number as password and the provided email
+      console.log('Starting guardian registration with data:', currentGuardian);
+      
+      // First, create the guardian user account
+      const guardianResponse = await fetch('http://localhost/E-learning/api/users/create.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          email: currentGuardian.email,
+          password: currentGuardian.nationalId, // Using national ID as password
+          first_name: currentGuardian.firstName,
+          last_name: currentGuardian.lastName,
+          role: 'parent',
+          phone: currentGuardian.phoneNumber,
+          address: currentGuardian.address,
+          national_id: currentGuardian.nationalId,
+          status: 'active'
+        }),
+      });
+
+      console.log('Guardian response status:', guardianResponse.status);
+      const responseText = await guardianResponse.text();
+      console.log('Raw response:', responseText);
+
+      let guardianData;
+      try {
+        guardianData = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Failed to parse response as JSON:', e);
+        throw new Error('Invalid response from server');
+      }
+
+      if (!guardianResponse.ok) {
+        throw new Error(guardianData.message || 'Failed to create guardian account');
+      }
+
+      // Then, create the guardian-student relationship
+      const relationshipResponse = await fetch('http://localhost/E-learning/api/guardians/create.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          guardian_id: guardianData.id,
+          student_id: profileData.studentId,
+          relationship: currentGuardian.relationship,
+          is_primary: guardians.length === 0 // First guardian is primary
+        }),
+      });
+
+      console.log('Relationship response status:', relationshipResponse.status);
+      const relationshipText = await relationshipResponse.text();
+      console.log('Raw relationship response:', relationshipText);
+
+      let relationshipData;
+      try {
+        relationshipData = JSON.parse(relationshipText);
+      } catch (e) {
+        console.error('Failed to parse relationship response as JSON:', e);
+        throw new Error('Invalid response from server');
+      }
+
+      if (!relationshipResponse.ok) {
+        throw new Error(relationshipData.message || 'Failed to create guardian relationship');
+      }
+
+      // Add the current guardian to the list
+      setGuardians([...guardians, currentGuardian]);
+
+      // Reset the form
+      setCurrentGuardian({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phoneNumber: '',
+        relationship: '',
+        address: '',
+        nationalId: '',
+      });
+
+      // Show success message
+      alert(`Guardian registered successfully! They can now log in using their email and national ID as password.`);
+
+      // Refresh the guardians list
+      fetchGuardians();
     } catch (error) {
       console.error('Failed to register guardian:', error);
+      alert(error instanceof Error ? error.message : 'Failed to register guardian. Please try again.');
     }
   };
 
-  // Add ContentModal component
-  const ContentModal = ({ 
-    isOpen, 
-    onClose, 
-    content, 
-    unitId 
-  }: { 
-    isOpen: boolean; 
-    onClose: () => void; 
-    content: CourseContent | null;
-    unitId: number;
-  }) => {
-    if (!isOpen || !content) return null;
+  // Add function to fetch existing guardians
+  const fetchGuardians = async () => {
+    try {
+      const response = await fetch(`http://localhost/E-learning/api/guardians/read.php?student_id=${profileData.studentId}`, {
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch guardians');
+      }
+      
+      const result = await response.json();
+      
+      if (result.status === 'error') {
+        throw new Error(result.message || 'Failed to fetch guardians');
+      }
+      
+      // Transform the data to match our frontend state
+      const guardianList = result.data.map((guardian: {
+        first_name: string;
+        last_name: string;
+        email: string;
+        phone: string;
+        relationship: string;
+        address: string;
+        national_id: string;
+      }) => ({
+        firstName: guardian.first_name,
+        lastName: guardian.last_name,
+        email: guardian.email,
+        phoneNumber: guardian.phone,
+        relationship: guardian.relationship,
+        address: guardian.address,
+        nationalId: guardian.national_id
+      }));
+      
+      setGuardians(guardianList);
+    } catch (error) {
+      console.error('Failed to fetch guardians:', error);
+      // Don't show alert for fetch errors as they're less critical
+    }
+  };
 
-    return (
-      <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-        <div className="relative top-20 mx-auto p-5 border w-[95%] max-w-4xl shadow-lg rounded-md bg-white">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium text-gray-900">{content.title}</h3>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-500">
-              <XMarkIcon className="h-6 w-6" />
-            </button>
-          </div>
+  // Add useEffect to fetch guardians when component mounts
+  useEffect(() => {
+    fetchGuardians();
+  }, []);
 
-          <div className="prose max-w-none mb-8">
-            {content.content}
-          </div>
+  // Update the removeGuardian function to handle database deletion
+  const removeGuardian = async (index: number) => {
+    try {
+      const guardianToRemove = guardians[index];
+      
+      // First, remove the guardian-student relationship
+      const response = await fetch(`http://localhost/E-learning/api/guardians/delete.php?student_id=${profileData.studentId}&guardian_email=${guardianToRemove.email}`, {
+        method: 'DELETE',
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
 
-          <div className="space-y-6">
-            <h4 className="text-lg font-medium text-gray-900">Questions</h4>
-            {content.questions.map((question, index) => (
-              <div 
-                key={question.id} 
-                className={`p-4 rounded-lg ${
-                  question.completed 
-                    ? 'bg-gray-50' 
-                    : 'bg-white border'
-                }`}
-              >
-                <p className="font-medium mb-4">{index + 1}. {question.text}</p>
-                <div className="space-y-2">
-                  {question.options.map((option, optionIndex) => (
-                    <button
-                      key={optionIndex}
-                      onClick={() => handleAnswerQuestion(unitId, content.id, question.id, optionIndex)}
-                      disabled={question.completed}
-                      className={`w-full text-left p-3 rounded-lg transition-colors ${
-                        question.completed
-                          ? question.selectedAnswer === optionIndex
-                            ? question.selectedAnswer === question.correctAnswer
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
-                            : question.correctAnswer === optionIndex
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-600'
-                          : 'hover:bg-blue-50 border'
-                      }`}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-                {question.completed && (
-                  <p className={`mt-2 text-sm ${
-                    question.selectedAnswer === question.correctAnswer
-                      ? 'text-green-600'
-                      : 'text-red-600'
-                  }`}>
-                    {question.selectedAnswer === question.correctAnswer
-                      ? '✓ Correct answer!'
-                      : `✗ Incorrect. The correct answer was: ${question.options[question.correctAnswer]}`}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to remove guardian');
+      }
+
+      // Update the local state
+      setGuardians(guardians.filter((_, i) => i !== index));
+      
+      alert('Guardian removed successfully');
+    } catch (error) {
+      console.error('Failed to remove guardian:', error);
+      alert(error instanceof Error ? error.message : 'Failed to remove guardian. Please try again.');
+    }
   };
 
   const renderContent = () => {
@@ -1171,107 +1261,137 @@ const StudentDashboard = () => {
 
               {/* Guardian Information */}
               <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-3">Guardian Information</h3>
-                {guardianDetails.isRegistered ? (
-                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-medium text-green-800">
-                          {guardianDetails.firstName} {guardianDetails.lastName}
-                        </h4>
-                        <p className="text-sm text-green-700">{guardianDetails.relationship}</p>
-                        <p className="text-sm text-green-700">{guardianDetails.email}</p>
-                        <p className="text-sm text-green-700">{guardianDetails.phoneNumber}</p>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold">Guardian Information</h3>
+                  <button
+                    onClick={() => setCurrentGuardian({
+                      firstName: '',
+                      lastName: '',
+                      email: '',
+                      phoneNumber: '',
+                      relationship: '',
+                      address: '',
+                      nationalId: '',
+                    })}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  >
+                    Add New Guardian
+                  </button>
+                </div>
+
+                {/* List of Registered Guardians */}
+                <div className="space-y-4 mb-6">
+                  {guardians.map((guardian, index) => (
+                    <div key={index} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-medium text-gray-800">
+                            {guardian.firstName} {guardian.lastName}
+                          </h4>
+                          <p className="text-sm text-gray-600">{guardian.relationship}</p>
+                          <p className="text-sm text-gray-600">{guardian.email}</p>
+                          <p className="text-sm text-gray-600">{guardian.phoneNumber}</p>
+                          <p className="text-sm text-gray-600">{guardian.address}</p>
+                        </div>
+                        <button
+                          onClick={() => removeGuardian(index)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <XMarkIcon className="h-5 w-5" />
+                        </button>
                       </div>
-                      <button 
-                        onClick={() => setGuardianDetails(prev => ({ ...prev, isRegistered: false }))}
-                        className="text-sm text-green-600 hover:text-green-700"
-                      >
-                        Edit Details
-                      </button>
                     </div>
-                  </div>
-                ) : (
-                  <form onSubmit={handleGuardianRegistration} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">First Name</label>
-                        <input
-                          type="text"
-                          required
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                          value={guardianDetails.firstName}
-                          onChange={(e) => setGuardianDetails(prev => ({ ...prev, firstName: e.target.value }))}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Last Name</label>
-                        <input
-                          type="text"
-                          required
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                          value={guardianDetails.lastName}
-                          onChange={(e) => setGuardianDetails(prev => ({ ...prev, lastName: e.target.value }))}
-                        />
-                      </div>
+                  ))}
+                </div>
+
+                {/* Guardian Registration Form */}
+                <form onSubmit={handleGuardianRegistration} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                      <input
+                        type="text"
+                        required
+                        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        value={currentGuardian.firstName}
+                        onChange={(e) => setCurrentGuardian(prev => ({ ...prev, firstName: e.target.value }))}
+                      />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Relationship</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                      <input
+                        type="text"
+                        required
+                        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        value={currentGuardian.lastName}
+                        onChange={(e) => setCurrentGuardian(prev => ({ ...prev, lastName: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                      <input
+                        type="email"
+                        required
+                        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        value={currentGuardian.email}
+                        onChange={(e) => setCurrentGuardian(prev => ({ ...prev, email: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                      <input
+                        type="tel"
+                        required
+                        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        value={currentGuardian.phoneNumber}
+                        onChange={(e) => setCurrentGuardian(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Relationship</label>
                       <select
                         required
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        value={guardianDetails.relationship}
-                        onChange={(e) => setGuardianDetails(prev => ({ ...prev, relationship: e.target.value }))}
+                        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        value={currentGuardian.relationship}
+                        onChange={(e) => setCurrentGuardian(prev => ({ ...prev, relationship: e.target.value }))}
                       >
                         <option value="">Select relationship</option>
                         <option value="Father">Father</option>
                         <option value="Mother">Mother</option>
                         <option value="Guardian">Guardian</option>
+                        <option value="Other">Other</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Email</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">National ID</label>
                       <input
-                        type="email"
+                        type="text"
                         required
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        value={guardianDetails.email}
-                        onChange={(e) => setGuardianDetails(prev => ({ ...prev, email: e.target.value }))}
+                        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        value={currentGuardian.nationalId}
+                        onChange={(e) => setCurrentGuardian(prev => ({ ...prev, nationalId: e.target.value }))}
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Phone Number</label>
-                      <input
-                        type="tel"
-                        required
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        value={guardianDetails.phoneNumber}
-                        onChange={(e) => setGuardianDetails(prev => ({ ...prev, phoneNumber: e.target.value }))}
-                      />
-                      <p className="mt-1 text-sm text-gray-500">
-                        This will be used as the password for guardian login
-                      </p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Address</label>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
                       <textarea
                         required
                         rows={3}
-                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        value={guardianDetails.address}
-                        onChange={(e) => setGuardianDetails(prev => ({ ...prev, address: e.target.value }))}
+                        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        value={currentGuardian.address}
+                        onChange={(e) => setCurrentGuardian(prev => ({ ...prev, address: e.target.value }))}
                       />
                     </div>
-                    <div className="flex justify-end">
-                      <button
-                        type="submit"
-                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                      >
-                        Register Guardian
-                      </button>
-                    </div>
-                  </form>
-                )}
+                  </div>
+                  <div className="mt-6 flex justify-end">
+                    <button
+                      type="submit"
+                      className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    >
+                      Register Guardian
+                    </button>
+                  </div>
+                </form>
               </div>
 
               {/* Achievements */}

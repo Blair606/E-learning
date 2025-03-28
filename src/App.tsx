@@ -4,6 +4,7 @@ import { Provider } from 'react-redux';
 import { store } from './store';
 import AppRoutes from './routes';
 import { initializeAuth } from './store/slices/authSlice';
+import { AuthProvider } from './contexts/AuthContext';
 
 const App: React.FC = () => {
     useEffect(() => {
@@ -14,7 +15,9 @@ const App: React.FC = () => {
     return (
         <Provider store={store}>
             <Router>
-                <AppRoutes />
+                <AuthProvider>
+                    <AppRoutes />
+                </AuthProvider>
             </Router>
         </Provider>
     );

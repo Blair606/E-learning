@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   AcademicCapIcon,
   CurrencyDollarIcon,
@@ -10,6 +10,8 @@ import {
   Bars3Icon,
   XMarkIcon,
   HomeIcon,
+  BellIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 import DashboardHeader from '../../components/DashboardHeader';
 import {
@@ -26,6 +28,28 @@ import PaymentModal from '../../components/PaymentModal';
 
 const ParentDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [notifications, setNotifications] = useState<Array<{
+    id: number;
+    title: string;
+    message: string;
+    type: 'academic' | 'attendance' | 'financial' | 'behavior';
+    is_read: boolean;
+    created_at: string;
+  }>>([]);
+  const [consents, setConsents] = useState<Array<{
+    id: number;
+    consent_type: 'academic_records' | 'financial_records' | 'attendance_records' | 'behavior_records';
+    is_granted: boolean;
+    granted_at: string | null;
+    expires_at: string | null;
+  }>>([]);
+  const [accessLogs, setAccessLogs] = useState<Array<{
+    id: number;
+    access_time: string;
+    ip_address: string;
+    action: string;
+  }>>([]);
+
   const [studentInfo] = useState({
     name: 'Alex Smith',
     program: 'Bachelor of Computer Science',
@@ -123,6 +147,67 @@ const ParentDashboard = () => {
     dueDate?: string;
     mandatory?: boolean;
   }>({ amount: 0 });
+
+  // Add useEffect to fetch guardian data
+  useEffect(() => {
+    const fetchGuardianData = async () => {
+      try {
+        // Fetch notifications
+        const notificationsResponse = await fetch(
+          `http://localhost/E-learning/api/guardians/notifications.php?guardian_id=${localStorage.getItem('userId')}&student_id=${localStorage.getItem('studentId')}`
+        );
+        if (!notificationsResponse.ok) throw new Error('Failed to fetch notifications');
+        const notificationsData = await notificationsResponse.json();
+        setNotifications(notificationsData.data);
+
+        // Fetch consents
+        const consentsResponse = await fetch(
+          `http://localhost/E-learning/api/guardians/consent.php?guardian_id=${localStorage.getItem('userId')}&student_id=${localStorage.getItem('studentId')}`
+        );
+        if (!consentsResponse.ok) throw new Error('Failed to fetch consents');
+        const consentsData = await consentsResponse.json();
+        setConsents(consentsData.data);
+
+        // Fetch access logs
+        const logsResponse = await fetch(
+          `http://localhost/E-learning/api/guardians/access_logs.php?guardian_id=${localStorage.getItem('userId')}&student_id=${localStorage.getItem('studentId')}`
+        );
+        if (!logsResponse.ok) throw new Error('Failed to fetch access logs');
+        const logsData = await logsResponse.json();
+        setAccessLogs(logsData.data);
+      } catch (error) {
+        console.error('Error fetching guardian data:', error);
+      }
+    };
+
+    fetchGuardianData();
+  }, []);
+
+  // Add function to update consent
+  const updateConsent = async (consentId: number, isGranted: boolean) => {
+    try {
+      const response = await fetch('http://localhost/E-learning/api/guardians/consent.php', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: consentId,
+          is_granted: isGranted,
+        }),
+      });
+      if (!response.ok) throw new Error('Failed to update consent');
+      // Refresh consents after update
+      const consentsResponse = await fetch(
+        `http://localhost/E-learning/api/guardians/consent.php?guardian_id=${localStorage.getItem('userId')}&student_id=${localStorage.getItem('studentId')}`
+      );
+      if (!consentsResponse.ok) throw new Error('Failed to fetch consents');
+      const consentsData = await consentsResponse.json();
+      setConsents(consentsData.data);
+    } catch (error) {
+      console.error('Error updating consent:', error);
+    }
+  };
 
   const handlePayNow = (item: typeof financialOverview[0]) => {
     setSelectedPayment({
@@ -346,6 +431,124 @@ const ParentDashboard = () => {
                      '❌ Not Activated'}
                   </span>
                 </div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'notifications':
+        return (
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all duration-200">
+              <h2 className="text-xl font-semibold mb-6 flex items-center">
+                <BellIcon className="w-5 h-5 mr-2 text-blue-500" />
+                Notifications
+              </h2>
+              <div className="space-y-4">
+                {notifications.map(notification => (
+                  <div key={notification.id} className="p-4 rounded-xl bg-gray-50 hover:bg-blue-50/50 hover:border-blue-100 border-2 border-transparent transition-all duration-200">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-medium">{notification.title}</h3>
+                        <p className="text-gray-600 mt-1">{notification.message}</p>
+                        <p className="text-sm text-gray-500 mt-2">
+                          {new Date(notification.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        notification.type === 'academic' ? 'bg-blue-100 text-blue-800' :
+                        notification.type === 'attendance' ? 'bg-green-100 text-green-800' :
+                        notification.type === 'financial' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {notification.type}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'consent':
+        return (
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all duration-200">
+              <h2 className="text-xl font-semibold mb-6 flex items-center">
+                <ShieldCheckIcon className="w-5 h-5 mr-2 text-green-500" />
+                Consent Management
+              </h2>
+              <div className="space-y-4">
+                {consents.map(consent => (
+                  <div key={consent.id} className="p-4 rounded-xl bg-gray-50 hover:bg-green-50/50 hover:border-green-100 border-2 border-transparent transition-all duration-200">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h3 className="font-medium">
+                          {consent.consent_type.split('_').map(word => 
+                            word.charAt(0).toUpperCase() + word.slice(1)
+                          ).join(' ')}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          {consent.is_granted ? 'Granted' : 'Not Granted'}
+                        </p>
+                        {consent.granted_at && (
+                          <p className="text-sm text-gray-500">
+                            Granted on: {new Date(consent.granted_at).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => updateConsent(consent.id, !consent.is_granted)}
+                        className={`px-4 py-2 rounded-lg ${
+                          consent.is_granted
+                            ? 'bg-red-100 text-red-800 hover:bg-red-200'
+                            : 'bg-green-100 text-green-800 hover:bg-green-200'
+                        }`}
+                      >
+                        {consent.is_granted ? 'Revoke' : 'Grant'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'access-logs':
+        return (
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all duration-200">
+              <h2 className="text-xl font-semibold mb-6 flex items-center">
+                <ClockIcon className="w-5 h-5 mr-2 text-purple-500" />
+                Access Logs
+              </h2>
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">IP Address</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {accessLogs.map(log => (
+                      <tr key={log.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(log.access_time).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {log.action}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {log.ip_address}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -583,6 +786,17 @@ const ParentDashboard = () => {
     </div>
   );
 
+  // Update the navigation items
+  const navigationItems = [
+    { id: 'overview', icon: AcademicCapIcon, label: 'Academic Progress' },
+    { id: 'financial', icon: CurrencyDollarIcon, label: 'Financial Overview' },
+    { id: 'schedule', icon: CalendarIcon, label: 'Schedule' },
+    { id: 'communication', icon: ChatBubbleLeftRightIcon, label: 'Communication' },
+    { id: 'notifications', icon: BellIcon, label: 'Notifications' },
+    { id: 'consent', icon: ShieldCheckIcon, label: 'Consent Management' },
+    { id: 'access-logs', icon: ClockIcon, label: 'Access Logs' },
+  ];
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Modified Header - moved to the right */}
@@ -617,12 +831,7 @@ const ParentDashboard = () => {
           </div>
           <div className="h-0.5 bg-gray-100 w-full mb-6"></div>
           <nav className="space-y-2">
-            {[
-              { id: 'overview', icon: AcademicCapIcon, label: 'Academic Progress' },
-              { id: 'financial', icon: CurrencyDollarIcon, label: 'Financial Overview' },
-              { id: 'schedule', icon: CalendarIcon, label: 'Schedule' },
-              { id: 'communication', icon: ChatBubbleLeftRightIcon, label: 'Communication' },
-            ].map((item) => (
+            {navigationItems.map((item) => (
               <a
                 key={item.id}
                 href="#"

@@ -1,80 +1,64 @@
 <?php
-require_once '../config/cors.php';
 require_once '../config/database.php';
+require_once '../config/cors.php';
 
 header('Content-Type: application/json');
 
 try {
+    // Get POST data
+    $data = json_decode(file_get_contents('php://input'), true);
+    
+    if (!isset($data['email']) || !isset($data['password'])) {
+        throw new Exception('Email and password are required');
+    }
+
     // Get database connection
     $conn = getConnection();
-    
-    // Get posted data
-    $data = json_decode(file_get_contents("php://input"));
-    
-    // Validate request method
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        http_response_code(405);
-        echo json_encode(['error' => 'Method not allowed']);
-        exit;
+    if (!$conn) {
+        throw new Exception('Failed to connect to database');
     }
-    
-    // Validate required fields
-    if (!isset($data->email) || !isset($data->password)) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Email and password are required']);
-        exit;
-    }
-    
+
     // Get user by email
-    $stmt = $conn->prepare("SELECT id, email, password, first_name, last_name, role, status FROM users WHERE email = ?");
-    $stmt->execute([$data->email]);
-    
-    if ($stmt->rowCount() === 0) {
-        http_response_code(401);
-        echo json_encode(['error' => 'Invalid email or password']);
-        exit;
-    }
-    
+    $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
+    $stmt->execute([$data['email']]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    
+
+    if (!$user) {
+        throw new Exception('Invalid email or password');
+    }
+
+    // Verify password
+    if (!password_verify($data['password'], $user['password'])) {
+        throw new Exception('Invalid email or password');
+    }
+
     // Check if user is active
     if ($user['status'] !== 'active') {
-        http_response_code(403);
-        echo json_encode(['error' => 'Account is not active']);
-        exit;
+        throw new Exception('Account is not active');
     }
-    
-    // Verify password
-    if (!password_verify($data->password, $user['password'])) {
-        http_response_code(401);
-        echo json_encode(['error' => 'Invalid email or password']);
-        exit;
-    }
-    
-    // Generate new token
+
+    // Generate token
     $token = bin2hex(random_bytes(32));
-    
-    // Update user token
+
+    // Update user token in database
     $stmt = $conn->prepare("UPDATE users SET token = ? WHERE id = ?");
     $stmt->execute([$token, $user['id']]);
-    
-    // Remove password from user data
+
+    // Remove password from response
     unset($user['password']);
-    
-    // Return success response
+
+    // Return success response with user data and token
     echo json_encode([
         'success' => true,
-        'user' => $user,
-        'token' => $token
+        'token' => $token,
+        'user' => $user
     ]);
-    
-} catch (PDOException $e) {
-    error_log("Database error: " . $e->getMessage());
-    http_response_code(500);
-    echo json_encode(['error' => 'Database error']);
+
 } catch (Exception $e) {
-    error_log("Server error: " . $e->getMessage());
-    http_response_code(500);
-    echo json_encode(['error' => 'Server error']);
+    http_response_code(401);
+    echo json_encode([
+        'success' => false,
+        'error' => $e->getMessage()
+    ]);
 }
 ?> 

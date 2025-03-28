@@ -7,7 +7,6 @@ import ParentSignIn from '../components/auth/ParentSignIn';
 import AdminSignIn from '../components/auth/AdminSignIn';
 import StudentSignUp from '../components/auth/StudentSignUp';
 import TeacherSignUp from '../components/auth/TeacherSignUp';
-import ParentSignUp from '../components/auth/ParentSignUp';
 import AdminSignUp from '../components/auth/AdminSignUp';
 import Unauthorized from '../components/auth/Unauthorized';
 import StudentDashboard from '../pages/dashboards/StudentDashboard';
@@ -33,7 +32,6 @@ const AppRoutes: React.FC = () => {
             <Route path="/signup/admin" element={<AdminSignUp />} />
             <Route path="/signup/teacher" element={<TeacherSignUp />} />
             <Route path="/signup/student" element={<StudentSignUp />} />
-            <Route path="/signup/parent" element={<ParentSignUp />} />
             
             <Route path="/unauthorized" element={<Unauthorized />} />
 

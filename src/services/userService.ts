@@ -54,10 +54,22 @@ class UserService {
                 throw new Error(data.error || 'Login failed');
             }
             
-            return data;
+            if (!data.token || !data.user) {
+                console.error('Invalid response format:', data);
+                throw new Error('Invalid response format from server');
+            }
+            
+            return {
+                success: true,
+                token: data.token,
+                user: data.user
+            };
         } catch (error) {
             console.error('Login error:', error);
-            throw error;
+            if (error instanceof Error) {
+                throw new Error(error.message);
+            }
+            throw new Error('An unexpected error occurred during login');
         }
     }
 

@@ -1,6 +1,8 @@
 <?php
 function getConnection() {
     try {
+        error_log("Attempting to connect to database with host: localhost, dbname: e_learning");
+        
         $conn = new PDO(
             "mysql:host=localhost;dbname=e_learning;charset=utf8",
             "root",
@@ -11,10 +13,13 @@ function getConnection() {
                 PDO::ATTR_EMULATE_PREPARES => false
             ]
         );
+        
+        error_log("Database connection successful");
         return $conn;
     } catch(PDOException $e) {
         error_log("Database connection failed: " . $e->getMessage());
-        throw new Exception("Database connection failed");
+        error_log("Stack trace: " . $e->getTraceAsString());
+        return false; // Return false instead of throwing exception
     }
 }
 ?> 
