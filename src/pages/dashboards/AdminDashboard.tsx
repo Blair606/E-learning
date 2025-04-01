@@ -211,6 +211,9 @@ const AdminDashboard = () => {
   const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
 
+  // Add this state to track departments for the selected school
+  const [schoolDepartments, setSchoolDepartments] = useState<string[]>([]);
+
   useEffect(() => {
     const fetchSchools = async () => {
       try {
@@ -358,6 +361,19 @@ const AdminDashboard = () => {
       }
     }
     return false;
+  };
+
+  // Add this function to handle school selection change
+  const handleSchoolChange = (schoolId: string) => {
+    setSchoolFilter(schoolId);
+    
+    // Find the selected school and update departments
+    const selectedSchool = schools.find(school => school.id === schoolId);
+    if (selectedSchool) {
+      setSchoolDepartments(selectedSchool.departments || []);
+    } else {
+      setSchoolDepartments([]);
+    }
   };
 
   const renderContent = () => {
@@ -796,6 +812,8 @@ const AdminDashboard = () => {
               onClose={() => setIsUserModalOpen(false)}
               onSubmit={handleCreateUser}
               userType={userModalType}
+              schools={schools}
+              departments={schoolDepartments}
             />
           </div>
         );
@@ -863,17 +881,15 @@ const AdminDashboard = () => {
                 <div className="flex flex-wrap gap-2 sm:gap-4">
                   <select
                     value={schoolFilter}
-                    onChange={(e) => setSchoolFilter(e.target.value)}
+                    onChange={(e) => handleSchoolChange(e.target.value)}
                     className="flex-1 sm:flex-none min-w-[120px] text-sm sm:text-base border rounded-lg px-3 sm:px-4 py-2 focus:outline-none focus:border-purple-500"
                   >
                     <option value="">All Schools</option>
-                    <option value="SASA">SASA</option>
-                    <option value="SBE">SBE</option>
-                    <option value="SED">SED</option>
-                    <option value="SEES">SEES</option>
-                    <option value="SHHS">SHHS</option>
-                    <option value="HSSS">HSSS</option>
-                    <option value="SPAS">SPAS</option>
+                    {schools.map(school => (
+                      <option key={school.id} value={school.id}>
+                        {school.name}
+                      </option>
+                    ))}
                   </select>
                   <select
                     value={courseStatusFilter}

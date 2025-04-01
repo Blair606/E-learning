@@ -12,45 +12,63 @@ interface User {
   joinDate: string;
 }
 
+interface School {
+  id: string;
+  name: string;
+  departments?: string[];
+}
+
 interface UserModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (userData: Omit<User, 'id'>) => void;
-  user?: User | null;
+  onSubmit: (userData: any) => void;
+  userType: 'student' | 'teacher';
+  schools: School[];
   departments: string[];
 }
 
-const UserModal = ({ isOpen, onClose, onSubmit, user, departments }: UserModalProps) => {
-  const [formData, setFormData] = useState<Omit<User, 'id'>>({
+const UserModal = ({ isOpen, onClose, onSubmit, userType, schools, departments }: UserModalProps) => {
+  const [formData, setFormData] = useState({
     name: '',
     email: '',
     role: 'student',
     status: 'active',
     department: '',
-    joinDate: new Date().toISOString().split('T')[0]
+    joinDate: new Date().toISOString().split('T')[0],
+    school: ''
   });
 
   useEffect(() => {
-    if (user) {
-      setFormData({
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        status: user.status,
-        department: user.department || '',
-        joinDate: user.joinDate
-      });
-    } else {
+    if (userType === 'student') {
       setFormData({
         name: '',
         email: '',
         role: 'student',
         status: 'active',
         department: '',
-        joinDate: new Date().toISOString().split('T')[0]
+        joinDate: new Date().toISOString().split('T')[0],
+        school: ''
+      });
+    } else if (userType === 'teacher') {
+      setFormData({
+        name: '',
+        email: '',
+        role: 'teacher',
+        status: 'active',
+        department: '',
+        joinDate: new Date().toISOString().split('T')[0],
+        school: ''
       });
     }
-  }, [user]);
+  }, [userType]);
+
+  const handleSchoolChange = (schoolId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      school: schoolId,
+      department: ''
+    }));
+  };
 
   if (!isOpen) return null;
 
@@ -59,7 +77,7 @@ const UserModal = ({ isOpen, onClose, onSubmit, user, departments }: UserModalPr
       <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-medium text-gray-900">
-            {user ? 'Edit User' : 'Add New User'}
+            {userType === 'student' ? 'Add New Student' : 'Add New Teacher'}
           </h3>
           <button
             onClick={onClose}
@@ -106,25 +124,41 @@ const UserModal = ({ isOpen, onClose, onSubmit, user, departments }: UserModalPr
               >
                 <option value="student">Student</option>
                 <option value="teacher">Teacher</option>
-                <option value="admin">Admin</option>
               </select>
             </div>
 
-            {formData.role !== 'student' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Department</label>
-                <select
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  value={formData.department}
-                  onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                >
-                  <option value="">Select Department</option>
-                  {departments.map((dept) => (
-                    <option key={dept} value={dept}>{dept}</option>
-                  ))}
-                </select>
-              </div>
-            )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">School</label>
+              <select
+                value={formData.school}
+                onChange={(e) => handleSchoolChange(e.target.value)}
+                required
+              >
+                <option value="">Select School</option>
+                {schools.map(school => (
+                  <option key={school.id} value={school.id}>
+                    {school.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Department</label>
+              <select
+                value={formData.department}
+                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                required
+                disabled={!formData.school}
+              >
+                <option value="">Select Department</option>
+                {departments.map(dept => (
+                  <option key={dept} value={dept}>
+                    {dept}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700">Status</label>
@@ -162,7 +196,7 @@ const UserModal = ({ isOpen, onClose, onSubmit, user, departments }: UserModalPr
               type="submit"
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
             >
-              {user ? 'Save Changes' : 'Add User'}
+              {userType === 'student' ? 'Add Student' : 'Add Teacher'}
             </button>
           </div>
         </form>

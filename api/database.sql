@@ -2,26 +2,93 @@
 CREATE DATABASE IF NOT EXISTS e_learning;
 USE e_learning;
 
--- Create users table
-CREATE TABLE IF NOT EXISTS users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    email VARCHAR(255) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL,
-    first_name VARCHAR(100) NOT NULL,
-    last_name VARCHAR(100) NOT NULL,
-    role ENUM('admin', 'teacher', 'student', 'parent') NOT NULL DEFAULT 'student',
-    status ENUM('active', 'inactive', 'suspended') NOT NULL DEFAULT 'active',
-    token VARCHAR(64) DEFAULT NULL,
-    phone VARCHAR(20),
-    address TEXT,
-    profile_picture VARCHAR(255),
-    school VARCHAR(255),
-    department VARCHAR(255),
-    student_id VARCHAR(50),
-    teacher_id VARCHAR(50),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+-- Drop existing triggers and function if they exist
+DROP TRIGGER IF EXISTS before_student_insert;
+DROP TRIGGER IF EXISTS before_teacher_insert;
+DROP TRIGGER IF EXISTS before_admin_insert;
+DROP TRIGGER IF EXISTS before_parent_insert;
+DROP FUNCTION IF EXISTS generate_user_id;
+
+-- Modify users table
+ALTER TABLE users
+MODIFY COLUMN student_id VARCHAR(20) UNIQUE,
+MODIFY COLUMN teacher_id VARCHAR(20) UNIQUE,
+ADD COLUMN admin_id VARCHAR(20) UNIQUE,
+ADD COLUMN parent_id VARCHAR(20) UNIQUE;
+
+-- Create function to generate user IDs
+DELIMITER //
+
+CREATE FUNCTION generate_user_id(role VARCHAR(10)) 
+RETURNS VARCHAR(20)
+DETERMINISTIC
+BEGIN
+    DECLARE prefix VARCHAR(3);
+    DECLARE year_part VARCHAR(2);
+    DECLARE random_num VARCHAR(6);
+    
+    -- Set prefix based on role
+    SET prefix = CASE role
+        WHEN 'student' THEN 'STD'
+        WHEN 'teacher' THEN 'TCH'
+        WHEN 'admin' THEN 'ADM'
+        ELSE 'PRT'
+    END;
+    
+    -- Get current year's last 2 digits
+    SET year_part = RIGHT(YEAR(CURRENT_DATE), 2);
+    
+    -- Generate random 6-digit number
+    SET random_num = LPAD(FLOOR(RAND() * 1000000), 6, '0');
+    
+    -- Return formatted ID
+    RETURN CONCAT(prefix, '/', random_num, '/', year_part);
+END //
+
+-- Create triggers
+CREATE TRIGGER before_student_insert
+BEFORE INSERT ON users
+FOR EACH ROW
+BEGIN
+    IF NEW.role = 'student' THEN
+        SET NEW.student_id = generate_user_id('student');
+    END IF;
+END //
+
+CREATE TRIGGER before_teacher_insert
+BEFORE INSERT ON users
+FOR EACH ROW
+BEGIN
+    IF NEW.role = 'teacher' THEN
+        SET NEW.teacher_id = generate_user_id('teacher');
+    END IF;
+END //
+
+CREATE TRIGGER before_admin_insert
+BEFORE INSERT ON users
+FOR EACH ROW
+BEGIN
+    IF NEW.role = 'admin' THEN
+        SET NEW.admin_id = generate_user_id('admin');
+    END IF;
+END //
+
+CREATE TRIGGER before_parent_insert
+BEFORE INSERT ON users
+FOR EACH ROW
+BEGIN
+    IF NEW.role = 'parent' THEN
+        SET NEW.parent_id = generate_user_id('parent');
+    END IF;
+END //
+
+DELIMITER ;
+
+-- Add indexes
+CREATE INDEX idx_student_id ON users(student_id);
+CREATE INDEX idx_teacher_id ON users(teacher_id);
+CREATE INDEX idx_admin_id ON users(admin_id);
+CREATE INDEX idx_parent_id ON users(parent_id);
 
 -- Create guardian_students table for managing guardian-student relationships
 CREATE TABLE IF NOT EXISTS guardian_students (

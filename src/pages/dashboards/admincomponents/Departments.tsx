@@ -204,11 +204,11 @@ function Departments() {
                                 onChange={(e) => setDepartmentSchoolFilter(e.target.value)}
                                 className="flex-1 sm:flex-none min-w-[120px] text-sm sm:text-base border rounded-lg px-3 sm:px-4 py-2 focus:outline-none focus:border-purple-500"
                             >
-                                <option value="">All Schools</option>
+                                <option key="all" value="">All Schools</option>
                                 {Array.from(new Set(departments.map(d => d.school_id))).map(schoolId => {
                                     const school = departments.find(d => d.school_id === schoolId);
                                     return (
-                                        <option key={schoolId} value={schoolId}>
+                                        <option key={`school-${schoolId}`} value={schoolId}>
                                             {school?.school_name || `School ${schoolId}`}
                                         </option>
                                     );

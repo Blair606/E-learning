@@ -100,6 +100,44 @@ switch($method) {
                 http_response_code(404);
                 echo json_encode(array("message" => "Department not found."));
             }
+        } else if(isset($_GET['school_id'])) {
+            // Get departments by school ID
+            $query = "SELECT d.*, s.name as school_name 
+                     FROM departments d 
+                     INNER JOIN school_departments sd ON d.id = sd.department_id 
+                     INNER JOIN schools s ON sd.school_id = s.id 
+                     WHERE sd.school_id = :school_id
+                     ORDER BY d.name";
+            $stmt = $db->prepare($query);
+            $stmt->bindParam(":school_id", $_GET['school_id']);
+            $stmt->execute();
+            
+            $departments = array();
+            while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                array_push($departments, $row);
+            }
+            
+            http_response_code(200);
+            echo json_encode($departments);
+        } else if(isset($_GET['school_code'])) {
+            // Get departments by school code
+            $query = "SELECT d.*, s.name as school_name 
+                     FROM departments d 
+                     LEFT JOIN school_departments sd ON d.id = sd.department_id 
+                     LEFT JOIN schools s ON sd.school_id = s.id 
+                     WHERE s.code = :school_code
+                     ORDER BY d.name";
+            $stmt = $db->prepare($query);
+            $stmt->bindParam(":school_code", $_GET['school_code']);
+            $stmt->execute();
+            
+            $departments = array();
+            while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                array_push($departments, $row);
+            }
+            
+            http_response_code(200);
+            echo json_encode($departments);
         } else {
             // Get all departments with their school names
             $query = "SELECT d.*, s.name as school_name 
@@ -121,9 +159,8 @@ switch($method) {
         break;
         
     case 'POST':
-        // Create new department
         $data = json_decode(file_get_contents("php://input"));
-        error_log("Received data for department creation: " . print_r($data, true));
+        error_log("Received department data: " . print_r($data, true));
         
         if(!empty($data->name) && !empty($data->code) && !empty($data->school_id)) {
             try {

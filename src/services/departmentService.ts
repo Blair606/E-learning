@@ -48,9 +48,15 @@ class DepartmentService {
     }
   }
 
-  async createDepartment(department: Department): Promise<Department> {
+  async createDepartment(department: CreateDepartmentData): Promise<Department> {
     try {
-      const response = await api.post('/departments/index.php', department);
+      const response = await api.post('/departments/index.php', {
+        name: department.name,
+        code: department.code,
+        school_id: department.school_id,
+        description: department.description || '',
+        status: department.status || 'active'
+      });
       return response.data;
     } catch (error) {
       console.error('Error in createDepartment:', error);

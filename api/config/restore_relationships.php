@@ -24,32 +24,69 @@ try {
         $db->exec("DELETE FROM school_departments");
         echo "Cleared existing relationships.\n";
         
-        // Restore relationships based on department codes
+        // Prepare insert statement
         $insertSQL = "INSERT INTO school_departments (school_id, department_id) VALUES (?, ?)";
         $stmt = $db->prepare($insertSQL);
         
-        $relationshipsCreated = 0;
+        // Define department mappings
+        $scienceDepartments = [
+            'Computer Science',
+            'Mathematics',
+            'Physics',
+            'Chemistry',
+            'Biology'
+        ];
         
-        // Get the School of Pure and Applied Science
-        $schoolId = null;
-        foreach ($schools as $school) {
-            if (stripos($school['name'], 'Pure and Applied Science') !== false) {
-                $schoolId = $school['id'];
-                break;
-            }
-        }
+        $humanitiesDepartments = [
+            'Languages',
+            'History',
+            'Philosophy',
+            'Psychology',
+            'Sociology'
+        ];
         
-        if (!$schoolId) {
-            throw new Exception("Could not find School of Pure and Applied Science");
-        }
-        
-        echo "Found School of Pure and Applied Science (ID: {$schoolId})\n\n";
-        
-        // Link all departments to the School of Pure and Applied Science
+        // Link departments to schools based on their names
         foreach ($departments as $dept) {
-            $stmt->execute([$schoolId, $dept['id']]);
-            $relationshipsCreated++;
-            echo "Linked department {$dept['name']} to School of Pure and Applied Science\n";
+            $schoolId = null;
+            
+            // Check if department name contains any science keywords
+            if (in_array($dept['name'], $scienceDepartments) || 
+                stripos($dept['name'], 'science') !== false ||
+                stripos($dept['name'], 'math') !== false ||
+                stripos($dept['name'], 'computer') !== false ||
+                stripos($dept['name'], 'physics') !== false ||
+                stripos($dept['name'], 'chemistry') !== false ||
+                stripos($dept['name'], 'biology') !== false) {
+                // Find School of Pure and Applied Science
+                foreach ($schools as $school) {
+                    if (stripos($school['name'], 'Pure and Applied Science') !== false) {
+                        $schoolId = $school['id'];
+                        break;
+                    }
+                }
+            }
+            // Check if department name contains any humanities keywords
+            else if (in_array($dept['name'], $humanitiesDepartments) ||
+                     stripos($dept['name'], 'humanities') !== false ||
+                     stripos($dept['name'], 'social') !== false ||
+                     stripos($dept['name'], 'language') !== false ||
+                     stripos($dept['name'], 'history') !== false ||
+                     stripos($dept['name'], 'philosophy') !== false) {
+                // Find School of Humanities
+                foreach ($schools as $school) {
+                    if (stripos($school['name'], 'Humanities') !== false) {
+                        $schoolId = $school['id'];
+                        break;
+                    }
+                }
+            }
+            
+            if ($schoolId) {
+                $stmt->execute([$schoolId, $dept['id']]);
+                echo "Linked department {$dept['name']} to school ID {$schoolId}\n";
+            } else {
+                echo "Could not determine school for department {$dept['name']}\n";
+            }
         }
         
         // Commit transaction
@@ -57,8 +94,7 @@ try {
             throw new Exception("Could not commit transaction");
         }
         
-        echo "\nRestoration completed successfully.\n";
-        echo "Created {$relationshipsCreated} relationships.\n";
+        echo "\nRelationships restored successfully.\n";
         
     } catch (Exception $e) {
         // Rollback transaction on error
@@ -67,10 +103,8 @@ try {
         }
         throw $e;
     }
-    
 } catch (Exception $e) {
-    echo "Error during restoration: " . $e->getMessage() . "\n";
-    echo "Stack trace:\n" . $e->getTraceAsString() . "\n";
+    echo "Error restoring relationships: " . $e->getMessage() . "\n";
     exit(1);
 }
 ?> 
