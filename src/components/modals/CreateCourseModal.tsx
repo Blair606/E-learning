@@ -1,6 +1,9 @@
 import { Fragment, useEffect, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { schoolService, School, Department } from '../../services/schoolService';
+import { userService } from '../../services/userService';
+import { User } from '../../types/user';
 
 interface CourseModalProps {
   isOpen: boolean;
@@ -15,13 +18,13 @@ export interface CourseFormData {
   title: string;
   description: string;
   credits: number;
-  school: 'SASA' | 'SBE' | 'SED' | 'SEES' | 'SHHS' | 'HSSS' | 'SPAS';
-  department: string;
-  instructor: string;
+  school_id: number;
+  department_id: number;
+  instructor_id: number;
   status: 'active' | 'inactive';
-  enrollmentCapacity: number;
-  startDate: string;
-  endDate: string;
+  enrollment_capacity: number;
+  start_date: string;
+  end_date: string;
   schedule: {
     day: string;
     time: string;
@@ -30,75 +33,136 @@ export interface CourseFormData {
   prerequisites: string[];
 }
 
-const initialFormData: CourseFormData = {
-  code: '',
-  title: '',
-  description: '',
-  credits: 3,
-  school: 'SPAS',
-  department: '',
-  instructor: '',
-  status: 'active',
-  enrollmentCapacity: 40,
-  startDate: '',
-  endDate: '',
-  schedule: [{ day: 'Monday', time: '09:00', duration: 2 }],
-  prerequisites: [],
-};
-
 const CreateCourseModal = ({ isOpen, onClose, onSubmit, editData }: CourseModalProps) => {
-  const [formData, setFormData] = useState<CourseFormData>(initialFormData);
-  const [prerequisite, setPrerequisite] = useState('');
+  const [schools, setSchools] = useState<School[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [instructors, setInstructors] = useState<User[]>([]);
+  const [selectedSchool, setSelectedSchool] = useState<number | null>(null);
+  const [formData, setFormData] = useState<CourseFormData>({
+    code: '',
+    title: '',
+    description: '',
+    credits: 3,
+    school_id: 0,
+    department_id: 0,
+    instructor_id: 0,
+    status: 'active',
+    enrollment_capacity: 30,
+    start_date: '',
+    end_date: '',
+    schedule: [{ day: 'Monday', time: '09:00', duration: 60 }],
+    prerequisites: []
+  });
 
   useEffect(() => {
-    if (editData) {
-      setFormData(editData);
-    } else {
-      setFormData(initialFormData);
+    const fetchData = async () => {
+      try {
+        const [schoolsData, instructorsData] = await Promise.all([
+          schoolService.getAllSchools(),
+          userService.getAllUsers()
+        ]);
+        setSchools(schoolsData);
+        setInstructors(instructorsData.filter(user => user.role === 'teacher'));
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+
+    if (isOpen) {
+      fetchData();
+      if (editData) {
+        setFormData(editData);
+        setSelectedSchool(editData.school_id);
+        if (editData.school_id) {
+          fetchDepartments(editData.school_id);
+        }
+      }
     }
-  }, [editData, isOpen]);
+  }, [isOpen, editData]);
+
+  const fetchDepartments = async (schoolId: number) => {
+    try {
+      const departmentsData = await schoolService.getDepartmentsBySchool(schoolId);
+      setDepartments(departmentsData);
+    } catch (error) {
+      console.error('Error fetching departments:', error);
+    }
+  };
+
+  const generateCourseCode = (schoolCode: string, departmentCode: string) => {
+    const timestamp = Date.now().toString().slice(-4);
+    return `${schoolCode}${departmentCode}${timestamp}`;
+  };
+
+  const handleSchoolChange = (schoolId: number) => {
+    setSelectedSchool(schoolId);
+    setFormData(prev => ({ ...prev, school_id: schoolId, department_id: 0 }));
+    fetchDepartments(schoolId);
+  };
+
+  const handleDepartmentChange = (departmentId: number) => {
+    const department = departments.find(d => d.id === departmentId);
+    const school = schools.find(s => s.id === selectedSchool);
+    
+    if (department && school) {
+      const courseCode = generateCourseCode(school.code, department.code);
+      setFormData(prev => ({
+        ...prev,
+        department_id: departmentId,
+        code: courseCode
+      }));
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
-    onClose();
-  };
-
-  const handleScheduleChange = (index: number, field: keyof typeof formData.schedule[0], value: string | number) => {
-    const newSchedule = [...formData.schedule];
-    newSchedule[index] = { ...newSchedule[index], [field]: value };
-    setFormData({ ...formData, schedule: newSchedule });
   };
 
   const addScheduleSlot = () => {
-    setFormData({
-      ...formData,
-      schedule: [...formData.schedule, { day: 'Monday', time: '09:00', duration: 2 }],
-    });
+    setFormData(prev => ({
+      ...prev,
+      schedule: [...prev.schedule, { day: 'Monday', time: '09:00', duration: 60 }]
+    }));
   };
 
   const removeScheduleSlot = (index: number) => {
-    setFormData({
-      ...formData,
-      schedule: formData.schedule.filter((_, i) => i !== index),
-    });
+    setFormData(prev => ({
+      ...prev,
+      schedule: prev.schedule.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateScheduleSlot = (index: number, field: string, value: string | number) => {
+    setFormData(prev => ({
+      ...prev,
+      schedule: prev.schedule.map((slot, i) => 
+        i === index ? { ...slot, [field]: value } : slot
+      )
+    }));
   };
 
   const addPrerequisite = () => {
-    if (prerequisite && !formData.prerequisites.includes(prerequisite)) {
-      setFormData({
-        ...formData,
-        prerequisites: [...formData.prerequisites, prerequisite],
-      });
-      setPrerequisite('');
-    }
+    setFormData(prev => ({
+      ...prev,
+      prerequisites: [...prev.prerequisites, '']
+    }));
   };
 
-  const removePrerequisite = (prereq: string) => {
-    setFormData({
-      ...formData,
-      prerequisites: formData.prerequisites.filter((p) => p !== prereq),
-    });
+  const removePrerequisite = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      prerequisites: prev.prerequisites.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updatePrerequisite = (index: number, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      prerequisites: prev.prerequisites.map((prereq, i) => 
+        i === index ? value : prereq
+      )
+    }));
   };
 
   return (
@@ -127,11 +191,11 @@ const CreateCourseModal = ({ isOpen, onClose, onSubmit, editData }: CourseModalP
               leaveFrom="opacity-100 translate-y-0 sm:scale-100"
               leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
             >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl sm:p-6">
+              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-3xl sm:p-6">
                 <div className="absolute right-0 top-0 pr-4 pt-4">
                   <button
                     type="button"
-                    className="rounded-md bg-white text-gray-400 hover:text-gray-500"
+                    className="rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none"
                     onClick={onClose}
                   >
                     <span className="sr-only">Close</span>
@@ -141,11 +205,55 @@ const CreateCourseModal = ({ isOpen, onClose, onSubmit, editData }: CourseModalP
 
                 <div className="sm:flex sm:items-start">
                   <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                    <Dialog.Title as="h3" className="text-lg font-semibold leading-6 text-gray-900">
+                    <Dialog.Title as="h3" className="text-lg font-semibold leading-6 text-gray-900 mb-4">
                       {editData ? 'Edit Course' : 'Create New Course'}
                     </Dialog.Title>
-                    <form onSubmit={handleSubmit} className="mt-6 space-y-6">
+
+                    <form onSubmit={handleSubmit} className="space-y-6">
                       <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+                        {/* School Selection */}
+                        <div>
+                          <label htmlFor="school" className="block text-sm font-medium text-gray-700">
+                            School*
+                          </label>
+                          <select
+                            id="school"
+                            required
+                            value={formData.school_id}
+                            onChange={(e) => handleSchoolChange(Number(e.target.value))}
+                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
+                          >
+                            <option value="">Select School</option>
+                            {schools.map((school) => (
+                              <option key={school.id} value={school.id}>
+                                {school.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Department Selection */}
+                        <div>
+                          <label htmlFor="department" className="block text-sm font-medium text-gray-700">
+                            Department*
+                          </label>
+                          <select
+                            id="department"
+                            required
+                            value={formData.department_id}
+                            onChange={(e) => handleDepartmentChange(Number(e.target.value))}
+                            disabled={!selectedSchool}
+                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none disabled:bg-gray-100"
+                          >
+                            <option value="">Select Department</option>
+                            {departments.map((dept) => (
+                              <option key={dept.id} value={dept.id}>
+                                {dept.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
                         {/* Course Code */}
                         <div>
                           <label htmlFor="code" className="block text-sm font-medium text-gray-700">
@@ -156,8 +264,8 @@ const CreateCourseModal = ({ isOpen, onClose, onSubmit, editData }: CourseModalP
                             id="code"
                             required
                             value={formData.code}
-                            onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
+                            readOnly
+                            className="mt-1 block w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-500"
                           />
                         </div>
 
@@ -193,56 +301,25 @@ const CreateCourseModal = ({ isOpen, onClose, onSubmit, editData }: CourseModalP
                           />
                         </div>
 
-                        {/* School */}
-                        <div>
-                          <label htmlFor="school" className="block text-sm font-medium text-gray-700">
-                            School*
-                          </label>
-                          <select
-                            id="school"
-                            required
-                            value={formData.school}
-                            onChange={(e) => setFormData({ ...formData, school: e.target.value as CourseFormData['school'] })}
-                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
-                          >
-                            <option value="SASA">SASA</option>
-                            <option value="SBE">SBE</option>
-                            <option value="SED">SED</option>
-                            <option value="SEES">SEES</option>
-                            <option value="SHHS">SHHS</option>
-                            <option value="HSSS">HSSS</option>
-                            <option value="SPAS">SPAS</option>
-                          </select>
-                        </div>
-
-                        {/* Department */}
-                        <div>
-                          <label htmlFor="department" className="block text-sm font-medium text-gray-700">
-                            Department*
-                          </label>
-                          <input
-                            type="text"
-                            id="department"
-                            required
-                            value={formData.department}
-                            onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
-                          />
-                        </div>
-
                         {/* Instructor */}
                         <div>
                           <label htmlFor="instructor" className="block text-sm font-medium text-gray-700">
                             Instructor*
                           </label>
-                          <input
-                            type="text"
+                          <select
                             id="instructor"
                             required
-                            value={formData.instructor}
-                            onChange={(e) => setFormData({ ...formData, instructor: e.target.value })}
+                            value={formData.instructor_id}
+                            onChange={(e) => setFormData({ ...formData, instructor_id: Number(e.target.value) })}
                             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
-                          />
+                          >
+                            <option value="">Select Instructor</option>
+                            {instructors.map((instructor) => (
+                              <option key={instructor.id} value={instructor.id}>
+                                {instructor.firstName} {instructor.lastName}
+                              </option>
+                            ))}
+                          </select>
                         </div>
 
                         {/* Status */}
@@ -272,8 +349,8 @@ const CreateCourseModal = ({ isOpen, onClose, onSubmit, editData }: CourseModalP
                             id="enrollmentCapacity"
                             required
                             min="1"
-                            value={formData.enrollmentCapacity}
-                            onChange={(e) => setFormData({ ...formData, enrollmentCapacity: Number(e.target.value) })}
+                            value={formData.enrollment_capacity}
+                            onChange={(e) => setFormData({ ...formData, enrollment_capacity: Number(e.target.value) })}
                             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
                           />
                         </div>
@@ -287,8 +364,8 @@ const CreateCourseModal = ({ isOpen, onClose, onSubmit, editData }: CourseModalP
                             type="date"
                             id="startDate"
                             required
-                            value={formData.startDate}
-                            onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                            value={formData.start_date}
+                            onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
                             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
                           />
                         </div>
@@ -302,8 +379,8 @@ const CreateCourseModal = ({ isOpen, onClose, onSubmit, editData }: CourseModalP
                             type="date"
                             id="endDate"
                             required
-                            value={formData.endDate}
-                            onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                            value={formData.end_date}
+                            onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
                             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
                           />
                         </div>
@@ -327,53 +404,55 @@ const CreateCourseModal = ({ isOpen, onClose, onSubmit, editData }: CourseModalP
                       {/* Schedule */}
                       <div>
                         <div className="flex justify-between items-center mb-2">
-                          <label className="block text-sm font-medium text-gray-700">Schedule*</label>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Schedule*
+                          </label>
                           <button
                             type="button"
                             onClick={addScheduleSlot}
-                            className="text-sm text-purple-600 hover:text-purple-700"
+                            className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-purple-700 bg-purple-100 hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
                           >
-                            + Add Time Slot
+                            <PlusIcon className="h-4 w-4 mr-1" />
+                            Add Slot
                           </button>
                         </div>
-                        <div className="space-y-2">
+                        <div className="space-y-4">
                           {formData.schedule.map((slot, index) => (
-                            <div key={index} className="flex gap-2 items-center">
+                            <div key={index} className="flex items-center space-x-4">
                               <select
                                 value={slot.day}
-                                onChange={(e) => handleScheduleChange(index, 'day', e.target.value)}
-                                className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
+                                onChange={(e) => updateScheduleSlot(index, 'day', e.target.value)}
+                                className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
                               >
-                                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day) => (
-                                  <option key={day} value={day}>
-                                    {day}
-                                  </option>
-                                ))}
+                                <option value="Monday">Monday</option>
+                                <option value="Tuesday">Tuesday</option>
+                                <option value="Wednesday">Wednesday</option>
+                                <option value="Thursday">Thursday</option>
+                                <option value="Friday">Friday</option>
+                                <option value="Saturday">Saturday</option>
                               </select>
                               <input
                                 type="time"
                                 value={slot.time}
-                                onChange={(e) => handleScheduleChange(index, 'time', e.target.value)}
-                                className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
+                                onChange={(e) => updateScheduleSlot(index, 'time', e.target.value)}
+                                className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
                               />
                               <input
                                 type="number"
-                                min="1"
-                                max="4"
                                 value={slot.duration}
-                                onChange={(e) => handleScheduleChange(index, 'duration', Number(e.target.value))}
-                                className="block w-24 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
-                                placeholder="Hours"
+                                onChange={(e) => updateScheduleSlot(index, 'duration', Number(e.target.value))}
+                                min="30"
+                                max="180"
+                                step="30"
+                                className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
                               />
-                              {formData.schedule.length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => removeScheduleSlot(index)}
-                                  className="text-red-600 hover:text-red-700"
-                                >
-                                  <XMarkIcon className="h-5 w-5" />
-                                </button>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => removeScheduleSlot(index)}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                <TrashIcon className="h-5 w-5" />
+                              </button>
                             </div>
                           ))}
                         </div>
@@ -382,56 +461,53 @@ const CreateCourseModal = ({ isOpen, onClose, onSubmit, editData }: CourseModalP
                       {/* Prerequisites */}
                       <div>
                         <div className="flex justify-between items-center mb-2">
-                          <label className="block text-sm font-medium text-gray-700">Prerequisites</label>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={prerequisite}
-                              onChange={(e) => setPrerequisite(e.target.value)}
-                              placeholder="Course code"
-                              className="block w-32 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
-                            />
-                            <button
-                              type="button"
-                              onClick={addPrerequisite}
-                              className="text-sm text-purple-600 hover:text-purple-700"
-                            >
-                              Add
-                            </button>
-                          </div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Prerequisites
+                          </label>
+                          <button
+                            type="button"
+                            onClick={addPrerequisite}
+                            className="inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-purple-700 bg-purple-100 hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                          >
+                            <PlusIcon className="h-4 w-4 mr-1" />
+                            Add Prerequisite
+                          </button>
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                          {formData.prerequisites.map((prereq) => (
-                            <span
-                              key={prereq}
-                              className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-3 py-1 text-sm font-medium text-purple-700"
-                            >
-                              {prereq}
+                        <div className="space-y-2">
+                          {formData.prerequisites.map((prereq, index) => (
+                            <div key={index} className="flex items-center space-x-2">
+                              <input
+                                type="text"
+                                value={prereq}
+                                onChange={(e) => updatePrerequisite(index, e.target.value)}
+                                placeholder="Enter prerequisite course code"
+                                className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
+                              />
                               <button
                                 type="button"
-                                onClick={() => removePrerequisite(prereq)}
-                                className="text-purple-600 hover:text-purple-700"
+                                onClick={() => removePrerequisite(index)}
+                                className="text-red-600 hover:text-red-900"
                               >
-                                <XMarkIcon className="h-4 w-4" />
+                                <TrashIcon className="h-5 w-5" />
                               </button>
-                            </span>
+                            </div>
                           ))}
                         </div>
                       </div>
 
-                      <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                        <button
-                          type="submit"
-                          className="inline-flex w-full justify-center rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-purple-500 sm:ml-3 sm:w-auto"
-                        >
-                          {editData ? 'Save Changes' : 'Create Course'}
-                        </button>
+                      <div className="mt-6 flex justify-end space-x-3">
                         <button
                           type="button"
-                          className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
                           onClick={onClose}
+                          className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50"
                         >
                           Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-purple-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-600"
+                        >
+                          {editData ? 'Update Course' : 'Create Course'}
                         </button>
                       </div>
                     </form>

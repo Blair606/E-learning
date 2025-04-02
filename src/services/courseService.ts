@@ -26,6 +26,7 @@ export interface Course {
 }
 
 export interface CreateCourseData {
+    code: string;
     title: string;
     description: string;
     credits: number;
