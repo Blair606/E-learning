@@ -41,15 +41,13 @@ const SignUp: React.FC = () => {
         }
 
         try {
-            await userService.createUser({
+            await userService.register({
                 email: formData.email,
+                password: formData.password,
                 firstName: formData.firstName,
                 lastName: formData.lastName,
                 role: formData.role,
-                status: formData.status,
-                $id: '', // Will be set by the server
-                $createdAt: new Date().toISOString(),
-                $updatedAt: new Date().toISOString()
+                status: formData.status
             });
             navigate(`/signin/${formData.role}`);
         } catch (err) {

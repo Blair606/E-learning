@@ -53,7 +53,7 @@ const TeacherSignUp: React.FC = () => {
                 role: 'teacher' as const,
                 status: 'active' as const
             };
-            await userService.createUser(userData);
+            await userService.register(userData);
             setSuccess('Account created successfully! Redirecting to dashboard...');
             // Wait for 2 seconds to show the success message
             setTimeout(() => {
