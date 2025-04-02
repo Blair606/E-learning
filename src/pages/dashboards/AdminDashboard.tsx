@@ -33,6 +33,7 @@ import Departments from "./admincomponents/Departments";
 import CreateSchoolModal, { SchoolFormData } from "../../components/modals/CreateSchoolModal";
 import { schoolService } from '../../services/schoolService';
 import type { School, Department } from '../../types/school';
+import { courseService, Course } from '../../services/courseService';
 
 interface UserFilters {
   role: 'all' | 'teacher' | 'student' | 'admin';
@@ -150,48 +151,7 @@ const AdminDashboard = () => {
   const [userModalMode, setUserModalMode] = useState<'create' | 'edit' | 'delete'>('create');
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
 
-  const [courses, setCourses] = useState<Course[]>([
-    {
-      id: "1",
-      code: "CS101",
-      title: "Introduction to Computer Science",
-      description: "Fundamental concepts of programming and computer science",
-      credits: 3,
-      school: "SPAS",
-      department: "Computer Science",
-      instructor: "John Doe",
-      status: "active",
-      enrollmentCapacity: 50,
-      currentEnrollment: 35,
-      startDate: "2024-01-15",
-      endDate: "2024-05-15",
-      schedule: [
-        { day: "Monday", time: "09:00", duration: 2 },
-        { day: "Wednesday", time: "09:00", duration: 2 },
-      ],
-      prerequisites: [],
-    },
-    {
-      id: "2",
-      code: "MATH201",
-      title: "Advanced Calculus",
-      description: "Advanced concepts in calculus and mathematical analysis",
-      credits: 4,
-      school: "SPAS",
-      department: "Mathematics",
-      instructor: "Jane Smith",
-      status: "active",
-      enrollmentCapacity: 40,
-      currentEnrollment: 38,
-      startDate: "2024-01-15",
-      endDate: "2024-05-15",
-      schedule: [
-        { day: "Tuesday", time: "11:00", duration: 2 },
-        { day: "Thursday", time: "11:00", duration: 2 },
-      ],
-      prerequisites: ["MATH101"],
-    },
-  ]);
+  const [courses, setCourses] = useState<Course[]>([]);
 
   const [courseSearchTerm, setCourseSearchTerm] = useState("");
   const [schoolFilter, setSchoolFilter] = useState("");
@@ -300,26 +260,47 @@ const AdminDashboard = () => {
     },
   });
 
-  const handleCreateCourse = (courseData: CourseFormData) => {
-    const newCourse: Course = {
-      ...courseData,
-      id: String(courses.length + 1),
-      currentEnrollment: 0,
-    };
-    setCourses([...courses, newCourse]);
+  const handleCreateCourse = async (courseData: CourseFormData) => {
+    try {
+      const newCourse = await courseService.createCourse(courseData);
+      setCourses([...courses, newCourse]);
+      setIsCourseModalOpen(false);
+      alert('Course created successfully');
+    } catch (error) {
+      console.error('Error creating course:', error);
+      alert('Failed to create course. Please try again.');
+    }
   };
 
-  const handleEditCourse = (courseData: CourseFormData) => {
-    setCourses(
-      courses.map((course) =>
-        course.id === courseData.id ? { ...course, ...courseData } : course
-      )
-    );
+  const handleEditCourse = async (courseData: CourseFormData) => {
+    try {
+      if (!selectedCourse) return;
+      await courseService.updateCourse({
+        ...courseData,
+        id: selectedCourse.id
+      });
+      setCourses(courses.map(course =>
+        course.id === selectedCourse.id ? { ...course, ...courseData } : course
+      ));
+      setIsCourseModalOpen(false);
+      setSelectedCourse(null);
+      alert('Course updated successfully');
+    } catch (error) {
+      console.error('Error updating course:', error);
+      alert('Failed to update course. Please try again.');
+    }
   };
 
-  const handleDeleteCourse = (courseId: string) => {
-    if (window.confirm("Are you sure you want to delete this course?")) {
-      setCourses(courses.filter((course) => course.id !== courseId));
+  const handleDeleteCourse = async (courseId: number) => {
+    if (window.confirm('Are you sure you want to delete this course?')) {
+      try {
+        await courseService.deleteCourse(courseId);
+        setCourses(courses.filter(course => course.id !== courseId));
+        alert('Course deleted successfully');
+      } catch (error) {
+        console.error('Error deleting course:', error);
+        alert('Failed to delete course. Please try again.');
+      }
     }
   };
 
@@ -985,7 +966,7 @@ const AdminDashboard = () => {
                               <PencilIcon className="w-5 h-5" />
                             </button>
                             <button
-                              onClick={() => handleDeleteCourse(course.id)}
+                              onClick={() => handleDeleteCourse(parseInt(course.id))}
                               className="text-red-600 hover:text-red-900"
                             >
                               <TrashIcon className="w-5 h-5" />
