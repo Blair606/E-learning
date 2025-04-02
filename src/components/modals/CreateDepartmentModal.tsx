@@ -83,24 +83,14 @@ const CreateDepartmentModal = ({ isOpen, onClose, onSubmit, editData }: CreateDe
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
+    
     try {
-      if (editData?.id) {
-        const updateData: UpdateDepartmentData = {
-          ...formData,
-          id: editData.id
-        };
-        await departmentService.updateDepartment(updateData);
-      } else {
-        const createData: CreateDepartmentData = {
-          ...formData
-        };
-        await departmentService.createDepartment(createData);
-      }
       onSubmit(formData);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setError(errorMessage);
+      console.error('Error submitting department:', err);
     }
   };
 

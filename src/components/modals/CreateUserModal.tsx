@@ -12,6 +12,16 @@ interface CreateUserModalProps {
   editData?: Partial<Student | Teacher>;
 }
 
+// Function to generate user ID based on role
+const generateUserId = (role: 'student' | 'teacher' | 'admin' | 'parent'): string => {
+  const prefix = role === 'student' ? 'STD' : 
+                role === 'teacher' ? 'TCH' : 
+                role === 'admin' ? 'ADM' : 'PRT';
+  const year = new Date().getFullYear().toString().slice(-2);
+  const randomNum = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+  return `${prefix}/${randomNum}/${year}`;
+};
+
 const CreateUserModal = ({ isOpen, onClose, onSubmit, userType, editData }: CreateUserModalProps) => {
   const [formData, setFormData] = useState<Partial<Student | Teacher>>({
     firstName: '',
@@ -25,13 +35,16 @@ const CreateUserModal = ({ isOpen, onClose, onSubmit, userType, editData }: Crea
     school: '',
     department: '',
     ...(userType === 'student' ? {
-      studentId: '',
+      studentId: generateUserId('student'),
       grade: '',
-      enrollmentDate: '',
+      enrollmentDate: new Date().toISOString().split('T')[0],
       specialization: '',
       education: ''
     } : {
-      teacherId: '',
+      teacherId: generateUserId('teacher'),
+      specialization: '',
+      education: '',
+      experience: ''
     }),
     ...(editData || {})
   });
@@ -42,20 +55,10 @@ const CreateUserModal = ({ isOpen, onClose, onSubmit, userType, editData }: Crea
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
 
-  // Function to generate user ID based on role
-  const generateUserId = (role: string): string => {
-    const prefix = role === 'student' ? 'STD' : 
-                  role === 'teacher' ? 'TCH' : 
-                  role === 'admin' ? 'ADM' : 'PRT';
-    const year = new Date().getFullYear().toString().slice(-2);
-    const randomNum = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
-    return `${prefix}/${randomNum}/${year}`;
-  };
-
   // Update role-specific ID when role changes
   useEffect(() => {
     if (!editData) {
-      const newId = generateUserId(formData.role);
+      const newId = generateUserId(formData.role as 'student' | 'teacher' | 'admin' | 'parent');
       setFormData(prev => ({
         ...prev,
         studentId: formData.role === 'student' ? newId : '',
@@ -144,13 +147,16 @@ const CreateUserModal = ({ isOpen, onClose, onSubmit, userType, editData }: Crea
         school: '',
         department: '',
         ...(userType === 'student' ? {
-          studentId: '',
+          studentId: generateUserId('student'),
           grade: '',
-          enrollmentDate: '',
+          enrollmentDate: new Date().toISOString().split('T')[0],
           specialization: '',
           education: ''
         } : {
-          teacherId: '',
+          teacherId: generateUserId('teacher'),
+          specialization: '',
+          education: '',
+          experience: ''
         })
       });
       setErrors({});

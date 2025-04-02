@@ -2,6 +2,10 @@
 require_once '../config/cors.php';
 require_once '../config/database.php';
 
+// Handle CORS first
+handleCORS();
+
+// Set content type
 header('Content-Type: application/json');
 
 try {
@@ -9,7 +13,16 @@ try {
     $conn = getConnection();
     
     // Get posted data
-    $data = json_decode(file_get_contents("php://input"));
+    $rawData = file_get_contents("php://input");
+    error_log("Received data: " . $rawData);
+    
+    $data = json_decode($rawData);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log("JSON decode error: " . json_last_error_msg());
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid JSON data']);
+        exit;
+    }
     
     // Validate request method
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -18,17 +31,46 @@ try {
         exit;
     }
     
+    // Log received data for debugging
+    error_log("Received registration data: " . print_r($data, true));
+    
     // Validate required fields
-    if (!isset($data->email) || !isset($data->password) || !isset($data->firstName) || !isset($data->lastName) || !isset($data->role)) {
+    $requiredFields = ['email', 'password', 'firstName', 'lastName', 'role'];
+    $missingFields = [];
+    
+    foreach ($requiredFields as $field) {
+        if (!isset($data->$field)) {
+            $missingFields[] = $field;
+        }
+    }
+    
+    if (!empty($missingFields)) {
+        error_log("Missing required fields: " . implode(', ', $missingFields));
         http_response_code(400);
-        echo json_encode(['error' => 'Missing required fields']);
+        echo json_encode([
+            'error' => 'Missing required fields',
+            'missing_fields' => $missingFields
+        ]);
         exit;
     }
     
     // Validate email format
     if (!filter_var($data->email, FILTER_VALIDATE_EMAIL)) {
+        error_log("Invalid email format: " . $data->email);
         http_response_code(400);
         echo json_encode(['error' => 'Invalid email format']);
+        exit;
+    }
+    
+    // Validate role
+    $validRoles = ['admin', 'teacher', 'student'];
+    if (!in_array($data->role, $validRoles)) {
+        error_log("Invalid role: " . $data->role);
+        http_response_code(400);
+        echo json_encode([
+            'error' => 'Invalid role',
+            'valid_roles' => $validRoles
+        ]);
         exit;
     }
     
@@ -36,6 +78,7 @@ try {
     $stmt = $conn->prepare("SELECT id FROM users WHERE email = ?");
     $stmt->execute([$data->email]);
     if ($stmt->rowCount() > 0) {
+        error_log("Email already exists: " . $data->email);
         http_response_code(400);
         echo json_encode(['error' => 'Email already exists']);
         exit;
@@ -59,6 +102,7 @@ try {
     
     // Execute query
     if (!$stmt->execute()) {
+        error_log("Failed to create user: " . print_r($stmt->errorInfo(), true));
         throw new Exception("Failed to create user");
     }
     
@@ -84,10 +128,12 @@ try {
     
 } catch (PDOException $e) {
     error_log("Database error: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
     http_response_code(500);
     echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
 } catch (Exception $e) {
     error_log("Server error: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
     http_response_code(500);
     echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);
 }

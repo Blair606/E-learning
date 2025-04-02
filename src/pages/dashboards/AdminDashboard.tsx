@@ -12,6 +12,9 @@ import {
   BuildingLibraryIcon,
   XMarkIcon,
   Bars3Icon,
+  MagnifyingGlassIcon,
+  PencilIcon,
+  TrashIcon,
 } from "@heroicons/react/24/outline";
 import DashboardHeader from "../../components/DashboardHeader";
 import CreateCourseModal, {
@@ -28,7 +31,20 @@ import UserManagementModal from "../../components/modals/UserManagementModal";
 import Finance from "./admincomponents/Finance";
 import Departments from "./admincomponents/Departments";
 import CreateSchoolModal, { SchoolFormData } from "../../components/modals/CreateSchoolModal";
-import { schoolService, School } from '../../services/schoolService';
+import { schoolService } from '../../services/schoolService';
+import type { School, Department } from '../../types/school';
+
+interface UserFilters {
+  role: 'all' | 'teacher' | 'student' | 'admin';
+  status: 'all' | 'active' | 'inactive';
+  department: string;
+}
+
+interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
 
 // Add Course related interfaces
 interface Course {
@@ -128,21 +144,12 @@ const AdminDashboard = () => {
 
   const [users, setUsers] = useState<User[]>([]); // Initialize as an empty array
 
-  const fetchUsers = async () => {
-    try {
-      const usersData = await userService.getAllUsers();
-      setUsers(usersData);
-    } catch (error) {
-      console.error("Error fetching users:", error);
-      alert("Failed to fetch users. Please try again later.");
-    }
-  };
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [userModalType, setUserModalType] = useState<'student' | 'teacher'>('student');
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [userModalMode, setUserModalMode] = useState<'create' | 'edit' | 'delete'>('create');
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  // Add state for courses
   const [courses, setCourses] = useState<Course[]>([
     {
       id: "1",
@@ -198,13 +205,6 @@ const AdminDashboard = () => {
   >();
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
 
-  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
-  const [userModalType, setUserModalType] = useState<"student" | "teacher">(
-    "student"
-  );
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [userModalMode, setUserModalMode] = useState<"edit" | "delete">("edit");
-
   // Add state for schools
   const [schools, setSchools] = useState<School[]>([]);
 
@@ -228,27 +228,46 @@ const AdminDashboard = () => {
     fetchSchools();
   }, []);
 
-  async function deleteUser(userId: string) {
+  const fetchUsers = async () => {
     try {
-      const response = await userService.deleteUser(userId);
-
-      if (response.status === 200 || response.status === 204) {
-        // Remove user from local state
-        setUsers(users.filter((user) => user.id !== userId));
-        return true;
+      const response = await userService.getAllUsers();
+      if (response.success && Array.isArray(response.data)) {
+        setUsers(response.data);
       } else {
-        throw new Error(`Failed to delete user: ${response.status}`);
+        console.error('Failed to fetch users: Invalid response format');
+        alert('Failed to fetch users. Please try again later.');
       }
-    } catch (error: unknown) {
-      console.error("Error deleting user:", error);
-      if (userService.isAxiosError(error)) {
-        throw new Error(
-          error.response?.data?.message || "Failed to delete user"
-        );
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      if (error instanceof Error) {
+        alert(error.message);
+      } else {
+        alert('Failed to fetch users. Please try again later.');
       }
-      throw error;
     }
-  }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      const response = await userService.deleteUser(userId) as ApiResponse<void>;
+      if (response.success) {
+        setUsers(users.filter(user => user.id !== userId));
+      } else {
+        throw new Error(response.error || 'Failed to delete user');
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      if (error instanceof Error) {
+        alert(error.message);
+      } else {
+        alert('Failed to delete user. Please try again later.');
+      }
+    }
+  };
 
   // Add settings state
   const [systemSettings, setSystemSettings] = useState<SystemSettings>({
@@ -462,17 +481,29 @@ const AdminDashboard = () => {
                   Quick Actions
                 </h2>
                 <div className="grid grid-cols-2 gap-2 sm:gap-4">
-                  <button className="p-2 sm:p-4 bg-blue-50 rounded-lg text-blue-700 hover:bg-blue-100 transition-colors flex flex-col items-center">
-                    <UserPlusIcon className="w-5 h-5 sm:w-6 sm:h-6 mb-1 sm:mb-2" />
-                    <span className="text-xs sm:text-sm text-center">
-                      Add New User
-                    </span>
+                  <button
+                    onClick={() => {
+                      setUserModalType('student');
+                      setSelectedUser(null);
+                      setUserModalMode('create');
+                      setShowUserModal(true);
+                    }}
+                    className="flex-1 sm:flex-none flex items-center justify-center px-3 sm:px-4 py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 text-sm sm:text-base"
+                  >
+                    <UserPlusIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                    Add Student
                   </button>
-                  <button className="p-2 sm:p-4 bg-green-50 rounded-lg text-green-700 hover:bg-green-100 transition-colors flex flex-col items-center">
-                    <BookOpenIcon className="w-5 h-5 sm:w-6 sm:h-6 mb-1 sm:mb-2" />
-                    <span className="text-xs sm:text-sm text-center">
-                      Create Course
-                    </span>
+                  <button
+                    onClick={() => {
+                      setUserModalType('teacher');
+                      setSelectedUser(null);
+                      setUserModalMode('create');
+                      setShowUserModal(true);
+                    }}
+                    className="flex-1 sm:flex-none flex items-center justify-center px-3 sm:px-4 py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 text-sm sm:text-base"
+                  >
+                    <AcademicCapIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                    Add Teacher
                   </button>
                 </div>
               </div>
@@ -627,79 +658,68 @@ const AdminDashboard = () => {
 
       case "users":
         return (
-          <div className="space-y-4 sm:space-y-6">
+          <div className="space-y-6">
             {/* Header with Actions */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
-                User Management
-              </h2>
-              <div className="flex flex-wrap gap-2 sm:gap-4 w-full sm:w-auto">
+              <h2 className="text-2xl font-semibold">User Management</h2>
+              <div className="flex space-x-2">
                 <button
                   onClick={() => {
-                    setUserModalType("student");
-                    setIsUserModalOpen(true);
+                    setUserModalType('student');
+                    setSelectedUser(null);
+                    setUserModalMode('create');
+                    setShowUserModal(true);
                   }}
-                  className="flex-1 sm:flex-none bg-blue-500 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center"
+                  className="flex-1 sm:flex-none flex items-center justify-center px-3 sm:px-4 py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 text-sm sm:text-base"
                 >
                   <UserPlusIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                  <span className="text-sm sm:text-base">Add Student</span>
+                  Add Student
                 </button>
                 <button
                   onClick={() => {
-                    setUserModalType("teacher");
-                    setIsUserModalOpen(true);
+                    setUserModalType('teacher');
+                    setSelectedUser(null);
+                    setUserModalMode('create');
+                    setShowUserModal(true);
                   }}
-                  className="flex-1 sm:flex-none bg-green-500 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center"
+                  className="flex-1 sm:flex-none flex items-center justify-center px-3 sm:px-4 py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 text-sm sm:text-base"
                 >
                   <AcademicCapIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                  <span className="text-sm sm:text-base">Add Teacher</span>
+                  Add Teacher
                 </button>
               </div>
             </div>
 
-            {/* Search and Filter Bar - Responsive layout */}
-            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm hover:shadow-md transition-all duration-200">
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center">
-                <div className="flex-1">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="Search users..."
-                      className="w-full pl-10 pr-4 py-2 text-sm sm:text-base border rounded-lg focus:outline-none focus:border-purple-500"
-                    />
-                    <svg
-                      className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                      />
-                    </svg>
-                  </div>
+            {/* Filters and Search */}
+            <div className="bg-white p-4 rounded-lg shadow-sm">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1 flex items-center space-x-2">
+                  <MagnifyingGlassIcon className="w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search users..."
+                    className="flex-1 border-0 focus:ring-0"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
                 </div>
-                <div className="flex flex-wrap gap-2 sm:gap-4">
+                <div className="flex items-center space-x-4">
                   <select
+                    className="border-gray-300 rounded-md text-sm"
                     value={roleFilter}
-                    onChange={(e) => setRoleFilter(e.target.value)}
-                    className="flex-1 sm:flex-none min-w-[120px] text-sm sm:text-base border rounded-lg px-3 sm:px-4 py-2 focus:outline-none focus:border-purple-500"
+                    onChange={(e) => setRoleFilter(e.target.value as UserFilters['role'])}
                   >
-                    <option value="">All Roles</option>
+                    <option value="all">All Roles</option>
                     <option value="teacher">Teachers</option>
                     <option value="student">Students</option>
+                    <option value="admin">Admins</option>
                   </select>
                   <select
+                    className="border-gray-300 rounded-md text-sm"
                     value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="flex-1 sm:flex-none min-w-[120px] text-sm sm:text-base border rounded-lg px-3 sm:px-4 py-2 focus:outline-none focus:border-purple-500"
+                    onChange={(e) => setStatusFilter(e.target.value as UserFilters['status'])}
                   >
-                    <option value="">All Status</option>
+                    <option value="all">All Status</option>
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
                   </select>
@@ -707,427 +727,115 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            {/* Users Table - Responsive table */}
-            <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200">
+            {/* Users Table */}
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
-                <div className="inline-block min-w-full align-middle">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th
-                          scope="col"
-                          className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Name
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Email
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Role
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Status
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Actions
-                        </th>
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Name
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Role
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Department
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Join Date
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {users.map((user) => (
+                      <tr key={user.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-10 w-10">
+                              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                <span className="text-blue-600 font-medium">
+                                  {user.firstName?.[0]}{user.lastName?.[0]}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">
+                                {user.firstName} {user.lastName}
+                              </div>
+                              <div className="text-sm text-gray-500">{user.email}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                            ${user.role === 'teacher' ? 'bg-green-100 text-green-800' : 
+                              user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 
+                              'bg-blue-100 text-blue-800'}`}>
+                            {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {user.department || '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                            ${user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                            {user.status?.charAt(0).toUpperCase() + (user.status?.slice(1) || '')}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(user.createdAt || '').toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <button
+                            onClick={() => {
+                              setUserModalType(user.role as 'student' | 'teacher');
+                              setSelectedUser(user);
+                              setUserModalMode('edit');
+                              setShowUserModal(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-900 mr-4"
+                          >
+                            <PencilIcon className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedUser(user);
+                              setUserModalMode('delete');
+                              handleUserAction();
+                            }}
+                            className="text-red-600 hover:text-red-900"
+                          >
+                            <TrashIcon className="w-5 h-5" />
+                          </button>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {users.map((user) => (
-                        <tr key={user.id} className="hover:bg-gray-50">
-                          <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
-                            <div className="text-xs sm:text-sm font-medium text-gray-900">
-                              {user.firstName} {user.lastName}
-                            </div>
-                          </td>
-                          <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
-                            <div className="text-xs sm:text-sm text-gray-500">
-                              {user.email}
-                            </div>
-                          </td>
-                          <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
-                            <div className="text-xs sm:text-sm text-gray-500 capitalize">
-                              {user.role}
-                            </div>
-                          </td>
-                          <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
-                            <span
-                              className={`px-2 py-1 text-xs sm:text-sm font-medium rounded-full ${
-                                user.status === "active"
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-red-100 text-red-800"
-                              }`}
-                            >
-                              {user.status}
-                            </span>
-                          </td>
-                          <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
-                            <div className="flex space-x-2 sm:space-x-3">
-                              <button
-                                onClick={() => {
-                                  setSelectedUser(user);
-                                  setUserModalMode("edit");
-                                  setIsUserModalOpen(true);
-                                }}
-                                className="text-blue-600 hover:text-blue-900"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => void handleDeleteUser(user)}
-                                className="text-red-600 hover:text-red-900"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            {/* Pagination - Responsive layout */}
-
-            {/* Create User Modal */}
-            <CreateUserModal
-              isOpen={isUserModalOpen}
-              onClose={() => setIsUserModalOpen(false)}
-              onSubmit={handleCreateUser}
-              userType={userModalType}
-              schools={schools}
-              departments={schoolDepartments}
-            />
-          </div>
-        );
-
-      case "courses": {
-        // Filter courses based on search and filters
-        const filteredCourses = courses.filter((course) => {
-          const matchesSearch =
-            course.code
-              .toLowerCase()
-              .includes(courseSearchTerm.toLowerCase()) ||
-            course.title.toLowerCase().includes(courseSearchTerm.toLowerCase());
-          const matchesSchool = !schoolFilter || course.school === schoolFilter;
-          const matchesStatus =
-            !courseStatusFilter || course.status === courseStatusFilter;
-          return matchesSearch && matchesSchool && matchesStatus;
-        });
-
-        return (
-          <div className="space-y-4 sm:space-y-6">
-            {/* Header with Actions */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
-                Course Management
-              </h2>
-              <button
-                onClick={() => {
-                  setEditCourseData(undefined);
-                  setIsCourseModalOpen(true);
-                }}
-                className="flex-1 sm:flex-none bg-purple-500 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors flex items-center justify-center"
-              >
-                <BookOpenIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                <span className="text-sm sm:text-base">Add New Course</span>
-              </button>
-            </div>
-
-            {/* Search and Filter Bar */}
-            <div className="bg-white p-3 sm:p-4 rounded-xl shadow-sm hover:shadow-md transition-all duration-200">
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center">
-                <div className="flex-1">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={courseSearchTerm}
-                      onChange={(e) => setCourseSearchTerm(e.target.value)}
-                      placeholder="Search courses..."
-                      className="w-full pl-10 pr-4 py-2 text-sm sm:text-base border rounded-lg focus:outline-none focus:border-purple-500"
-                    />
-                    <svg
-                      className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                      />
-                    </svg>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2 sm:gap-4">
-                  <select
-                    value={schoolFilter}
-                    onChange={(e) => handleSchoolChange(e.target.value)}
-                    className="flex-1 sm:flex-none min-w-[120px] text-sm sm:text-base border rounded-lg px-3 sm:px-4 py-2 focus:outline-none focus:border-purple-500"
-                  >
-                    <option value="">All Schools</option>
-                    {schools.map(school => (
-                      <option key={school.id} value={school.id}>
-                        {school.name}
-                      </option>
                     ))}
-                  </select>
-                  <select
-                    value={courseStatusFilter}
-                    onChange={(e) => setCourseStatusFilter(e.target.value)}
-                    className="flex-1 sm:flex-none min-w-[120px] text-sm sm:text-base border rounded-lg px-3 sm:px-4 py-2 focus:outline-none focus:border-purple-500"
-                  >
-                    <option value="">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                </div>
+                  </tbody>
+                </table>
               </div>
             </div>
 
-            {/* Courses Table */}
-            <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200">
-              <div className="overflow-x-auto">
-                <div className="inline-block min-w-full align-middle">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th
-                          scope="col"
-                          className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Course Code
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Title
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          School
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Instructor
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Enrollment
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Status
-                        </th>
-                        <th
-                          scope="col"
-                          className="px-3 sm:px-6 py-2 sm:py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider"
-                        >
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredCourses
-                        .slice(
-                          (currentCoursePage - 1) * coursesPerPage,
-                          currentCoursePage * coursesPerPage
-                        )
-                        .map((course) => (
-                          <tr key={course.id} className="hover:bg-gray-50">
-                            <td
-                              className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap cursor-pointer"
-                              onClick={() => setSelectedCourse(course)}
-                            >
-                              <div className="text-xs sm:text-sm font-medium text-gray-900">
-                                {course.code}
-                              </div>
-                            </td>
-                            <td
-                              className="px-3 sm:px-6 py-2 sm:py-4 cursor-pointer"
-                              onClick={() => setSelectedCourse(course)}
-                            >
-                              <div className="text-xs sm:text-sm text-gray-900">
-                                {course.title}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {course.description.substring(0, 50)}...
-                              </div>
-                            </td>
-                            <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
-                              <div className="text-xs sm:text-sm text-gray-500">
-                                {course.school}
-                              </div>
-                            </td>
-                            <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
-                              <div className="text-xs sm:text-sm text-gray-500">
-                                {course.instructor}
-                              </div>
-                            </td>
-                            <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
-                              <div className="text-xs sm:text-sm text-gray-500">
-                                {course.currentEnrollment}/
-                                {course.enrollmentCapacity}
-                              </div>
-                            </td>
-                            <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
-                              <span
-                                className={`px-2 py-1 text-xs sm:text-sm font-medium rounded-full ${
-                                  course.status === "active"
-                                    ? "bg-green-100 text-green-800"
-                                    : "bg-red-100 text-red-800"
-                                }`}
-                              >
-                                {course.status}
-                              </span>
-                            </td>
-                            <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm">
-                              <div className="flex space-x-2 sm:space-x-3">
-                                <button
-                                  onClick={() => {
-                                    setEditCourseData(course);
-                                    setIsCourseModalOpen(true);
-                                  }}
-                                  className="text-blue-600 hover:text-blue-900"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteCourse(course.id)}
-                                  className="text-red-600 hover:text-red-900"
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            {/* Pagination */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white px-4 py-3 rounded-xl shadow-sm hover:shadow-md transition-all duration-200">
-              <div className="text-xs sm:text-sm text-gray-700 text-center sm:text-left">
-                Showing{" "}
-                {Math.min(
-                  (currentCoursePage - 1) * coursesPerPage + 1,
-                  filteredCourses.length
-                )}{" "}
-                to{" "}
-                {Math.min(
-                  currentCoursePage * coursesPerPage,
-                  filteredCourses.length
-                )}{" "}
-                of {filteredCourses.length} courses
-              </div>
-              <div className="flex flex-wrap justify-center gap-2">
-                <button
-                  onClick={() =>
-                    setCurrentCoursePage((prev) => Math.max(prev - 1, 1))
-                  }
-                  disabled={currentCoursePage === 1}
-                  className="px-2 sm:px-3 py-1 text-xs sm:text-sm border rounded hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Previous
-                </button>
-                {Array.from(
-                  {
-                    length: Math.ceil(filteredCourses.length / coursesPerPage),
-                  },
-                  (_, i) => i + 1
-                ).map((page) => (
-                  <button
-                    key={page}
-                    onClick={() => setCurrentCoursePage(page)}
-                    className={`px-2 sm:px-3 py-1 text-xs sm:text-sm border rounded ${
-                      currentCoursePage === page
-                        ? "bg-purple-500 text-white"
-                        : "hover:bg-gray-50"
-                    }`}
-                  >
-                    {page}
-                  </button>
-                ))}
-                <button
-                  onClick={() =>
-                    setCurrentCoursePage((prev) =>
-                      Math.min(
-                        prev + 1,
-                        Math.ceil(filteredCourses.length / coursesPerPage)
-                      )
-                    )
-                  }
-                  disabled={
-                    currentCoursePage ===
-                    Math.ceil(filteredCourses.length / coursesPerPage)
-                  }
-                  className="px-2 sm:px-3 py-1 text-xs sm:text-sm border rounded hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-
-            {/* Course Details Modal */}
-            {selectedCourse && (
-              <CourseDetailsModal
-                isOpen={!!selectedCourse}
-                onClose={() => setSelectedCourse(null)}
-                course={selectedCourse}
-              />
-            )}
-
-            {/* Course Create/Edit Modal */}
-            <CreateCourseModal
-              isOpen={isCourseModalOpen}
+            {/* Create/Edit User Modal */}
+            <CreateUserModal
+              isOpen={showUserModal}
               onClose={() => {
-                setIsCourseModalOpen(false);
-                setEditCourseData(undefined);
+                setShowUserModal(false);
+                setSelectedUser(null);
               }}
-              onSubmit={(courseData) => {
-                if (editCourseData) {
-                  handleEditCourse(courseData);
-                } else {
-                  handleCreateCourse(courseData);
-                }
-                setIsCourseModalOpen(false);
-              }}
-              editData={editCourseData}
+              onSubmit={handleUserAction}
+              userType={userModalType}
+              editData={selectedUser || undefined}
             />
           </div>
         );
-      }
 
       case "departments":
         return (
@@ -1546,23 +1254,29 @@ const AdminDashboard = () => {
           `Are you sure you want to delete ${selectedUser.firstName}?`
         );
         if (confirmed) {
-          const success = await deleteUser(selectedUser.id);
-          if (success) {
-            alert("User deleted successfully");
-            setSelectedUser(null);
-            setUserModalMode("edit");
-            await fetchUsers(); // Refresh the users list
-          }
-        }
-      } else if (userData) {
-        const response = await userService.updateUser(selectedUser?.id, userData);
-        if (response.status === 200) {
-          alert("User updated successfully");
+          await userService.deleteUser(selectedUser.id);
+          alert("User deleted successfully");
           setSelectedUser(null);
-          await fetchUsers();
-        } else {
-          throw new Error("Failed to update user");
+          setUserModalMode("create");
+          await fetchUsers(); // Refresh the users list
         }
+      } else if (userData && selectedUser?.id) {
+        // Only include password in update if it's not empty
+        const updateData = { ...userData };
+        if (!updateData.password) {
+          delete updateData.password;
+        }
+
+        await userService.updateUser(selectedUser.id, updateData);
+        alert("User updated successfully");
+        setSelectedUser(null);
+        setUserModalMode("create");
+        await fetchUsers(); // Refresh the users list
+      } else if (userData) {
+        // Create new user
+        await userService.createUser(userData);
+        alert("User created successfully");
+        await fetchUsers(); // Refresh the users list
       }
     } catch (error: unknown) {
       let errorMessage = "An unknown error occurred";
@@ -1572,21 +1286,8 @@ const AdminDashboard = () => {
       alert(`Error: ${errorMessage}`);
       console.error("Error handling user action:", error);
     } finally {
-      setIsUserModalOpen(false);
-    }
-  };
-
-  const handleDeleteUser = async (user: User) => {
-    if (window.confirm(`Are you sure you want to delete ${user.firstName}?`)) {
-      try {
-        await deleteUser(user.id);
-        alert("User deleted successfully");
-        await fetchUsers();
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "An unknown error occurred";
-        alert(`Error deleting user: ${errorMessage}`);
-      }
+      setShowUserModal(false);
+      setSelectedUser(null);
     }
   };
 
@@ -1596,7 +1297,7 @@ const AdminDashboard = () => {
       <div className="fixed top-0 right-0 left-0 lg:left-64 z-10 transition-all duration-300">
         <DashboardHeader
           userRole="Administrator"
-          userName={user?.name || "Admin"}
+          userName={`${user?.firstName} ${user?.lastName}` || "Admin"}
         />
       </div>
 
@@ -1700,11 +1401,27 @@ const AdminDashboard = () => {
                 </div>
                 {activeTab === "users" && (
                   <div className="flex flex-wrap gap-2 sm:gap-4 w-full sm:w-auto">
-                    <button className="flex-1 sm:flex-none flex items-center justify-center px-3 sm:px-4 py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 text-sm sm:text-base">
+                    <button
+                      onClick={() => {
+                        setUserModalType('student');
+                        setSelectedUser(null);
+                        setUserModalMode('create');
+                        setShowUserModal(true);
+                      }}
+                      className="flex-1 sm:flex-none flex items-center justify-center px-3 sm:px-4 py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 text-sm sm:text-base"
+                    >
                       <UserPlusIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                       Add Student
                     </button>
-                    <button className="flex-1 sm:flex-none flex items-center justify-center px-3 sm:px-4 py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 text-sm sm:text-base">
+                    <button
+                      onClick={() => {
+                        setUserModalType('teacher');
+                        setSelectedUser(null);
+                        setUserModalMode('create');
+                        setShowUserModal(true);
+                      }}
+                      className="flex-1 sm:flex-none flex items-center justify-center px-3 sm:px-4 py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 text-sm sm:text-base"
+                    >
                       <AcademicCapIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                       Add Teacher
                     </button>
@@ -1724,7 +1441,7 @@ const AdminDashboard = () => {
           setIsUserModalOpen(false);
           setSelectedUser(null);
         }}
-        mode={userModalMode}
+        mode={userModalMode === 'create' ? 'edit' : userModalMode}
         user={selectedUser}
         onConfirm={handleUserAction}
       />

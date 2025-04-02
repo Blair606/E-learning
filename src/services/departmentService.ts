@@ -1,4 +1,5 @@
 import { api } from './api';
+import { AxiosError } from 'axios';
 
 export interface Department {
   id?: number;
@@ -8,6 +9,7 @@ export interface Department {
   description?: string;
   status: 'active' | 'inactive';
   school_name?: string;
+  warning?: string;
 }
 
 export interface CreateDepartmentData {
@@ -29,7 +31,7 @@ class DepartmentService {
       return response.data;
     } catch (error) {
       console.error('Error in getAllDepartments:', error);
-      if (error.response?.status === 401) {
+      if ((error as AxiosError)?.response?.status === 401) {
         throw new Error('401');
       }
       throw error;
@@ -60,8 +62,12 @@ class DepartmentService {
       return response.data;
     } catch (error) {
       console.error('Error in createDepartment:', error);
-      if (error.response?.status === 401) {
+      if ((error as AxiosError)?.response?.status === 401) {
         throw new Error('401');
+      }
+      if ((error as AxiosError)?.response?.status === 400) {
+        const errorData = (error as AxiosError).response?.data as { message?: string };
+        throw new Error(errorData?.message || 'Invalid department data');
       }
       throw error;
     }
@@ -73,7 +79,7 @@ class DepartmentService {
       return response.data;
     } catch (error) {
       console.error('Error in updateDepartment:', error);
-      if (error.response?.status === 401) {
+      if ((error as AxiosError)?.response?.status === 401) {
         throw new Error('401');
       }
       throw error;
@@ -85,7 +91,7 @@ class DepartmentService {
       await api.delete(`/departments/index.php`, { data: { id } });
     } catch (error) {
       console.error('Error in deleteDepartment:', error);
-      if (error.response?.status === 401) {
+      if ((error as AxiosError)?.response?.status === 401) {
         throw new Error('401');
       }
       throw error;
@@ -93,4 +99,4 @@ class DepartmentService {
   }
 }
 
-export const departmentService = new DepartmentService(); 
+export const departmentService = new DepartmentService();

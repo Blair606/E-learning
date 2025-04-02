@@ -30,8 +30,12 @@ try {
     error_log("Request body: " . file_get_contents("php://input"));
 } catch (Exception $e) {
     error_log("Error in departments/index.php: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
     http_response_code(500);
-    echo json_encode(array("message" => "Database error: " . $e->getMessage()));
+    echo json_encode(array(
+        "message" => "Database error: " . $e->getMessage(),
+        "details" => "Please check the server logs for more information."
+    ));
     exit();
 }
 
@@ -73,8 +77,12 @@ if ($method !== 'OPTIONS') {
         }
     } catch (PDOException $e) {
         error_log("Database error during token verification: " . $e->getMessage());
+        error_log("Stack trace: " . $e->getTraceAsString());
         http_response_code(500);
-        echo json_encode(array("message" => "Internal server error during authentication."));
+        echo json_encode(array(
+            "message" => "Internal server error during authentication.",
+            "details" => "Please check the server logs for more information."
+        ));
         exit();
     }
 }
@@ -174,12 +182,28 @@ switch($method) {
                 
                 if($checkStmt->rowCount() > 0) {
                     error_log("Department code already exists: " . $data->code);
-                    throw new Exception("Department code already exists. Please try again.");
+                    http_response_code(400);
+                    echo json_encode(array(
+                        "message" => "Department code already exists. Please try again.",
+                        "code" => $data->code
+                    ));
+                    exit();
+                }
+                
+                // Verify school exists
+                $schoolQuery = "SELECT id FROM schools WHERE id = :school_id";
+                $schoolStmt = $db->prepare($schoolQuery);
+                $schoolStmt->bindParam(":school_id", $data->school_id);
+                $schoolStmt->execute();
+                
+                if($schoolStmt->rowCount() === 0) {
+                    error_log("School not found with ID: " . $data->school_id);
+                    throw new Exception("Selected school does not exist.");
                 }
                 
                 // Insert department
-                $query = "INSERT INTO departments (name, code, school_id, description, status) 
-                         VALUES (:name, :code, :school_id, :description, :status)";
+                $query = "INSERT INTO departments (name, code, description, status) 
+                         VALUES (:name, :code, :description, :status)";
                 $stmt = $db->prepare($query);
                 
                 $status = isset($data->status) ? $data->status : 'active';
@@ -188,42 +212,71 @@ switch($method) {
                 error_log("Attempting to insert department with values: " . print_r([
                     'name' => $data->name,
                     'code' => $data->code,
-                    'school_id' => $data->school_id,
                     'description' => $description,
                     'status' => $status
                 ], true));
                 
                 $stmt->bindParam(":name", $data->name);
                 $stmt->bindParam(":code", $data->code);
-                $stmt->bindParam(":school_id", $data->school_id);
                 $stmt->bindParam(":description", $description);
                 $stmt->bindParam(":status", $status);
                 
-                if($stmt->execute()) {
-                    $departmentId = $db->lastInsertId();
-                    error_log("Department created successfully with ID: " . $departmentId);
-                    
-                    $db->commit();
-                    http_response_code(201);
-                    echo json_encode(array(
-                        "message" => "Department created successfully.",
-                        "id" => $departmentId
-                    ));
-                } else {
-                    error_log("Failed to execute department insert query");
-                    throw new Exception("Failed to create department");
+                if(!$stmt->execute()) {
+                    $error = $stmt->errorInfo();
+                    error_log("Database error during department insert: " . print_r($error, true));
+                    throw new Exception("Failed to insert department: " . $error[2]);
                 }
+                
+                $departmentId = $db->lastInsertId();
+                error_log("Department created with ID: " . $departmentId);
+                
+                // Insert into school_departments junction table
+                $junctionQuery = "INSERT INTO school_departments (school_id, department_id) VALUES (:school_id, :department_id)";
+                $junctionStmt = $db->prepare($junctionQuery);
+                $junctionStmt->bindParam(":school_id", $data->school_id);
+                $junctionStmt->bindParam(":department_id", $departmentId);
+                
+                if(!$junctionStmt->execute()) {
+                    $error = $junctionStmt->errorInfo();
+                    error_log("Database error during school_department insert: " . print_r($error, true));
+                    throw new Exception("Failed to link department to school: " . $error[2]);
+                }
+                
+                $db->commit();
+                error_log("Transaction committed successfully");
+                
+                // Return the created department with school information
+                $responseQuery = "SELECT d.*, s.name as school_name 
+                                FROM departments d 
+                                LEFT JOIN school_departments sd ON d.id = sd.department_id 
+                                LEFT JOIN schools s ON sd.school_id = s.id 
+                                WHERE d.id = :id";
+                $responseStmt = $db->prepare($responseQuery);
+                $responseStmt->bindParam(":id", $departmentId);
+                $responseStmt->execute();
+                
+                $department = $responseStmt->fetch(PDO::FETCH_ASSOC);
+                
+                http_response_code(201);
+                echo json_encode($department);
             } catch (Exception $e) {
                 $db->rollBack();
                 error_log("Error creating department: " . $e->getMessage());
                 error_log("Stack trace: " . $e->getTraceAsString());
-                http_response_code(503);
-                echo json_encode(array("message" => "Unable to create department: " . $e->getMessage()));
+                http_response_code(500);
+                echo json_encode(array(
+                    "message" => "Failed to create department: " . $e->getMessage(),
+                    "details" => "Please check the server logs for more information."
+                ));
             }
         } else {
             error_log("Missing required fields. Received data: " . print_r($data, true));
             http_response_code(400);
-            echo json_encode(array("message" => "Unable to create department. Data is incomplete."));
+            echo json_encode(array(
+                "message" => "Missing required fields.",
+                "required" => ["name", "code", "school_id"],
+                "received" => $data
+            ));
         }
         break;
         
@@ -236,33 +289,61 @@ switch($method) {
                 $db->beginTransaction();
                 
                 // Update department
-                $query = "UPDATE departments SET name = :name, code = :code, school_id = :school_id, 
+                $query = "UPDATE departments SET name = :name, code = :code, 
                          description = :description, status = :status WHERE id = :id";
                 $stmt = $db->prepare($query);
                 
                 $stmt->bindParam(":id", $data->id);
                 $stmt->bindParam(":name", $data->name);
                 $stmt->bindParam(":code", $data->code);
-                $stmt->bindParam(":school_id", $data->school_id);
                 $stmt->bindParam(":description", $data->description);
                 $stmt->bindParam(":status", $data->status);
                 
                 if($stmt->execute()) {
+                    // Update school_departments junction table
+                    // First, delete existing relationships
+                    $deleteQuery = "DELETE FROM school_departments WHERE department_id = :id";
+                    $deleteStmt = $db->prepare($deleteQuery);
+                    $deleteStmt->bindParam(":id", $data->id);
+                    $deleteStmt->execute();
+                    
+                    // Then, insert the new relationship
+                    if(!empty($data->school_id)) {
+                        $junctionQuery = "INSERT INTO school_departments (school_id, department_id) VALUES (:school_id, :department_id)";
+                        $junctionStmt = $db->prepare($junctionQuery);
+                        $junctionStmt->bindParam(":school_id", $data->school_id);
+                        $junctionStmt->bindParam(":department_id", $data->id);
+                        $junctionStmt->execute();
+                    }
+                    
                     $db->commit();
+                    
+                    // Return the updated department with school information
+                    $responseQuery = "SELECT d.*, s.name as school_name 
+                                    FROM departments d 
+                                    LEFT JOIN school_departments sd ON d.id = sd.department_id 
+                                    LEFT JOIN schools s ON sd.school_id = s.id 
+                                    WHERE d.id = :id";
+                    $responseStmt = $db->prepare($responseQuery);
+                    $responseStmt->bindParam(":id", $data->id);
+                    $responseStmt->execute();
+                    
+                    $department = $responseStmt->fetch(PDO::FETCH_ASSOC);
+                    
                     http_response_code(200);
-                    echo json_encode(array("message" => "Department updated successfully."));
+                    echo json_encode($department);
                 } else {
                     throw new Exception("Failed to update department");
                 }
             } catch (Exception $e) {
                 $db->rollBack();
                 error_log("Error updating department: " . $e->getMessage());
-                http_response_code(503);
-                echo json_encode(array("message" => "Unable to update department: " . $e->getMessage()));
+                http_response_code(500);
+                echo json_encode(array("message" => "Failed to update department: " . $e->getMessage()));
             }
         } else {
             http_response_code(400);
-            echo json_encode(array("message" => "Unable to update department. Data is incomplete."));
+            echo json_encode(array("message" => "Missing department ID."));
         }
         break;
         

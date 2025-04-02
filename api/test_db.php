@@ -1,37 +1,54 @@
 <?php
-require_once 'config/database.php';
+// Enable error reporting
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
-header('Content-Type: application/json');
+// Include database configuration
+include_once 'config/database.php';
 
 try {
-    // Test database connection
-    $conn = getConnection();
-    if (!$conn) {
-        throw new Exception("Failed to connect to database");
-    }
-
-    // Check if schools table exists
-    $tables = $conn->query("SHOW TABLES LIKE 'schools'")->fetchAll();
-    if (empty($tables)) {
-        throw new Exception("Schools table does not exist");
-    }
-
-    // Check table structure
-    $columns = $conn->query("DESCRIBE schools")->fetchAll();
+    // Ensure database and tables exist
+    ensureDatabaseExists();
     
-    echo json_encode([
-        'status' => 'success',
-        'message' => 'Database connection successful',
-        'table_exists' => true,
-        'columns' => $columns
-    ]);
-
+    // Get database connection
+    $db = getConnection();
+    
+    echo "Database connection successful!<br>";
+    
+    // Test query
+    $query = "SELECT COUNT(*) as count FROM users";
+    $stmt = $db->prepare($query);
+    $stmt->execute();
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    echo "Number of users in database: " . $result['count'] . "<br>";
+    
+    // Test schools table
+    $query = "SELECT COUNT(*) as count FROM schools";
+    $stmt = $db->prepare($query);
+    $stmt->execute();
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    echo "Number of schools in database: " . $result['count'] . "<br>";
+    
+    // Test departments table
+    $query = "SELECT COUNT(*) as count FROM departments";
+    $stmt = $db->prepare($query);
+    $stmt->execute();
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    echo "Number of departments in database: " . $result['count'] . "<br>";
+    
+    // Test school_departments table
+    $query = "SELECT COUNT(*) as count FROM school_departments";
+    $stmt = $db->prepare($query);
+    $stmt->execute();
+    $result = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    echo "Number of school-department relationships: " . $result['count'] . "<br>";
+    
 } catch (Exception $e) {
-    error_log("Database test error: " . $e->getMessage());
-    http_response_code(500);
-    echo json_encode([
-        'status' => 'error',
-        'message' => $e->getMessage()
-    ]);
+    echo "Error: " . $e->getMessage() . "<br>";
+    echo "Stack trace: <pre>" . $e->getTraceAsString() . "</pre>";
 }
 ?> 

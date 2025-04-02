@@ -71,7 +71,7 @@ function Departments() {
                 localStorage.removeItem('token');
                 navigate('/signin');
             } else {
-                setError('Failed to create department. Please try again.');
+                setError(err instanceof Error ? err.message : 'Failed to create department. Please try again.');
             }
         }
     };
