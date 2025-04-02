@@ -846,6 +846,233 @@ const AdminDashboard = () => {
         return <Finance />;
       }
 
+      case "courses":
+        return (
+          <div className="space-y-6">
+            {/* Header with Actions */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <h2 className="text-2xl font-semibold">Course Management</h2>
+              <button
+                onClick={() => {
+                  setSelectedCourse(null);
+                  setIsCourseModalOpen(true);
+                }}
+                className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                <BookOpenIcon className="w-5 h-5 mr-2" />
+                Add New Course
+              </button>
+            </div>
+
+            {/* Filters and Search */}
+            <div className="bg-white p-4 rounded-lg shadow-sm">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1 flex items-center space-x-2">
+                  <MagnifyingGlassIcon className="w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search courses..."
+                    className="flex-1 border-0 focus:ring-0"
+                    value={courseSearchTerm}
+                    onChange={(e) => setCourseSearchTerm(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-center space-x-4">
+                  <select
+                    className="border-gray-300 rounded-md text-sm"
+                    value={schoolFilter}
+                    onChange={(e) => handleSchoolChange(e.target.value)}
+                  >
+                    <option value="">All Schools</option>
+                    {schools.map((school) => (
+                      <option key={school.id} value={school.id}>
+                        {school.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    className="border-gray-300 rounded-md text-sm"
+                    value={courseStatusFilter}
+                    onChange={(e) => setCourseStatusFilter(e.target.value)}
+                  >
+                    <option value="">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Courses Table */}
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Course Code
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Title
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        School
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Department
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Instructor
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Enrollment
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {courses
+                      .filter((course) => {
+                        const matchesSearch = course.code.toLowerCase().includes(courseSearchTerm.toLowerCase()) ||
+                          course.title.toLowerCase().includes(courseSearchTerm.toLowerCase());
+                        const matchesSchool = !schoolFilter || course.school === schoolFilter;
+                        const matchesStatus = !courseStatusFilter || course.status === courseStatusFilter;
+                        return matchesSearch && matchesSchool && matchesStatus;
+                      })
+                      .slice((currentCoursePage - 1) * coursesPerPage, currentCoursePage * coursesPerPage)
+                      .map((course) => (
+                        <tr key={course.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">{course.code}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-900">{course.title}</div>
+                            <div className="text-sm text-gray-500">{course.description}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{course.school}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{course.department}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{course.instructor}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                              ${course.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                              {course.status.charAt(0).toUpperCase() + course.status.slice(1)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">
+                              {course.currentEnrollment}/{course.enrollmentCapacity}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button
+                              onClick={() => {
+                                setSelectedCourse(course);
+                                setIsCourseModalOpen(true);
+                              }}
+                              className="text-blue-600 hover:text-blue-900 mr-4"
+                            >
+                              <PencilIcon className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCourse(course.id)}
+                              className="text-red-600 hover:text-red-900"
+                            >
+                              <TrashIcon className="w-5 h-5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                <div className="flex-1 flex justify-between sm:hidden">
+                  <button
+                    onClick={() => setCurrentCoursePage(prev => Math.max(1, prev - 1))}
+                    disabled={currentCoursePage === 1}
+                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setCurrentCoursePage(prev => prev + 1)}
+                    disabled={currentCoursePage * coursesPerPage >= courses.length}
+                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    Next
+                  </button>
+                </div>
+                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm text-gray-700">
+                      Showing{' '}
+                      <span className="font-medium">
+                        {(currentCoursePage - 1) * coursesPerPage + 1}
+                      </span>{' '}
+                      to{' '}
+                      <span className="font-medium">
+                        {Math.min(currentCoursePage * coursesPerPage, courses.length)}
+                      </span>{' '}
+                      of{' '}
+                      <span className="font-medium">{courses.length}</span>{' '}
+                      results
+                    </p>
+                  </div>
+                  <div>
+                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                      <button
+                        onClick={() => setCurrentCoursePage(prev => Math.max(1, prev - 1))}
+                        disabled={currentCoursePage === 1}
+                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                      >
+                        Previous
+                      </button>
+                      <button
+                        onClick={() => setCurrentCoursePage(prev => prev + 1)}
+                        disabled={currentCoursePage * coursesPerPage >= courses.length}
+                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                      >
+                        Next
+                      </button>
+                    </nav>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Course Create/Edit Modal */}
+            <CreateCourseModal
+              isOpen={isCourseModalOpen}
+              onClose={() => {
+                setIsCourseModalOpen(false);
+                setSelectedCourse(null);
+              }}
+              onSubmit={(courseData) => {
+                if (selectedCourse) {
+                  handleEditCourse(courseData);
+                } else {
+                  handleCreateCourse(courseData);
+                }
+                setIsCourseModalOpen(false);
+              }}
+              editData={selectedCourse || undefined}
+            />
+          </div>
+        );
+
       case "settings":
         return (
           <div className="space-y-6">
