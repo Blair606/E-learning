@@ -128,19 +128,7 @@ switch($method) {
             error_log("Received data for school creation: " . print_r($data, true));
             
             if(!empty($data->name) && !empty($data->code)) {
-                // Check if code already exists
-                $query = "SELECT id FROM schools WHERE code = :code";
-                $stmt = $db->prepare($query);
-                $stmt->bindParam(":code", $data->code);
-                $stmt->execute();
-                
-                if($stmt->rowCount() > 0) {
-                    http_response_code(400);
-                    echo json_encode(array("message" => "School code already exists."));
-                    exit();
-                }
-                
-                // Insert new school
+                // Insert school
                 $query = "INSERT INTO schools (name, code, description, status) VALUES (:name, :code, :description, :status)";
                 $stmt = $db->prepare($query);
                 $stmt->bindParam(":name", $data->name);
@@ -155,29 +143,54 @@ switch($method) {
                     // Add departments if provided
                     if(!empty($data->departments)) {
                         foreach($data->departments as $deptName) {
-                            // Check if department exists
-                            $query = "SELECT id FROM departments WHERE name = :name";
+                            // Generate department code
+                            $deptCode = strtoupper(substr(str_replace(' ', '', $deptName), 0, 3)) . rand(100, 999);
+                            
+                            // Create department if it doesn't exist
+                            $query = "INSERT INTO departments (name, code, school_id, description, status) 
+                                    VALUES (:name, :code, :school_id, :description, :status)
+                                    ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)";
                             $stmt = $db->prepare($query);
                             $stmt->bindParam(":name", $deptName);
+                            $stmt->bindParam(":code", $deptCode);
+                            $stmt->bindParam(":school_id", $schoolId);
+                            $stmt->bindParam(":description", $deptName);
+                            $stmt->bindParam(":status", $status);
                             $stmt->execute();
                             
-                            if($stmt->rowCount() > 0) {
-                                $dept = $stmt->fetch(PDO::FETCH_ASSOC);
-                                // Link department to school
-                                $query = "INSERT INTO school_departments (school_id, department_id) VALUES (:school_id, :dept_id)";
-                                $stmt = $db->prepare($query);
-                                $stmt->bindParam(":school_id", $schoolId);
-                                $stmt->bindParam(":dept_id", $dept['id']);
-                                $stmt->execute();
-                            }
+                            $deptId = $db->lastInsertId();
+                            
+                            // Link department to school
+                            $query = "INSERT INTO school_departments (school_id, department_id) 
+                                    VALUES (:school_id, :dept_id)
+                                    ON DUPLICATE KEY UPDATE school_id=VALUES(school_id)";
+                            $stmt = $db->prepare($query);
+                            $stmt->bindParam(":school_id", $schoolId);
+                            $stmt->bindParam(":dept_id", $deptId);
+                            $stmt->execute();
                         }
                     }
                     
-                    http_response_code(201);
-                    echo json_encode(array(
-                        "message" => "School created successfully.",
-                        "id" => $schoolId
-                    ));
+                    // Fetch the created school with its departments
+                    $query = "SELECT s.*, GROUP_CONCAT(d.name) as departments 
+                             FROM schools s 
+                             LEFT JOIN school_departments sd ON s.id = sd.school_id 
+                             LEFT JOIN departments d ON sd.department_id = d.id 
+                             WHERE s.id = :id 
+                             GROUP BY s.id";
+                    $stmt = $db->prepare($query);
+                    $stmt->bindParam(":id", $schoolId);
+                    $stmt->execute();
+                    
+                    if($stmt->rowCount() > 0) {
+                        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                        $row['departments'] = $row['departments'] ? explode(',', $row['departments']) : [];
+                        http_response_code(201);
+                        echo json_encode($row);
+                    } else {
+                        http_response_code(500);
+                        echo json_encode(array("message" => "Error retrieving created school."));
+                    }
                 }
             } else {
                 error_log("Missing required fields. Received data: " . print_r($data, true));

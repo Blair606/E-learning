@@ -58,7 +58,7 @@ class SchoolService {
         }
     }
 
-    async createSchool(data: CreateSchoolData): Promise<{ id: number; message: string }> {
+    async createSchool(data: CreateSchoolData): Promise<School> {
         try {
             const response = await api.post('/schools/index.php', data);
             return response.data;

@@ -69,7 +69,12 @@ const CreateSchoolModal: React.FC<CreateSchoolModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    // Ensure departments are not empty strings
+    const validDepartments = formData.departments.filter(dept => dept.trim() !== '');
+    onSubmit({
+        ...formData,
+        departments: validDepartments
+    });
   };
 
   const handleAddDepartment = () => {
