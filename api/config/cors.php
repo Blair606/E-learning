@@ -1,16 +1,25 @@
 <?php
 // CORS Configuration
 function handleCORS() {
-    // Allow from React development server
+    // Allow from React development server and all localhost ports for development
     $allowedOrigins = [
         'http://localhost:5173',
         'http://localhost:3000',
+        'http://localhost:8000',
+        'http://localhost',
+        'http://127.0.0.1:5173',
+        'http://127.0.0.1:3000',
+        'http://127.0.0.1:8000',
+        'http://127.0.0.1',
         'http://localhost/E-learning'
     ];
     
     $origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
     
     if (in_array($origin, $allowedOrigins)) {
+        header("Access-Control-Allow-Origin: $origin");
+    } else {
+        // For development, allow any origin
         header("Access-Control-Allow-Origin: $origin");
     }
     
@@ -34,4 +43,4 @@ function handleCORS() {
         exit();
     }
 }
-?> 
+?>
