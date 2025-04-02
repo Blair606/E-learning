@@ -63,7 +63,7 @@ try {
     }
     
     // Validate role
-    $validRoles = ['admin', 'teacher', 'student'];
+    $validRoles = ['admin', 'teacher', 'student', 'parent'];
     if (!in_array($data->role, $validRoles)) {
         error_log("Invalid role: " . $data->role);
         http_response_code(400);
@@ -106,9 +106,14 @@ try {
         throw new Exception("Failed to create user");
     }
     
-    // Get the created user
+    // Get the created user with role-specific ID
     $userId = $conn->lastInsertId();
-    $stmt = $conn->prepare("SELECT id, email, first_name, last_name, role, status FROM users WHERE id = ?");
+    $stmt = $conn->prepare("
+        SELECT id, email, first_name, last_name, role, status, 
+               student_id, teacher_id, admin_id, parent_id 
+        FROM users 
+        WHERE id = ?
+    ");
     $stmt->execute([$userId]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
     

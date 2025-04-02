@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { User } from '../types/user';
+import { User, Student, Teacher, Parent } from '../types/user';
 
 const API_URL = 'http://localhost/E-learning/api';
 
@@ -56,15 +56,12 @@ class UserService {
     }
   }
 
-  async register(userData: Partial<User>) {
+  async register(userData: Partial<User>): Promise<User> {
     try {
-      const response = await axios.post<ApiResponse<User>>(`${API_URL}/auth/register.php`, userData);
+      const response = await axios.post(`${API_URL}/auth/register.php`, userData);
       return response.data;
     } catch (error) {
-      if (this.isAxiosError(error)) {
-        const errorResponse = error.response?.data as ApiErrorResponse;
-        throw new Error(errorResponse?.error || 'Registration failed');
-      }
+      console.error('Registration error:', error);
       throw error;
     }
   }
@@ -100,16 +97,19 @@ class UserService {
     }
   }
 
-  async createUser(userData: Partial<User>) {
+  async createUser(userData: Partial<User>): Promise<User> {
     try {
-      const response = await axios.post<ApiResponse<User>>(`${API_URL}/users.php`, userData, {
-        headers: this.getHeaders(),
+      const response = await axios.post<ApiResponse<User>>(`${API_URL}/users/create.php`, userData, {
+        headers: this.getHeaders()
       });
+      
       if (!response.data.success) {
-        throw new Error(response.data.error || 'Failed to create user');
+        throw new Error(response.data.message || 'Failed to create user');
       }
-      return response.data;
+      
+      return response.data.data;
     } catch (error) {
+      console.error('User creation error:', error);
       if (this.isAxiosError(error)) {
         const errorResponse = error.response?.data as ApiErrorResponse;
         throw new Error(errorResponse?.error || 'Failed to create user');
@@ -118,38 +118,71 @@ class UserService {
     }
   }
 
-  async updateUser(userId: string, userData: Partial<User>) {
+  async updateUser(userId: string, userData: Partial<User>): Promise<User> {
     try {
-      const response = await axios.put<ApiResponse<User>>(`${API_URL}/users.php/${userId}`, userData, {
-        headers: this.getHeaders(),
-      });
-      if (!response.data.success) {
-        throw new Error(response.data.error || 'Failed to update user');
-      }
+      const response = await axios.put(`${API_URL}/users/${userId}`, userData);
       return response.data;
     } catch (error) {
-      if (this.isAxiosError(error)) {
-        const errorResponse = error.response?.data as ApiErrorResponse;
-        throw new Error(errorResponse?.error || 'Failed to update user');
-      }
+      console.error('User update error:', error);
       throw error;
     }
   }
 
-  async deleteUser(userId: string) {
+  async deleteUser(userId: string): Promise<void> {
     try {
-      const response = await axios.delete<ApiResponse<void>>(`${API_URL}/users.php/${userId}`, {
-        headers: this.getHeaders(),
-      });
-      if (!response.data.success) {
-        throw new Error(response.data.error || 'Failed to delete user');
-      }
+      await axios.delete(`${API_URL}/users/${userId}`);
+    } catch (error) {
+      console.error('User deletion error:', error);
+      throw error;
+    }
+  }
+
+  async getUsers(): Promise<User[]> {
+    try {
+      const response = await axios.get(`${API_URL}/users`);
       return response.data;
     } catch (error) {
-      if (this.isAxiosError(error)) {
-        const errorResponse = error.response?.data as ApiErrorResponse;
-        throw new Error(errorResponse?.error || 'Failed to delete user');
-      }
+      console.error('Error fetching users:', error);
+      throw error;
+    }
+  }
+
+  async getUserById(userId: string): Promise<User> {
+    try {
+      const response = await axios.get(`${API_URL}/users/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      throw error;
+    }
+  }
+
+  async getStudents(): Promise<Student[]> {
+    try {
+      const response = await axios.get(`${API_URL}/users/students`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching students:', error);
+      throw error;
+    }
+  }
+
+  async getTeachers(): Promise<Teacher[]> {
+    try {
+      const response = await axios.get(`${API_URL}/users/teachers`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching teachers:', error);
+      throw error;
+    }
+  }
+
+  async getParents(): Promise<Parent[]> {
+    try {
+      const response = await axios.get(`${API_URL}/users/parents`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching parents:', error);
       throw error;
     }
   }

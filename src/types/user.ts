@@ -14,13 +14,15 @@ export interface User {
     profilePicture?: string;
     school?: string;
     department?: string;
-    studentId?: string;
-    teacherId?: string;
+    student_id?: string;
+    teacher_id?: string;
+    admin_id?: string;
+    parent_id?: string;
 }
 
 export interface Student extends User {
     role: 'student';
-    studentId: string;
+    student_id: string;
     grade?: string;
     enrollmentDate?: string;
     courses?: string[];
@@ -28,7 +30,7 @@ export interface Student extends User {
 
 export interface Teacher extends User {
     role: 'teacher';
-    teacherId: string;
+    teacher_id: string;
     specialization?: string;
     courses?: string[];
     education?: {
@@ -40,6 +42,7 @@ export interface Teacher extends User {
 
 export interface Parent extends User {
     role: 'parent';
+    parent_id: string;
     children?: string[];
     phone: string;
     address: string;

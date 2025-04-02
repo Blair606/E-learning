@@ -47,14 +47,25 @@ try {
     error_log("Received data: " . print_r($data, true));
 
     // Validate required fields
-    if (!isset($data['email']) || !isset($data['password']) || !isset($data['first_name']) || 
-        !isset($data['last_name']) || !isset($data['role']) || !isset($data['national_id'])) {
-        throw new Exception("Missing required fields");
+    $requiredFields = ['email', 'password', 'firstName', 'lastName', 'role'];
+    if ($data['role'] === 'parent') {
+        $requiredFields[] = 'national_id';
+    }
+    if (in_array($data['role'], ['student', 'teacher'])) {
+        $requiredFields[] = 'school_id';
+        $requiredFields[] = 'department_id';
+    }
+
+    foreach ($requiredFields as $field) {
+        if (!isset($data[$field]) || empty($data[$field])) {
+            throw new Exception("Missing required field: $field");
+        }
     }
 
     // Validate role
-    if ($data['role'] !== 'parent') {
-        throw new Exception("Invalid role. Only 'parent' role is allowed for guardian registration.");
+    $validRoles = ['admin', 'teacher', 'student', 'parent'];
+    if (!in_array($data['role'], $validRoles)) {
+        throw new Exception("Invalid role. Must be one of: " . implode(', ', $validRoles));
     }
 
     // Get database connection
@@ -81,10 +92,12 @@ try {
         $stmt = $conn->prepare("
             INSERT INTO users (
                 email, password, first_name, last_name, role, 
-                phone, address, national_id, status, created_at
+                phone, address, national_id, status, created_at,
+                school_id, department_id
             ) VALUES (
                 ?, ?, ?, ?, ?, 
-                ?, ?, ?, ?, NOW()
+                ?, ?, ?, ?, NOW(),
+                ?, ?
             )
         ");
 
@@ -95,23 +108,74 @@ try {
         $stmt->execute([
             $data['email'],
             $hashedPassword,
-            $data['first_name'],
-            $data['last_name'],
+            $data['firstName'],
+            $data['lastName'],
             $data['role'],
             $data['phone'] ?? null,
             $data['address'] ?? null,
-            $data['national_id'],
-            $data['status'] ?? 'active'
+            $data['national_id'] ?? null,
+            $data['status'] ?? 'active',
+            $data['school_id'] ?? null,
+            $data['department_id'] ?? null
         ]);
 
         // Get the new user's ID
         $userId = $conn->lastInsertId();
         error_log("User created successfully with ID: " . $userId);
 
+        // If it's a student or teacher, insert role-specific data
+        if (in_array($data['role'], ['student', 'teacher'])) {
+            if ($data['role'] === 'student') {
+                $stmt = $conn->prepare("
+                    INSERT INTO students (
+                        user_id, grade, enrollment_date, specialization, education
+                    ) VALUES (?, ?, ?, ?, ?)
+                ");
+                $stmt->execute([
+                    $userId,
+                    $data['grade'] ?? null,
+                    $data['enrollmentDate'] ?? date('Y-m-d'),
+                    $data['specialization'] ?? null,
+                    $data['education'] ?? null
+                ]);
+            } else {
+                $stmt = $conn->prepare("
+                    INSERT INTO teachers (
+                        user_id, specialization, education, experience
+                    ) VALUES (?, ?, ?, ?)
+                ");
+                $stmt->execute([
+                    $userId,
+                    $data['specialization'] ?? null,
+                    $data['education'] ?? null,
+                    $data['experience'] ?? null
+                ]);
+            }
+        }
+
         // Commit transaction
         $conn->commit();
 
-        sendJsonResponse('success', 'Guardian registered successfully', ['id' => $userId]);
+        // Fetch the created user with role-specific data
+        $query = "SELECT u.*, ";
+        if ($data['role'] === 'student') {
+            $query .= "s.grade, s.enrollment_date, s.specialization, s.education ";
+        } elseif ($data['role'] === 'teacher') {
+            $query .= "t.specialization, t.education, t.experience ";
+        }
+        $query .= "FROM users u ";
+        if ($data['role'] === 'student') {
+            $query .= "LEFT JOIN students s ON u.id = s.user_id ";
+        } elseif ($data['role'] === 'teacher') {
+            $query .= "LEFT JOIN teachers t ON u.id = t.user_id ";
+        }
+        $query .= "WHERE u.id = ?";
+        
+        $stmt = $conn->prepare($query);
+        $stmt->execute([$userId]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        sendJsonResponse('success', 'User created successfully', $user);
 
     } catch (Exception $e) {
         // Rollback transaction on error

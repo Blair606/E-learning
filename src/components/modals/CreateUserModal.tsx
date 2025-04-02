@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, UserIcon, AcademicCapIcon, BuildingLibraryIcon } from '@heroicons/react/24/outline';
 import { Student, Teacher } from '../../types/user';
 import { schoolService, School, Department } from '../../services/schoolService';
 
@@ -12,16 +12,6 @@ interface CreateUserModalProps {
   editData?: Partial<Student | Teacher>;
 }
 
-// Function to generate user ID based on role
-const generateUserId = (role: 'student' | 'teacher' | 'admin' | 'parent'): string => {
-  const prefix = role === 'student' ? 'STD' : 
-                role === 'teacher' ? 'TCH' : 
-                role === 'admin' ? 'ADM' : 'PRT';
-  const year = new Date().getFullYear().toString().slice(-2);
-  const randomNum = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
-  return `${prefix}/${randomNum}/${year}`;
-};
-
 const CreateUserModal = ({ isOpen, onClose, onSubmit, userType, editData }: CreateUserModalProps) => {
   const [formData, setFormData] = useState<Partial<Student | Teacher>>({
     firstName: '',
@@ -32,16 +22,14 @@ const CreateUserModal = ({ isOpen, onClose, onSubmit, userType, editData }: Crea
     address: '',
     role: userType,
     status: 'active',
-    school: '',
-    department: '',
+    school_id: '',
+    department_id: '',
     ...(userType === 'student' ? {
-      studentId: generateUserId('student'),
       grade: '',
       enrollmentDate: new Date().toISOString().split('T')[0],
       specialization: '',
       education: ''
     } : {
-      teacherId: generateUserId('teacher'),
       specialization: '',
       education: '',
       experience: ''
@@ -54,25 +42,13 @@ const CreateUserModal = ({ isOpen, onClose, onSubmit, userType, editData }: Crea
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>('');
-
-  // Update role-specific ID when role changes
-  useEffect(() => {
-    if (!editData) {
-      const newId = generateUserId(formData.role as 'student' | 'teacher' | 'admin' | 'parent');
-      setFormData(prev => ({
-        ...prev,
-        studentId: formData.role === 'student' ? newId : '',
-        teacherId: formData.role === 'teacher' ? newId : ''
-      }));
-    }
-  }, [formData.role, editData]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchSchools = async () => {
       try {
         setLoading(true);
         const schoolsData = await schoolService.getAllSchools();
-        console.log('Fetched schools:', schoolsData);
         setSchools(schoolsData);
       } catch (err) {
         setError('Failed to load schools');
@@ -86,52 +62,26 @@ const CreateUserModal = ({ isOpen, onClose, onSubmit, userType, editData }: Crea
 
   useEffect(() => {
     const fetchDepartments = async () => {
-      if (formData.school) {
+      if (formData.school_id) {
         try {
           setLoading(true);
-          console.log('Fetching departments for school:', formData.school);
-          console.log('Available schools:', schools);
-          
-          // Find the selected school - convert both to strings for comparison
-          const selectedSchool = schools.find(s => String(s.id) === String(formData.school));
-          console.log('Selected school:', selectedSchool);
-          
-          if (selectedSchool) {
-            console.log('Fetching departments for school:', selectedSchool.id);
-            // Use the existing method to fetch departments by school ID
-            const departmentsData = await schoolService.getDepartmentsBySchool(selectedSchool.id);
-            console.log('Departments response:', departmentsData);
-            
-            if (!departmentsData || departmentsData.length === 0) {
-              console.log('No departments found for school:', selectedSchool.id);
-              setError('No departments found for this school');
-            } else {
-              setError('');
-              setDepartments(departmentsData);
-            }
-          } else {
-            console.log('Selected school not found:', selectedSchool);
-            setError('School not found');
-          }
+          const departmentsData = await schoolService.getDepartmentsBySchool(Number(formData.school_id));
+          setDepartments(departmentsData);
+          // Reset department selection when school changes
+          setFormData(prev => ({ ...prev, department_id: '' }));
         } catch (err) {
+          setError('Failed to load departments');
           console.error('Error loading departments:', err);
-          setError('Failed to load departments. Please try again.');
         } finally {
           setLoading(false);
         }
       } else {
-        console.log('No school selected, clearing departments');
         setDepartments([]);
-        setError('');
+        setFormData(prev => ({ ...prev, department_id: '' }));
       }
     };
     fetchDepartments();
-  }, [formData.school, schools]);
-
-  // Add console log for departments state changes
-  useEffect(() => {
-    console.log('Departments state updated:', departments);
-  }, [departments]);
+  }, [formData.school_id]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -144,16 +94,14 @@ const CreateUserModal = ({ isOpen, onClose, onSubmit, userType, editData }: Crea
         address: '',
         role: userType,
         status: 'active',
-        school: '',
-        department: '',
+        school_id: '',
+        department_id: '',
         ...(userType === 'student' ? {
-          studentId: generateUserId('student'),
           grade: '',
           enrollmentDate: new Date().toISOString().split('T')[0],
           specialization: '',
           education: ''
         } : {
-          teacherId: generateUserId('teacher'),
           specialization: '',
           education: '',
           experience: ''
@@ -176,25 +124,37 @@ const CreateUserModal = ({ isOpen, onClose, onSubmit, userType, editData }: Crea
     if (!formData.password?.trim()) newErrors.password = 'Password is required';
     else if (formData.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
 
-    if (!formData.school?.trim()) newErrors.school = 'School is required';
-    if (!formData.department?.trim()) newErrors.department = 'Department is required';
+    if (!formData.school_id) newErrors.school_id = 'School is required';
+    if (!formData.department_id) newErrors.department_id = 'Department is required';
 
     // Role-specific validation
     if (userType === 'student') {
-      if (!(formData as Student).studentId?.trim()) newErrors.studentId = 'Student ID is required';
+      if (!formData.grade?.trim()) newErrors.grade = 'Grade is required';
+      if (!formData.enrollmentDate) newErrors.enrollmentDate = 'Enrollment date is required';
     } else {
-      if (!(formData as Teacher).teacherId?.trim()) newErrors.teacherId = 'Teacher ID is required';
+      if (!formData.specialization?.trim()) newErrors.specialization = 'Specialization is required';
+      if (!formData.education?.trim()) newErrors.education = 'Education is required';
+      if (!formData.experience?.trim()) newErrors.experience = 'Experience is required';
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validateForm()) {
-      onSubmit(formData);
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      await onSubmit(formData);
       onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -231,13 +191,20 @@ const CreateUserModal = ({ isOpen, onClose, onSubmit, userType, editData }: Crea
               leaveTo="opacity-0 scale-95"
             >
               <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                <div className="flex justify-between items-center mb-4">
-                  <Dialog.Title
-                    as="h3"
-                    className="text-lg font-medium leading-6 text-gray-900"
-                  >
-                    Add New {userType === 'student' ? 'Student' : 'Teacher'}
-                  </Dialog.Title>
+                <div className="flex justify-between items-center mb-6">
+                  <div className="flex items-center space-x-3">
+                    {userType === 'student' ? (
+                      <AcademicCapIcon className="h-8 w-8 text-purple-500" />
+                    ) : (
+                      <UserIcon className="h-8 w-8 text-purple-500" />
+                    )}
+                    <Dialog.Title
+                      as="h3"
+                      className="text-2xl font-semibold leading-6 text-gray-900"
+                    >
+                      {editData ? 'Edit' : 'Add New'} {userType === 'student' ? 'Student' : 'Teacher'}
+                    </Dialog.Title>
+                  </div>
                   <button
                     type="button"
                     onClick={onClose}
@@ -249,202 +216,213 @@ const CreateUserModal = ({ isOpen, onClose, onSubmit, userType, editData }: Crea
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                   {/* Personal Information Section */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="text-sm font-medium text-gray-700 mb-4">Personal Information</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-gray-50 p-6 rounded-xl">
+                    <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                      <UserIcon className="h-5 w-5 mr-2 text-purple-500" />
+                      Personal Information
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
                           First Name
                         </label>
                         <input
                           type="text"
                           required
-                          value={formData.firstName}
+                          value={formData.firstName || ''}
                           onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           placeholder="Enter first name"
                         />
                         {renderError('firstName')}
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
                           Last Name
                         </label>
                         <input
                           type="text"
                           required
-                          value={formData.lastName}
+                          value={formData.lastName || ''}
                           onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           placeholder="Enter last name"
                         />
                         {renderError('lastName')}
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
                           Email
                         </label>
                         <input
                           type="email"
                           required
-                          value={formData.email}
+                          value={formData.email || ''}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           placeholder="Enter email address"
                         />
                         {renderError('email')}
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
                           Password
                         </label>
                         <input
                           type="password"
                           required
-                          value={formData.password}
+                          value={formData.password || ''}
                           onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           placeholder="Enter password"
                         />
                         {renderError('password')}
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Phone
-                        </label>
-                        <input
-                          type="tel"
-                          value={formData.phone}
-                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm"
-                          placeholder="Enter phone number"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          Address
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.address}
-                          onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm"
-                          placeholder="Enter address"
-                        />
-                      </div>
                     </div>
                   </div>
 
-                  {/* Academic Information Section */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="text-sm font-medium text-gray-700 mb-4">Academic Information</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* School and Department Section */}
+                  <div className="bg-gray-50 p-6 rounded-xl">
+                    <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                      <BuildingLibraryIcon className="h-5 w-5 mr-2 text-purple-500" />
+                      School Information
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
                           School
                         </label>
                         <select
+                          value={formData.school_id || ''}
+                          onChange={(e) => setFormData({ ...formData, school_id: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           required
-                          value={formData.school}
-                          onChange={(e) => {
-                            const selectedValue = e.target.value;
-                            console.log('School selection changed:', selectedValue);
-                            console.log('Available schools:', schools);
-                            
-                            // Find the selected school - convert both to strings for comparison
-                            const selectedSchool = schools.find(s => String(s.id) === String(selectedValue));
-                            console.log('Selected school data:', selectedSchool);
-                            
-                            setFormData({ 
-                              ...formData, 
-                              school: selectedValue,
-                              department: '' // Reset department when school changes
-                            });
-                          }}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm"
                           disabled={loading}
                         >
-                          <option value="">Select School</option>
-                          {schools.map(school => (
+                          <option value="">Select a school</option>
+                          {schools.map((school) => (
                             <option key={school.id} value={school.id}>
-                              {school.name} ({school.code})
+                              {school.name}
                             </option>
                           ))}
                         </select>
-                        {renderError('school')}
+                        {renderError('school_id')}
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
                           Department
                         </label>
                         <select
+                          value={formData.department_id || ''}
+                          onChange={(e) => setFormData({ ...formData, department_id: e.target.value })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                           required
-                          value={formData.department}
-                          onChange={(e) => {
-                            console.log('Department selected:', e.target.value);
-                            setFormData({ ...formData, department: e.target.value });
-                          }}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm"
-                          disabled={!formData.school || loading}
+                          disabled={!formData.school_id || loading}
                         >
-                          <option value="">Select Department</option>
-                          {loading ? (
-                            <option value="" disabled>Loading departments...</option>
-                          ) : departments && departments.length > 0 ? (
-                            departments.map(dept => (
-                              <option key={dept.id} value={dept.id}>
-                                {dept.name} ({dept.code})
-                              </option>
-                            ))
-                          ) : (
-                            <option value="" disabled>No departments available</option>
-                          )}
+                          <option value="">Select a department</option>
+                          {departments.map((dept) => (
+                            <option key={dept.id} value={dept.id}>
+                              {dept.name}
+                            </option>
+                          ))}
                         </select>
-                        {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
-                        {renderError('department')}
+                        {renderError('department_id')}
                       </div>
                     </div>
                   </div>
 
-                  {/* Role-specific Information Section */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="text-sm font-medium text-gray-700 mb-4">
+                  {/* Role-specific Information */}
+                  <div className="bg-gray-50 p-6 rounded-xl">
+                    <h4 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                      {userType === 'student' ? (
+                        <AcademicCapIcon className="h-5 w-5 mr-2 text-purple-500" />
+                      ) : (
+                        <UserIcon className="h-5 w-5 mr-2 text-purple-500" />
+                      )}
                       {userType === 'student' ? 'Student Information' : 'Teacher Information'}
                     </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                          {userType === 'student' ? 'Student ID' : 'Teacher ID'}
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={userType === 'student' ? (formData as Student).studentId : (formData as Teacher).teacherId}
-                          onChange={(e) => setFormData({ 
-                            ...formData, 
-                            ...(userType === 'student' ? { studentId: e.target.value } : { teacherId: e.target.value })
-                          })}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm"
-                          placeholder={`Enter ${userType} ID`}
-                        />
-                        {renderError(userType === 'student' ? 'studentId' : 'teacherId')}
-                      </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {userType === 'student' ? (
+                        <>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Grade
+                            </label>
+                            <input
+                              type="text"
+                              value={(formData as Student).grade || ''}
+                              onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              placeholder="Enter grade"
+                            />
+                            {renderError('grade')}
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Enrollment Date
+                            </label>
+                            <input
+                              type="date"
+                              value={(formData as Student).enrollmentDate || ''}
+                              onChange={(e) => setFormData({ ...formData, enrollmentDate: e.target.value })}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            />
+                            {renderError('enrollmentDate')}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Specialization
+                            </label>
+                            <input
+                              type="text"
+                              value={(formData as Teacher).specialization || ''}
+                              onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              placeholder="Enter specialization"
+                            />
+                            {renderError('specialization')}
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Experience
+                            </label>
+                            <input
+                              type="text"
+                              value={(formData as Teacher).experience || ''}
+                              onChange={(e) => setFormData({ ...formData, experience: e.target.value })}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              placeholder="Enter years of experience"
+                            />
+                            {renderError('experience')}
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
 
-                  <div className="mt-6 flex justify-end space-x-3">
+                  {error && (
+                    <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
+                      {error}
+                    </div>
+                  )}
+
+                  <div className="flex justify-end space-x-4 mt-6">
                     <button
                       type="button"
                       onClick={onClose}
-                      className="inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                      className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="inline-flex justify-center rounded-md border border-transparent bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                      disabled={isSubmitting}
+                      className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Create {userType === 'student' ? 'Student' : 'Teacher'}
+                      {isSubmitting ? 'Creating...' : `Create ${userType === 'student' ? 'Student' : 'Teacher'}`}
                     </button>
                   </div>
                 </form>

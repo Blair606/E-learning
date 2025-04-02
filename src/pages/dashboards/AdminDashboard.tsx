@@ -34,6 +34,7 @@ import CreateSchoolModal, { SchoolFormData } from "../../components/modals/Creat
 import { schoolService } from '../../services/schoolService';
 import type { School, Department } from '../../types/school';
 import { courseService, Course } from '../../services/courseService';
+import { toast } from "react-hot-toast";
 
 interface UserFilters {
   role: 'all' | 'teacher' | 'student' | 'admin';
@@ -304,12 +305,53 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleCreateUser = (userData: Partial<Student | Teacher>) => {
-    const newUser = {
-      ...userData,
-      id: String(users.length + 1),
-    } as User;
-    setUsers([...users, newUser]);
+  const handleUserAction = async (action: 'create' | 'update' | 'delete', userData?: Partial<User>) => {
+    try {
+        switch (action) {
+            case 'create':
+                if (!userData) return;
+                const newUser = await userService.createUser({
+                    ...userData,
+                    status: 'active'
+                });
+                if (newUser) {
+                    setUsers(prev => [...prev, newUser]);
+                    setShowUserModal(false);
+                    setSelectedUser(null);
+                    toast.success('User created successfully');
+                } else {
+                    throw new Error('Failed to create user');
+                }
+                break;
+
+            case 'update':
+                if (!userData || !selectedUser?.id) return;
+                const updatedUser = await userService.updateUser(selectedUser.id, userData);
+                if (updatedUser) {
+                    setUsers(prev => prev.map(user => 
+                        user.id === updatedUser.id ? updatedUser : user
+                    ));
+                    setShowUserModal(false);
+                    setSelectedUser(null);
+                    toast.success('User updated successfully');
+                } else {
+                    throw new Error('Failed to update user');
+                }
+                break;
+
+            case 'delete':
+                if (!selectedUser?.id) return;
+                await userService.deleteUser(selectedUser.id);
+                setUsers(prev => prev.filter(user => user.id !== selectedUser.id));
+                setShowUserModal(false);
+                setSelectedUser(null);
+                toast.success('User deleted successfully');
+                break;
+        }
+    } catch (error) {
+        console.error('Error handling user action:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to perform user action');
+    }
   };
 
   const handleCreateSchool = async (schoolData: SchoolFormData) => {
@@ -777,24 +819,21 @@ const AdminDashboard = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <button
                             onClick={() => {
-                              setUserModalType(user.role as 'student' | 'teacher');
                               setSelectedUser(user);
-                              setUserModalMode('edit');
                               setShowUserModal(true);
                             }}
-                            className="text-blue-600 hover:text-blue-900 mr-4"
+                            className="text-blue-600 hover:text-blue-800 mr-2"
                           >
-                            <PencilIcon className="w-5 h-5" />
+                            Edit
                           </button>
                           <button
                             onClick={() => {
                               setSelectedUser(user);
-                              setUserModalMode('delete');
-                              handleUserAction();
+                              setShowUserModal(true);
                             }}
-                            className="text-red-600 hover:text-red-900"
+                            className="text-red-600 hover:text-red-800"
                           >
-                            <TrashIcon className="w-5 h-5" />
+                            Delete
                           </button>
                         </td>
                       </tr>
@@ -1452,50 +1491,6 @@ const AdminDashboard = () => {
             </p>
           </div>
         );
-    }
-  };
-
-  const handleUserAction = async (userData?: Partial<User>) => {
-    try {
-      if (userModalMode === "delete" && selectedUser?.id) {
-        const confirmed = window.confirm(
-          `Are you sure you want to delete ${selectedUser.firstName}?`
-        );
-        if (confirmed) {
-          await userService.deleteUser(selectedUser.id);
-          alert("User deleted successfully");
-          setSelectedUser(null);
-          setUserModalMode("create");
-          await fetchUsers(); // Refresh the users list
-        }
-      } else if (userData && selectedUser?.id) {
-        // Only include password in update if it's not empty
-        const updateData = { ...userData };
-        if (!updateData.password) {
-          delete updateData.password;
-        }
-
-        await userService.updateUser(selectedUser.id, updateData);
-        alert("User updated successfully");
-        setSelectedUser(null);
-        setUserModalMode("create");
-        await fetchUsers(); // Refresh the users list
-      } else if (userData) {
-        // Create new user
-        await userService.createUser(userData);
-        alert("User created successfully");
-        await fetchUsers(); // Refresh the users list
-      }
-    } catch (error: unknown) {
-      let errorMessage = "An unknown error occurred";
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      alert(`Error: ${errorMessage}`);
-      console.error("Error handling user action:", error);
-    } finally {
-      setShowUserModal(false);
-      setSelectedUser(null);
     }
   };
 
