@@ -48,29 +48,6 @@ interface ApiResponse<T> {
   error?: string;
 }
 
-// Add Course related interfaces
-interface Course {
-  id: string;
-  code: string;
-  title: string;
-  description: string;
-  credits: number;
-  school: "SASA" | "SBE" | "SED" | "SEES" | "SHHS" | "HSSS" | "SPAS";
-  department: string;
-  instructor: string;
-  status: "active" | "inactive";
-  enrollmentCapacity: number;
-  currentEnrollment: number;
-  startDate: string;
-  endDate: string;
-  schedule: {
-    day: string;
-    time: string;
-    duration: number;
-  }[];
-  prerequisites: string[];
-}
-
 // Add School interface
 interface School {
   id: string;
@@ -182,11 +159,25 @@ const AdminDashboard = () => {
         setSchools(schoolsData);
       } catch (error) {
         console.error('Error fetching schools:', error);
-        // You might want to show an error message to the user here
+        toast.error('Failed to fetch schools');
       }
     };
 
     fetchSchools();
+  }, []);
+
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        const coursesData = await courseService.getAllCourses();
+        setCourses(coursesData);
+      } catch (error) {
+        console.error('Error fetching courses:', error);
+        toast.error('Failed to fetch courses');
+      }
+    };
+
+    fetchCourses();
   }, []);
 
   const fetchUsers = async () => {
@@ -196,15 +187,11 @@ const AdminDashboard = () => {
         setUsers(response.data);
       } else {
         console.error('Failed to fetch users: Invalid response format');
-        alert('Failed to fetch users. Please try again later.');
+        toast.error('Failed to fetch users');
       }
     } catch (error) {
       console.error('Error fetching users:', error);
-      if (error instanceof Error) {
-        alert(error.message);
-      } else {
-        alert('Failed to fetch users. Please try again later.');
-      }
+      toast.error('Failed to fetch users');
     }
   };
 
@@ -266,10 +253,10 @@ const AdminDashboard = () => {
       const newCourse = await courseService.createCourse(courseData);
       setCourses([...courses, newCourse]);
       setIsCourseModalOpen(false);
-      alert('Course created successfully');
+      toast.success('Course created successfully');
     } catch (error) {
       console.error('Error creating course:', error);
-      alert('Failed to create course. Please try again.');
+      toast.error('Failed to create course');
     }
   };
 
@@ -285,22 +272,22 @@ const AdminDashboard = () => {
       ));
       setIsCourseModalOpen(false);
       setSelectedCourse(null);
-      alert('Course updated successfully');
+      toast.success('Course updated successfully');
     } catch (error) {
       console.error('Error updating course:', error);
-      alert('Failed to update course. Please try again.');
+      toast.error('Failed to update course');
     }
   };
 
-  const handleDeleteCourse = async (courseId: number) => {
+  const handleDeleteCourse = async (courseId: string) => {
     if (window.confirm('Are you sure you want to delete this course?')) {
       try {
-        await courseService.deleteCourse(courseId);
+        await courseService.deleteCourse(parseInt(courseId));
         setCourses(courses.filter(course => course.id !== courseId));
-        alert('Course deleted successfully');
+        toast.success('Course deleted successfully');
       } catch (error) {
         console.error('Error deleting course:', error);
-        alert('Failed to delete course. Please try again.');
+        toast.error('Failed to delete course');
       }
     }
   };
@@ -363,13 +350,13 @@ const AdminDashboard = () => {
   const handleCreateSchool = async (schoolData: SchoolFormData) => {
     try {
       const response = await schoolService.createSchool(schoolData);
-      // Refresh the schools list
       const updatedSchools = await schoolService.getAllSchools();
       setSchools(updatedSchools);
+      toast.success('School created successfully');
       return true;
     } catch (error) {
       console.error('Error creating school:', error);
-      // You might want to show an error message to the user here
+      toast.error('Failed to create school');
       return false;
     }
   };
@@ -383,13 +370,13 @@ const AdminDashboard = () => {
         id: selectedSchool.id
       });
       
-      // Refresh the schools list
       const updatedSchools = await schoolService.getAllSchools();
       setSchools(updatedSchools);
+      toast.success('School updated successfully');
       return true;
     } catch (error) {
       console.error('Error updating school:', error);
-      // You might want to show an error message to the user here
+      toast.error('Failed to update school');
       return false;
     }
   };
@@ -398,13 +385,13 @@ const AdminDashboard = () => {
     if (window.confirm("Are you sure you want to delete this school?")) {
       try {
         const response = await schoolService.deleteSchool(parseInt(schoolId));
-        // Refresh the schools list
         const updatedSchools = await schoolService.getAllSchools();
         setSchools(updatedSchools);
+        toast.success('School deleted successfully');
         return true;
       } catch (error) {
         console.error('Error deleting school:', error);
-        // You might want to show an error message to the user here
+        toast.error('Failed to delete school');
         return false;
       }
     }
@@ -966,7 +953,7 @@ const AdminDashboard = () => {
                       .filter((course) => {
                         const matchesSearch = course.code.toLowerCase().includes(courseSearchTerm.toLowerCase()) ||
                           course.title.toLowerCase().includes(courseSearchTerm.toLowerCase());
-                        const matchesSchool = !schoolFilter || course.school === schoolFilter;
+                        const matchesSchool = !schoolFilter || course.school_name === schoolFilter;
                         const matchesStatus = !courseStatusFilter || course.status === courseStatusFilter;
                         return matchesSearch && matchesSchool && matchesStatus;
                       })
@@ -981,13 +968,13 @@ const AdminDashboard = () => {
                             <div className="text-sm text-gray-500">{course.description}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{course.school}</div>
+                            <div className="text-sm text-gray-900">{course.school_name}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{course.department}</div>
+                            <div className="text-sm text-gray-900">{course.department_name}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{course.instructor}</div>
+                            <div className="text-sm text-gray-900">{course.instructor_name}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
@@ -997,7 +984,7 @@ const AdminDashboard = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-900">
-                              {course.currentEnrollment}/{course.enrollmentCapacity}
+                              {course.current_enrollment}/{course.enrollment_capacity}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -1011,7 +998,7 @@ const AdminDashboard = () => {
                               <PencilIcon className="w-5 h-5" />
                             </button>
                             <button
-                              onClick={() => handleDeleteCourse(parseInt(course.id))}
+                              onClick={() => handleDeleteCourse(course.id)}
                               className="text-red-600 hover:text-red-900"
                             >
                               <TrashIcon className="w-5 h-5" />
