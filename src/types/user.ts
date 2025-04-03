@@ -1,4 +1,4 @@
-export interface User {
+export interface BaseUser {
     id?: string;
     $id?: string;
     $createdAt?: string;
@@ -20,7 +20,7 @@ export interface User {
     parent_id?: string;
 }
 
-export interface Student extends User {
+export interface Student extends BaseUser {
     role: 'student';
     student_id: string;
     grade?: string;
@@ -28,7 +28,7 @@ export interface Student extends User {
     courses?: string[];
 }
 
-export interface Teacher extends User {
+export interface Teacher extends BaseUser {
     role: 'teacher';
     teacher_id: string;
     specialization?: string;
@@ -40,7 +40,7 @@ export interface Teacher extends User {
     }[];
 }
 
-export interface Parent extends User {
+export interface Parent extends BaseUser {
     role: 'parent';
     parent_id: string;
     children?: string[];
@@ -57,4 +57,4 @@ export interface Guardian {
   nationalId: string;
 }
 
-export type User = Student | Teacher | Parent; 
+export type User = BaseUser | Student | Teacher | Parent; 

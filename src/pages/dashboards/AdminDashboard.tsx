@@ -182,13 +182,8 @@ const AdminDashboard = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await userService.getAllUsers();
-      if (response.success && Array.isArray(response.data)) {
-        setUsers(response.data);
-      } else {
-        console.error('Failed to fetch users: Invalid response format');
-        toast.error('Failed to fetch users');
-      }
+      const usersData = await userService.getAllUsers();
+      setUsers(usersData);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast.error('Failed to fetch users');
@@ -201,19 +196,12 @@ const AdminDashboard = () => {
 
   const handleDeleteUser = async (userId: string) => {
     try {
-      const response = await userService.deleteUser(userId) as ApiResponse<void>;
-      if (response.success) {
-        setUsers(users.filter(user => user.id !== userId));
-      } else {
-        throw new Error(response.error || 'Failed to delete user');
-      }
+      await userService.deleteUser(Number(userId));
+      setUsers(users.filter(user => user.id !== userId));
+      toast.success('User deleted successfully');
     } catch (error) {
       console.error('Error deleting user:', error);
-      if (error instanceof Error) {
-        alert(error.message);
-      } else {
-        alert('Failed to delete user. Please try again later.');
-      }
+      toast.error('Failed to delete user');
     }
   };
 
@@ -674,11 +662,12 @@ const AdminDashboard = () => {
 
       case "users":
         return (
-          <div className="space-y-6">
-            {/* Header with Actions */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <h2 className="text-2xl font-semibold">User Management</h2>
-              <div className="flex space-x-2">
+          <div className="bg-white rounded-xl shadow-sm p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-4">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-800">
+                User Management
+              </h2>
+              <div className="flex flex-wrap gap-2 sm:gap-4 w-full sm:w-auto">
                 <button
                   onClick={() => {
                     setUserModalType('student');
@@ -686,7 +675,7 @@ const AdminDashboard = () => {
                     setUserModalMode('create');
                     setShowUserModal(true);
                   }}
-                  className="flex-1 sm:flex-none flex items-center justify-center px-3 sm:px-4 py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 text-sm sm:text-base"
+                  className="flex-1 sm:flex-none flex items-center justify-center px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm sm:text-base"
                 >
                   <UserPlusIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                   Add Student
@@ -698,7 +687,7 @@ const AdminDashboard = () => {
                     setUserModalMode('create');
                     setShowUserModal(true);
                   }}
-                  className="flex-1 sm:flex-none flex items-center justify-center px-3 sm:px-4 py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 text-sm sm:text-base"
+                  className="flex-1 sm:flex-none flex items-center justify-center px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm sm:text-base"
                 >
                   <AcademicCapIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                   Add Teacher
@@ -706,147 +695,170 @@ const AdminDashboard = () => {
               </div>
             </div>
 
-            {/* Filters and Search */}
-            <div className="bg-white p-4 rounded-lg shadow-sm">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1 flex items-center space-x-2">
-                  <MagnifyingGlassIcon className="w-5 h-5 text-gray-400" />
+            {/* Filters */}
+            <div className="mb-4 sm:mb-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Search
+                </label>
+                <div className="relative">
                   <input
                     type="text"
                     placeholder="Search users..."
-                    className="flex-1 border-0 focus:ring-0"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
                   />
+                  <MagnifyingGlassIcon className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
                 </div>
-                <div className="flex items-center space-x-4">
-                  <select
-                    className="border-gray-300 rounded-md text-sm"
-                    value={roleFilter}
-                    onChange={(e) => setRoleFilter(e.target.value as UserFilters['role'])}
-                  >
-                    <option value="all">All Roles</option>
-                    <option value="teacher">Teachers</option>
-                    <option value="student">Students</option>
-                    <option value="admin">Admins</option>
-                  </select>
-                  <select
-                    className="border-gray-300 rounded-md text-sm"
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value as UserFilters['status'])}
-                  >
-                    <option value="all">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Role
+                </label>
+                <select
+                  value={roleFilter}
+                  onChange={(e) => setRoleFilter(e.target.value)}
+                  className="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
+                >
+                  <option value="">All Roles</option>
+                  <option value="student">Student</option>
+                  <option value="teacher">Teacher</option>
+                  <option value="admin">Admin</option>
+                  <option value="parent">Parent</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Status
+                </label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-purple-500 focus:border-purple-500"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="suspended">Suspended</option>
+                </select>
               </div>
             </div>
 
             {/* Users Table */}
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Name
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Role
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Department
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Join Date
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {users.map((user) => (
-                      <tr key={user.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-10 w-10">
-                              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                <span className="text-blue-600 font-medium">
-                                  {user.firstName?.[0]}{user.lastName?.[0]}
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
+                      Role
+                    </th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-4 sm:px-6 py-3 text-left text-xs sm:text-sm font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {users.length > 0 ? (
+                    users
+                      .filter((user) => {
+                        const matchesSearch =
+                          searchTerm === "" ||
+                          (user.firstName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                          (user.lastName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                          (user.email?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+                        const matchesRole =
+                          roleFilter === "" || user.role === roleFilter;
+                        const matchesStatus =
+                          statusFilter === "" || user.status === statusFilter;
+                        return matchesSearch && matchesRole && matchesStatus;
+                      })
+                      .map((user) => (
+                        <tr key={user.id}>
+                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-purple-100 flex items-center justify-center">
+                                <span className="text-purple-600 font-medium">
+                                  {user.firstName?.[0] || ''}
+                                  {user.lastName?.[0] || ''}
                                 </span>
                               </div>
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">
-                                {user.firstName} {user.lastName}
+                              <div className="ml-3">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {user.firstName || ''} {user.lastName || ''}
+                                </div>
                               </div>
-                              <div className="text-sm text-gray-500">{user.email}</div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                            ${user.role === 'teacher' ? 'bg-green-100 text-green-800' : 
-                              user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 
-                              'bg-blue-100 text-blue-800'}`}>
-                            {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {user.department || '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                            ${user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                            {user.status?.charAt(0).toUpperCase() + (user.status?.slice(1) || '')}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(user.createdAt || '').toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button
-                            onClick={() => {
-                              setSelectedUser(user);
-                              setShowUserModal(true);
-                            }}
-                            className="text-blue-600 hover:text-blue-800 mr-2"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedUser(user);
-                              setShowUserModal(true);
-                            }}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                          </td>
+                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{user.email || ''}</div>
+                          </td>
+                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                            <span className="px-2 inline-flex text-xs sm:text-sm leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                              {user.role || 'N/A'}
+                            </span>
+                          </td>
+                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                            <span
+                              className={`px-2 inline-flex text-xs sm:text-sm leading-5 font-semibold rounded-full ${
+                                user.status === "active"
+                                  ? "bg-green-100 text-green-800"
+                                  : user.status === "inactive"
+                                  ? "bg-gray-100 text-gray-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {user.status || "active"}
+                            </span>
+                          </td>
+                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => {
+                                  setSelectedUser(user);
+                                  setUserModalMode('edit');
+                                  setShowUserModal(true);
+                                }}
+                                className="text-indigo-600 hover:text-indigo-900"
+                              >
+                                <PencilIcon className="h-5 w-5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSelectedUser(user);
+                                  setUserModalMode('delete');
+                                  setShowUserModal(true);
+                                }}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                <TrashIcon className="h-5 w-5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="px-4 sm:px-6 py-4 text-center text-sm text-gray-500"
+                      >
+                        No users found
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
-
-            {/* Create/Edit User Modal */}
-            <CreateUserModal
-              isOpen={showUserModal}
-              onClose={() => {
-                setShowUserModal(false);
-                setSelectedUser(null);
-              }}
-              onSubmit={(userData) => handleUserAction(userModalMode, userData)}
-              userType={userModalType}
-              editData={selectedUser || undefined}
-            />
           </div>
         );
 
@@ -1488,19 +1500,11 @@ const AdminDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Fixed Header */}
-      <div className="fixed top-0 right-0 left-0 lg:left-64 z-10 transition-all duration-300">
-        <DashboardHeader
-          userRole="Administrator"
-          userName={`${user?.firstName} ${user?.lastName}` || "Admin"}
-        />
-      </div>
-
-      {/* Mobile Menu Button */}
+    <div className="min-h-screen bg-gray-100">
+      {/* Mobile Menu Button - Moved outside the header and adjusted z-index */}
       <button
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="lg:hidden fixed top-4 left-4 z-20 p-2 rounded-lg bg-white shadow-md hover:bg-gray-50"
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-white shadow-md hover:bg-gray-50"
       >
         {isSidebarOpen ? (
           <XMarkIcon className="w-6 h-6 text-gray-600" />
@@ -1509,9 +1513,15 @@ const AdminDashboard = () => {
         )}
       </button>
 
+      {/* Dashboard Header */}
+      <DashboardHeader 
+        userRole={user?.role || 'admin'} 
+        userName={`${user?.first_name || ''} ${user?.last_name || ''}`} 
+      />
+
       {/* Responsive Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 w-64 bg-white transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
           isSidebarOpen ? "translate-x-0" : "-translate-x-full"
         } shadow-lg`}
       >

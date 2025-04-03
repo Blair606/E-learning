@@ -5,12 +5,26 @@ import {
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
 } from '@heroicons/react/24/outline';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const DashboardHeader = ({ userRole, userName }: { userRole: string; userName: string }) => {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const handleProfileClick = () => {
+    navigate('/profile');
+    setIsProfileMenuOpen(false);
+  };
 
   return (
-    <header className="fixed top-0 right-0 w-full bg-white shadow-sm z-40">
+    <header className="fixed top-0 right-0 w-full bg-white shadow-sm z-30">
       <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
         {/* Left side - Brand/Logo (hidden on mobile when menu is shown) */}
         <div className="hidden lg:flex items-center">
@@ -18,7 +32,7 @@ const DashboardHeader = ({ userRole, userName }: { userRole: string; userName: s
         </div>
 
         {/* Right side - Notifications and Profile */}
-        <div className="flex items-center space-x-2 sm:space-x-4 ml-auto">
+        <div className="flex items-center space-x-4 ml-auto">
           {/* Notifications */}
           <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
             <BellIcon className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -40,7 +54,10 @@ const DashboardHeader = ({ userRole, userName }: { userRole: string; userName: s
             {/* Dropdown Menu */}
             {isProfileMenuOpen && (
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50">
-                <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center">
+                <button 
+                  onClick={handleProfileClick}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                >
                   <UserCircleIcon className="w-5 h-5 mr-2" />
                   Profile
                 </button>
@@ -49,7 +66,10 @@ const DashboardHeader = ({ userRole, userName }: { userRole: string; userName: s
                   Settings
                 </button>
                 <div className="h-px bg-gray-200 my-1"></div>
-                <button className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center">
+                <button 
+                  onClick={handleLogout}
+                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center"
+                >
                   <ArrowRightOnRectangleIcon className="w-5 h-5 mr-2" />
                   Logout
                 </button>

@@ -1,7 +1,5 @@
-import axios from 'axios';
+import api from '../config/api';
 import { User, Student, Teacher, Parent } from '../types/user';
-
-const API_URL = 'http://localhost/E-learning/api';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -13,6 +11,19 @@ interface ApiResponse<T> {
 interface ApiErrorResponse {
   success: false;
   error: string;
+}
+
+interface LoginResponse {
+  token: string;
+  user: User;
+}
+
+interface UpdateProfileData {
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  phone_number?: string;
+  password?: string;
 }
 
 class UserService {
@@ -37,28 +48,19 @@ class UserService {
     };
   }
 
-  async login(email: string, password: string) {
+  async login(email: string, password: string): Promise<LoginResponse> {
     try {
-      const response = await axios.post<ApiResponse<{ token: string; user: User }>>(`${API_URL}/auth/login.php`, {
-        email,
-        password,
-      });
-      if (response.data.success && response.data.data?.token) {
-        this.setToken(response.data.data.token);
-      }
+      const response = await api.post('/auth/login.php', { email, password });
       return response.data;
     } catch (error) {
-      if (this.isAxiosError(error)) {
-        const errorResponse = error.response?.data as ApiErrorResponse;
-        throw new Error(errorResponse?.error || 'Login failed');
-      }
+      console.error('Error in login:', error);
       throw error;
     }
   }
 
   async register(userData: Partial<User>): Promise<User> {
     try {
-      const response = await axios.post(`${API_URL}/auth/register.php`, userData);
+      const response = await api.post('/auth/register.php', userData);
       return response.data;
     } catch (error) {
       console.error('Registration error:', error);
@@ -66,32 +68,31 @@ class UserService {
     }
   }
 
-  async getAllUsers() {
+  async getAllUsers(): Promise<User[]> {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No authentication token found. Please log in again.');
+      const response = await api.get('/users/index.php');
+      
+      // Handle different response formats
+      if (response.data && Array.isArray(response.data)) {
+        return response.data;
+      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        return response.data.data;
+      } else if (response.data && response.data.users && Array.isArray(response.data.users)) {
+        return response.data.users;
+      } else {
+        console.error('Unexpected response format:', response.data);
+        return [];
       }
-
-      const response = await axios.get<ApiResponse<User[]>>(`${API_URL}/users.php`, {
-        headers: this.getHeaders(),
-      });
-
-      if (!response.data.success) {
-        throw new Error(response.data.error || 'Failed to fetch users');
-      }
-
-      return response.data;
     } catch (error) {
+      console.error('Error in getAllUsers:', error);
       if (this.isAxiosError(error)) {
         if (error.response?.status === 401) {
-          // Token is invalid or expired
           localStorage.removeItem('token');
           window.location.href = '/login';
           throw new Error('Session expired. Please log in again.');
         }
         const errorResponse = error.response?.data as ApiErrorResponse;
-        throw new Error(errorResponse?.error || 'Failed to fetch users');
+        throw new Error(errorResponse?.error || `Failed to fetch users: ${error.message}`);
       }
       throw error;
     }
@@ -105,7 +106,7 @@ class UserService {
       }
 
       console.log('Fetching teachers for department:', departmentId);
-      const response = await axios.get<ApiResponse<User[]>>(`${API_URL}/teachers/department/index.php?id=${departmentId}`, {
+      const response = await api.get<ApiResponse<User[]>>(`/teachers/department/index.php?id=${departmentId}`, {
         headers: this.getHeaders(),
       });
 
@@ -133,56 +134,36 @@ class UserService {
 
   async createUser(userData: Partial<User>): Promise<User> {
     try {
-      const response = await axios.post<ApiResponse<User>>(`${API_URL}/users/create.php`, userData, {
-        headers: {
-          ...this.getHeaders(),
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        withCredentials: true
-      });
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to create user');
-      }
-      
-      if (!response.data.data) {
-        throw new Error('No user data returned from server');
-      }
-      
-      return response.data.data;
-    } catch (error) {
-      console.error('User creation error:', error);
-      if (this.isAxiosError(error)) {
-        const errorResponse = error.response?.data as ApiErrorResponse;
-        throw new Error(errorResponse?.error || 'Failed to create user');
-      }
-      throw error;
-    }
-  }
-
-  async updateUser(userId: string, userData: Partial<User>): Promise<User> {
-    try {
-      const response = await axios.put(`${API_URL}/users/${userId}`, userData);
+      const response = await api.post('/users/index.php', userData);
       return response.data;
     } catch (error) {
-      console.error('User update error:', error);
+      console.error('Error in createUser:', error);
       throw error;
     }
   }
 
-  async deleteUser(userId: string): Promise<void> {
+  async updateUser(userId: number, userData: Partial<User>): Promise<User> {
     try {
-      await axios.delete(`${API_URL}/users/${userId}`);
+      const response = await api.put(`/users/index.php?id=${userId}`, userData);
+      return response.data;
     } catch (error) {
-      console.error('User deletion error:', error);
+      console.error('Error in updateUser:', error);
+      throw error;
+    }
+  }
+
+  async deleteUser(userId: number): Promise<void> {
+    try {
+      await api.delete(`/users/index.php?id=${userId}`);
+    } catch (error) {
+      console.error('Error in deleteUser:', error);
       throw error;
     }
   }
 
   async getUsers(): Promise<User[]> {
     try {
-      const response = await axios.get(`${API_URL}/users`);
+      const response = await api.get('/users');
       return response.data;
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -192,7 +173,7 @@ class UserService {
 
   async getUserById(userId: string): Promise<User> {
     try {
-      const response = await axios.get(`${API_URL}/users/${userId}`);
+      const response = await api.get(`/users/${userId}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching user:', error);
@@ -202,7 +183,7 @@ class UserService {
 
   async getStudents(): Promise<Student[]> {
     try {
-      const response = await axios.get(`${API_URL}/users/students`);
+      const response = await api.get('/users/students');
       return response.data;
     } catch (error) {
       console.error('Error fetching students:', error);
@@ -212,7 +193,7 @@ class UserService {
 
   async getTeachers(): Promise<Teacher[]> {
     try {
-      const response = await axios.get(`${API_URL}/users/teachers`);
+      const response = await api.get('/users/teachers');
       return response.data;
     } catch (error) {
       console.error('Error fetching teachers:', error);
@@ -222,10 +203,30 @@ class UserService {
 
   async getParents(): Promise<Parent[]> {
     try {
-      const response = await axios.get(`${API_URL}/users/parents`);
+      const response = await api.get('/users/parents');
       return response.data;
     } catch (error) {
       console.error('Error fetching parents:', error);
+      throw error;
+    }
+  }
+
+  async updateProfile(userId: number, data: UpdateProfileData): Promise<User> {
+    try {
+      const response = await api.put(`/users/profile.php?id=${userId}`, data);
+      return response.data;
+    } catch (error) {
+      console.error('Error in updateProfile:', error);
+      throw error;
+    }
+  }
+
+  async getProfile(userId: number): Promise<User> {
+    try {
+      const response = await api.get(`/users/profile.php?id=${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error in getProfile:', error);
       throw error;
     }
   }

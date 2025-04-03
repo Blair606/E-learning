@@ -14,6 +14,7 @@ import TeacherDashboard from '../pages/dashboards/TeacherDashboard';
 import AdminDashboard from '../pages/dashboards/AdminDashboard';
 import ParentDashboard from '../pages/dashboards/ParentDashboard';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
+import Profile from '../components/Profile';
 
 const AppRoutes: React.FC = () => {
     return (
@@ -36,6 +37,14 @@ const AppRoutes: React.FC = () => {
             <Route path="/unauthorized" element={<Unauthorized />} />
 
             {/* Protected routes */}
+            <Route
+                path="/profile"
+                element={
+                    <ProtectedRoute allowedRoles={['admin', 'teacher', 'student', 'parent']}>
+                        <Profile />
+                    </ProtectedRoute>
+                }
+            />
             <Route
                 path="/dashboard/student"
                 element={
