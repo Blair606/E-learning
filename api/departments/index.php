@@ -38,7 +38,7 @@ try {
 $method = $_SERVER['REQUEST_METHOD'];
 
 // Verify token for all requests except OPTIONS
-if ($method !== 'OPTIONS') {
+if ($method !== 'OPTIONS' && $method !== 'GET') {
     $headers = getallheaders();
     if(!isset($headers['Authorization'])) {
         error_log("No Authorization header found");
