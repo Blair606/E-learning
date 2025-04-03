@@ -57,12 +57,8 @@ const CreateCourseModal = ({ isOpen, onClose, onSubmit, editData }: CourseModalP
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [schoolsData, instructorsData] = await Promise.all([
-          schoolService.getAllSchools(),
-          userService.getAllUsers()
-        ]);
+        const schoolsData = await schoolService.getAllSchools();
         setSchools(schoolsData);
-        setInstructors(instructorsData.filter(user => user.role === 'teacher'));
       } catch (error) {
         console.error('Error fetching data:', error);
       }
@@ -89,6 +85,23 @@ const CreateCourseModal = ({ isOpen, onClose, onSubmit, editData }: CourseModalP
     }
   };
 
+  const fetchTeachers = async (departmentId: number) => {
+    try {
+      const teachersData = await userService.getTeachersByDepartment(departmentId);
+      console.log('Fetched teachers data:', teachersData);
+      if (teachersData.success && teachersData.data) {
+        setInstructors(teachersData.data);
+        console.log('Set instructors:', teachersData.data);
+      } else {
+        console.error('No teachers data received:', teachersData);
+        setInstructors([]);
+      }
+    } catch (error) {
+      console.error('Error fetching teachers:', error);
+      setInstructors([]);
+    }
+  };
+
   const generateCourseCode = (schoolCode: string, departmentCode: string) => {
     const timestamp = Date.now().toString().slice(-4);
     return `${schoolCode}${departmentCode}${timestamp}`;
@@ -109,8 +122,11 @@ const CreateCourseModal = ({ isOpen, onClose, onSubmit, editData }: CourseModalP
       setFormData(prev => ({
         ...prev,
         department_id: departmentId,
-        code: courseCode
+        code: courseCode,
+        instructor_id: 0 // Reset instructor selection when department changes
       }));
+      console.log('Fetching teachers for department:', departmentId);
+      fetchTeachers(departmentId);
     }
   };
 
@@ -311,14 +327,19 @@ const CreateCourseModal = ({ isOpen, onClose, onSubmit, editData }: CourseModalP
                             required
                             value={formData.instructor_id}
                             onChange={(e) => setFormData({ ...formData, instructor_id: Number(e.target.value) })}
-                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
+                            disabled={!formData.department_id}
+                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none disabled:bg-gray-100"
                           >
                             <option value="">Select Instructor</option>
-                            {instructors.map((instructor) => (
-                              <option key={instructor.id} value={instructor.id}>
-                                {instructor.firstName} {instructor.lastName}
-                              </option>
-                            ))}
+                            {instructors && instructors.length > 0 ? (
+                              instructors.map((instructor) => (
+                                <option key={instructor.id} value={instructor.id}>
+                                  {instructor.first_name} {instructor.last_name}
+                                </option>
+                              ))
+                            ) : (
+                              <option value="" disabled>No instructors available</option>
+                            )}
                           </select>
                         </div>
 

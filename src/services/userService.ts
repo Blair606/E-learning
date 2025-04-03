@@ -97,6 +97,40 @@ class UserService {
     }
   }
 
+  async getTeachersByDepartment(departmentId: number) {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found. Please log in again.');
+      }
+
+      console.log('Fetching teachers for department:', departmentId);
+      const response = await axios.get<ApiResponse<User[]>>(`${API_URL}/teachers/department/index.php?id=${departmentId}`, {
+        headers: this.getHeaders(),
+      });
+
+      console.log('Response:', response.data);
+
+      if (!response.data.success) {
+        throw new Error(response.data.error || 'Failed to fetch teachers');
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error('Error details:', error);
+      if (this.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          localStorage.removeItem('token');
+          window.location.href = '/login';
+          throw new Error('Session expired. Please log in again.');
+        }
+        const errorResponse = error.response?.data as ApiErrorResponse;
+        throw new Error(errorResponse?.error || `Failed to fetch teachers: ${error.message}`);
+      }
+      throw error;
+    }
+  }
+
   async createUser(userData: Partial<User>): Promise<User> {
     try {
       const response = await axios.post<ApiResponse<User>>(`${API_URL}/users/create.php`, userData, {
