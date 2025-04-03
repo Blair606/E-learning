@@ -100,11 +100,20 @@ class UserService {
   async createUser(userData: Partial<User>): Promise<User> {
     try {
       const response = await axios.post<ApiResponse<User>>(`${API_URL}/users/create.php`, userData, {
-        headers: this.getHeaders()
+        headers: {
+          ...this.getHeaders(),
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        withCredentials: true
       });
       
       if (!response.data.success) {
         throw new Error(response.data.message || 'Failed to create user');
+      }
+      
+      if (!response.data.data) {
+        throw new Error('No user data returned from server');
       }
       
       return response.data.data;

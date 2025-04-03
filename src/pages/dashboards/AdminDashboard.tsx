@@ -309,48 +309,54 @@ const AdminDashboard = () => {
     try {
         switch (action) {
             case 'create':
-                if (!userData) return;
+                if (!userData) {
+                    toast.error('No user data provided');
+                    return;
+                }
                 const newUser = await userService.createUser({
                     ...userData,
-                    status: 'active'
+                    status: 'active',
+                    role: userModalType
                 });
-                if (newUser) {
-                    setUsers(prev => [...prev, newUser]);
-                    setShowUserModal(false);
-                    setSelectedUser(null);
-                    toast.success('User created successfully');
-                } else {
-                    throw new Error('Failed to create user');
-                }
+                setUsers(prev => [...prev, newUser]);
+                setIsUserModalOpen(false);
+                setSelectedUser(null);
+                toast.success('User created successfully');
                 break;
 
             case 'update':
-                if (!userData || !selectedUser?.id) return;
-                const updatedUser = await userService.updateUser(selectedUser.id, userData);
-                if (updatedUser) {
-                    setUsers(prev => prev.map(user => 
-                        user.id === updatedUser.id ? updatedUser : user
-                    ));
-                    setShowUserModal(false);
-                    setSelectedUser(null);
-                    toast.success('User updated successfully');
-                } else {
-                    throw new Error('Failed to update user');
+                if (!userData || !selectedUser?.id) {
+                    toast.error('No user data or selected user');
+                    return;
                 }
+                const updatedUser = await userService.updateUser(selectedUser.id, userData);
+                setUsers(prev => prev.map(user => 
+                    user.id === updatedUser.id ? updatedUser : user
+                ));
+                setIsUserModalOpen(false);
+                setSelectedUser(null);
+                toast.success('User updated successfully');
                 break;
 
             case 'delete':
-                if (!selectedUser?.id) return;
+                if (!selectedUser?.id) {
+                    toast.error('No user selected');
+                    return;
+                }
                 await userService.deleteUser(selectedUser.id);
                 setUsers(prev => prev.filter(user => user.id !== selectedUser.id));
-                setShowUserModal(false);
+                setIsUserModalOpen(false);
                 setSelectedUser(null);
                 toast.success('User deleted successfully');
                 break;
         }
     } catch (error) {
-        console.error('Error handling user action:', error);
-        toast.error(error instanceof Error ? error.message : 'Failed to perform user action');
+        console.error('Error in user action:', error);
+        if (error instanceof Error) {
+            toast.error(error.message);
+        } else {
+            toast.error('An unexpected error occurred');
+        }
     }
   };
 
@@ -850,7 +856,7 @@ const AdminDashboard = () => {
                 setShowUserModal(false);
                 setSelectedUser(null);
               }}
-              onSubmit={handleUserAction}
+              onSubmit={(userData) => handleUserAction(userModalMode, userData)}
               userType={userModalType}
               editData={selectedUser || undefined}
             />
