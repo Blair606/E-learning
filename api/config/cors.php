@@ -43,4 +43,7 @@ function handleCORS() {
         exit();
     }
 }
+
+// Automatically call the function when this file is included
+handleCORS();
 ?>

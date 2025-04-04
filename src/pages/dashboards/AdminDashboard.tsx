@@ -788,8 +788,8 @@ const AdminDashboard = () => {
                             <div className="flex items-center">
                               <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-purple-100 flex items-center justify-center">
                                 <span className="text-purple-600 font-medium">
-                                  {user.firstName?.[0] || ''}
-                                  {user.lastName?.[0] || ''}
+                                  {(user.firstName || '').charAt(0)}
+                                  {(user.lastName || '').charAt(0)}
                                 </span>
                               </div>
                               <div className="ml-3">

@@ -492,8 +492,8 @@ const StudentDashboard = () => {
         body: JSON.stringify({
           email: currentGuardian.email,
           password: currentGuardian.nationalId, // Using national ID as password
-          first_name: currentGuardian.firstName,
-          last_name: currentGuardian.lastName,
+          firstName: currentGuardian.firstName,
+          lastName: currentGuardian.lastName,
           role: 'parent',
           phone: currentGuardian.phoneNumber,
           address: currentGuardian.address,
@@ -518,6 +518,47 @@ const StudentDashboard = () => {
         throw new Error(guardianData.message || 'Failed to create guardian account');
       }
 
+      // Get the student's user ID
+      let studentUserId;
+      try {
+        // First try to get from API
+        const userData = localStorage.getItem('user');
+        let userDataObj = null;
+        if (userData) {
+          userDataObj = JSON.parse(userData);
+        }
+        
+        const studentResponse = await fetch(
+          `http://localhost/E-learning/api/users/read.php?student_id=${profileData.studentId}${userDataObj?.id ? `&user_id=${userDataObj.id}` : ''}`, 
+          {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+            },
+          }
+        );
+
+        if (studentResponse.ok) {
+          const studentData = await studentResponse.json();
+          if (studentData.data && studentData.data.id) {
+            studentUserId = studentData.data.id;
+          }
+        }
+
+        // If API call failed or didn't return an ID, try to get from localStorage
+        if (!studentUserId && userDataObj?.id) {
+          studentUserId = userDataObj.id;
+        }
+
+        // If we still don't have a student ID, throw an error
+        if (!studentUserId) {
+          throw new Error('Could not retrieve student ID. Please try logging in again.');
+        }
+      } catch (error) {
+        console.error('Error getting student ID:', error);
+        throw new Error('Could not retrieve student ID. Please try logging in again.');
+      }
+
       // Then, create the guardian-student relationship
       const relationshipResponse = await fetch('http://localhost/E-learning/api/guardians/create.php', {
         method: 'POST',
@@ -526,8 +567,8 @@ const StudentDashboard = () => {
           'Accept': 'application/json',
         },
         body: JSON.stringify({
-          guardian_id: guardianData.id,
-          student_id: profileData.studentId,
+          guardian_id: guardianData.data.id,
+          student_id: studentUserId,
           relationship: currentGuardian.relationship,
           is_primary: guardians.length === 0 // First guardian is primary
         }),

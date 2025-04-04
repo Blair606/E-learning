@@ -72,6 +72,9 @@ class UserService {
     try {
       const response = await api.get('/users/index.php');
       
+      // Log the raw response for debugging
+      console.log('Raw API response:', response.data);
+      
       // Handle different response formats
       if (response.data && Array.isArray(response.data)) {
         return response.data;
@@ -79,20 +82,24 @@ class UserService {
         return response.data.data;
       } else if (response.data && response.data.users && Array.isArray(response.data.users)) {
         return response.data.users;
-      } else {
-        console.error('Unexpected response format:', response.data);
-        return [];
+      } else if (response.data && typeof response.data === 'object') {
+        // Try to find any array property in the response
+        const arrayProperty = Object.values(response.data).find(value => Array.isArray(value));
+        if (arrayProperty) {
+          return arrayProperty;
+        }
       }
+      
+      console.error('Unexpected response format:', response.data);
+      throw new Error('Invalid response format from users API');
     } catch (error) {
       console.error('Error in getAllUsers:', error);
       if (this.isAxiosError(error)) {
         if (error.response?.status === 401) {
           localStorage.removeItem('token');
-          window.location.href = '/login';
-          throw new Error('Session expired. Please log in again.');
+          throw new Error('Unauthorized access');
         }
-        const errorResponse = error.response?.data as ApiErrorResponse;
-        throw new Error(errorResponse?.error || `Failed to fetch users: ${error.message}`);
+        throw new Error(error.response?.data?.message || 'Failed to fetch users');
       }
       throw error;
     }
