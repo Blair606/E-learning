@@ -5,18 +5,23 @@ import { UserCircleIcon, LockClosedIcon, UserIcon, XMarkIcon } from '@heroicons/
 interface UserManagementModalProps {
   isOpen: boolean;
   onClose: () => void;
-  mode: 'edit' | 'delete';
+  mode: 'edit' | 'delete' | 'create';
   user?: User | null;
   onConfirm: (userData?: Partial<User>) => void;
+  userType?: 'student' | 'teacher';
+  schools?: Array<{ id: string; name: string }>;
+  departments?: string[];
 }
 
 interface FormData {
-  firstName: string;
-  lastName: string;
+  first_name: string;
+  last_name: string;
   email: string;
   password: string;
   role: 'student' | 'teacher' | 'admin' | 'parent';
   status: 'active' | 'inactive' | 'suspended';
+  school?: string;
+  department?: string;
 }
 
 const UserManagementModal: React.FC<UserManagementModalProps> = ({
@@ -25,28 +30,47 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({
   mode,
   user,
   onConfirm,
+  userType = 'student',
+  schools = [],
+  departments = [],
 }) => {
   const [formData, setFormData] = useState<FormData>({
-    firstName: '',
-    lastName: '',
+    first_name: '',
+    last_name: '',
     email: '',
     password: '',
-    role: 'student',
-    status: 'active'
+    role: userType,
+    status: 'active',
+    school: '',
+    department: ''
   });
 
   useEffect(() => {
     if (user) {
       setFormData({
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
+        first_name: user.first_name || '',
+        last_name: user.last_name || '',
         email: user.email || '',
         password: '', // Don't populate password for security
-        role: user.role || 'student',
-        status: user.status || 'active'
+        role: user.role || userType,
+        status: user.status || 'active',
+        school: user.school || '',
+        department: user.department || ''
+      });
+    } else {
+      // Reset form when adding new user
+      setFormData({
+        first_name: '',
+        last_name: '',
+        email: '',
+        password: '',
+        role: userType,
+        status: 'active',
+        school: '',
+        department: ''
       });
     }
-  }, [user]);
+  }, [user, userType]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,7 +85,7 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-gray-900">
-              {mode === 'edit' ? 'Edit User' : 'Delete User'}
+              {mode === 'edit' ? 'Edit User' : mode === 'create' ? `Add New ${userType === 'student' ? 'Student' : 'Teacher'}` : 'Delete User'}
             </h2>
             <button
               onClick={onClose}
@@ -74,7 +98,7 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({
           {mode === 'delete' ? (
             <div className="space-y-4">
               <p className="text-gray-600">
-                Are you sure you want to delete {user?.firstName} {user?.lastName}?
+                Are you sure you want to delete {user?.first_name} {user?.last_name}?
               </p>
               <div className="flex justify-end space-x-3">
                 <button
@@ -105,8 +129,8 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({
                     <input
                       id="firstName"
                       type="text"
-                      value={formData.firstName}
-                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                      value={formData.first_name}
+                      onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                       className="appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                       required
                     />
@@ -124,8 +148,8 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({
                     <input
                       id="lastName"
                       type="text"
-                      value={formData.lastName}
-                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                      value={formData.last_name}
+                      onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                       className="appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                       required
                     />
@@ -207,6 +231,49 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="school" className="block text-sm font-medium text-gray-700">
+                    School
+                  </label>
+                  <select
+                    id="school"
+                    value={formData.school}
+                    onChange={(e) => setFormData({ ...formData, school: e.target.value })}
+                    className="mt-1 block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                    required
+                  >
+                    <option value="">Select School</option>
+                    {schools.map((school) => (
+                      <option key={school.id} value={school.id}>
+                        {school.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="department" className="block text-sm font-medium text-gray-700">
+                    Department
+                  </label>
+                  <select
+                    id="department"
+                    value={formData.department}
+                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                    className="mt-1 block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                    required
+                    disabled={!formData.school}
+                  >
+                    <option value="">Select Department</option>
+                    {departments.map((dept) => (
+                      <option key={dept} value={dept}>
+                        {dept}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div className="flex justify-end space-x-3">
                 <button
                   type="button"
@@ -219,7 +286,7 @@ const UserManagementModal: React.FC<UserManagementModalProps> = ({
                   type="submit"
                   className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors duration-200"
                 >
-                  Save Changes
+                  {mode === 'edit' ? 'Save Changes' : 'Add User'}
                 </button>
               </div>
             </form>

@@ -15,10 +15,12 @@ import {
   ClockIcon,
   Cog6ToothIcon,
   DocumentTextIcon,
+  UserCircleIcon,
 } from '@heroicons/react/24/outline';
 import CreateAssignmentModal from '../../components/modals/CreateAssignmentModal';
 import CreateDiscussionGroupModal from '../../components/modals/CreateDiscussionGroupModal';
 import AddCourseContentModal from '../../components/modals/AddCourseContentModal';
+import EditTeacherProfileModal from '../../components/modals/EditTeacherProfileModal';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { Assignment } from '../../store/slices/assignmentSlice';
 import {
@@ -239,6 +241,8 @@ const TeacherDashboard = () => {
   const [isAddContentModalOpen, setIsAddContentModalOpen] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
 
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
   const navItems = [
     { id: 'overview', icon: BookOpenIcon, label: 'Overview' },
     { id: 'discussions', icon: ChatBubbleLeftRightIcon, label: 'Discussions' },
@@ -353,6 +357,16 @@ const TeacherDashboard = () => {
         }
         return course;
       }));
+    }
+  };
+
+  const handleProfileUpdate = (updatedProfile: any) => {
+    // Update the user in the Redux store
+    dispatch(updateUser(updatedProfile));
+    // Refresh the courses based on the new department
+    if (updatedProfile.department_id) {
+      // You might want to fetch courses for the new department here
+      console.log('Profile updated, refreshing courses for department:', updatedProfile.department_id);
     }
   };
 
@@ -1132,12 +1146,15 @@ const TeacherDashboard = () => {
             </button>
             <div className="flex items-center border-l pl-4 ml-4">
               <div className="hidden sm:block text-right mr-3">
-                <p className="text-sm font-medium text-gray-900">Prof. Smith</p>
-                <p className="text-xs text-gray-500">Teacher</p>
+                <p className="text-sm font-medium text-gray-900">{user?.firstName} {user?.lastName}</p>
+                <p className="text-xs text-gray-500">{user?.department || 'No Department'}</p>
               </div>
-              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                <span className="text-sm font-medium text-blue-600">PS</span>
-              </div>
+              <button
+                onClick={() => setIsProfileModalOpen(true)}
+                className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center hover:bg-blue-200 transition-colors"
+              >
+                <UserCircleIcon className="w-6 h-6 text-blue-600" />
+              </button>
             </div>
           </div>
         </div>
@@ -1257,6 +1274,13 @@ const TeacherDashboard = () => {
         onClose={() => setIsAddContentModalOpen(false)}
         onSubmit={handleAddContent}
         courseId={selectedCourseId || 0}
+      />
+
+      <EditTeacherProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        onSubmit={handleProfileUpdate}
+        user={user}
       />
 
       {/* Add Admin Access Button if user has admin privileges */}

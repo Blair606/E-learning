@@ -72,9 +72,11 @@ function ensureDatabaseExists() {
                 name VARCHAR(255) NOT NULL,
                 code VARCHAR(10) NOT NULL UNIQUE,
                 description TEXT,
+                school_id INT NOT NULL,
                 status ENUM('active', 'inactive') DEFAULT 'active',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
             
             CREATE TABLE IF NOT EXISTS school_departments (
@@ -84,6 +86,25 @@ function ensureDatabaseExists() {
                 PRIMARY KEY (school_id, department_id),
                 FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
                 FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+            CREATE TABLE IF NOT EXISTS courses (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                code VARCHAR(10) NOT NULL UNIQUE,
+                description TEXT,
+                school_id INT NOT NULL,
+                department_id INT NOT NULL,
+                instructor_id INT,
+                credits INT NOT NULL DEFAULT 3,
+                schedule JSON,
+                prerequisites JSON,
+                status ENUM('active', 'inactive') DEFAULT 'active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
+                FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE,
+                FOREIGN KEY (instructor_id) REFERENCES users(id) ON DELETE SET NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
         ");
         

@@ -773,8 +773,8 @@ const AdminDashboard = () => {
                       .filter((user) => {
                         const matchesSearch =
                           searchTerm === "" ||
-                          (user.firstName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-                          (user.lastName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                          (user.first_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                          (user.last_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
                           (user.email?.toLowerCase() || '').includes(searchTerm.toLowerCase());
                         const matchesRole =
                           roleFilter === "" || user.role === roleFilter;
@@ -788,13 +788,13 @@ const AdminDashboard = () => {
                             <div className="flex items-center">
                               <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-purple-100 flex items-center justify-center">
                                 <span className="text-purple-600 font-medium">
-                                  {(user.firstName || '').charAt(0)}
-                                  {(user.lastName || '').charAt(0)}
+                                  {(user.first_name || '').charAt(0)}
+                                  {(user.last_name || '').charAt(0)}
                                 </span>
                               </div>
                               <div className="ml-3">
                                 <div className="text-sm font-medium text-gray-900">
-                                  {user.firstName || ''} {user.lastName || ''}
+                                  {user.first_name || ''} {user.last_name || ''}
                                 </div>
                               </div>
                             </div>

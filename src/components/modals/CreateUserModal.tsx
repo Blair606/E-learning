@@ -14,8 +14,8 @@ interface CreateUserModalProps {
 
 const CreateUserModal = ({ isOpen, onClose, onSubmit, userType, editData }: CreateUserModalProps) => {
   const [formData, setFormData] = useState<Partial<Student | Teacher>>({
-    firstName: '',
-    lastName: '',
+    first_name: '',
+    last_name: '',
     email: '',
     password: '',
     phone: '',
@@ -75,32 +75,26 @@ const CreateUserModal = ({ isOpen, onClose, onSubmit, userType, editData }: Crea
   }, [formData.school_id]);
 
   useEffect(() => {
-    if (!isOpen) {
+    if (editData) {
       setFormData({
-        firstName: '',
-        lastName: '',
-        email: '',
-        password: '',
-        phone: '',
-        address: '',
-        national_id: '',
-        role: userType,
-        status: 'active',
-        school_id: '',
-        department_id: '',
-        ...(editData || {})
+        first_name: editData.first_name || '',
+        last_name: editData.last_name || '',
+        email: editData.email || '',
+        password: '', // Don't populate password for security
+        role: editData.role || userType,
+        status: editData.status || 'active',
+        school_id: editData.school_id || '',
+        department_id: editData.department_id || '',
       });
-      setErrors({});
-      setError('');
     }
-  }, [isOpen, userType, editData]);
+  }, [editData, userType]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
     // Required fields for all users
-    if (!formData.firstName) newErrors.firstName = 'First name is required';
-    if (!formData.lastName) newErrors.lastName = 'Last name is required';
+    if (!formData.first_name) newErrors.first_name = 'First name is required';
+    if (!formData.last_name) newErrors.last_name = 'Last name is required';
     if (!formData.email) newErrors.email = 'Email is required';
     if (!formData.password && !editData) newErrors.password = 'Password is required';
     if (!formData.national_id) newErrors.national_id = 'National ID is required';
@@ -121,8 +115,8 @@ const CreateUserModal = ({ isOpen, onClose, onSubmit, userType, editData }: Crea
     try {
       // Transform the form data to match API requirements
       const userData = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
         email: formData.email,
         password: formData.password,
         phone: formData.phone,
@@ -211,43 +205,43 @@ const CreateUserModal = ({ isOpen, onClose, onSubmit, userType, editData }: Crea
                   <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                     {/* First Name */}
                     <div>
-                      <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="first_name" className="block text-sm font-medium text-gray-700">
                         First Name
                       </label>
                       <div className="mt-1">
                         <input
                           type="text"
-                          id="firstName"
-                          name="firstName"
-                          value={formData.firstName}
-                          onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
+                          id="first_name"
+                          name="first_name"
+                          value={formData.first_name}
+                          onChange={(e) => setFormData(prev => ({ ...prev, first_name: e.target.value }))}
                           className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                           placeholder="Enter first name"
                         />
                       </div>
-                      {errors.firstName && (
-                        <p className="mt-1 text-sm text-red-600">{errors.firstName}</p>
+                      {errors.first_name && (
+                        <p className="mt-1 text-sm text-red-600">{errors.first_name}</p>
                       )}
                     </div>
 
                     {/* Last Name */}
                     <div>
-                      <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="last_name" className="block text-sm font-medium text-gray-700">
                         Last Name
                       </label>
                       <div className="mt-1">
                         <input
                           type="text"
-                          id="lastName"
-                          name="lastName"
-                          value={formData.lastName}
-                          onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
+                          id="last_name"
+                          name="last_name"
+                          value={formData.last_name}
+                          onChange={(e) => setFormData(prev => ({ ...prev, last_name: e.target.value }))}
                           className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                           placeholder="Enter last name"
                         />
                       </div>
-                      {errors.lastName && (
-                        <p className="mt-1 text-sm text-red-600">{errors.lastName}</p>
+                      {errors.last_name && (
+                        <p className="mt-1 text-sm text-red-600">{errors.last_name}</p>
                       )}
                     </div>
 

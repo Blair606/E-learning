@@ -22,11 +22,13 @@ import DashboardHeader from '../../components/DashboardHeader';
 import UserModal from '../../components/modals/UserModal';
 import CourseModal from '../../components/modals/CourseModal';
 import DepartmentModal from '../../components/modals/DepartmentModal';
+import UserManagementModal from '../../components/modals/UserManagementModal';
 import axios from 'axios';
 
 interface User {
   id: string;
-  name: string;
+  first_name: string;
+  last_name: string;
   email: string;
   role: 'teacher' | 'student' | 'admin';
   status: 'active' | 'inactive';
@@ -65,6 +67,7 @@ const AdminDashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [userModalMode, setUserModalMode] = useState<'edit' | 'delete'>('edit');
   const [userFilters, setUserFilters] = useState<UserFilters>({
     role: 'all',
     status: 'all',
@@ -99,8 +102,22 @@ const AdminDashboard = () => {
 
     const fetchUsers = async () => {
         try {
-            const response = await axios.get('http://localhost:5000/api/users/users');
-            setUsers(response.data); // Assuming the response data is an array of users
+            const response = await axios.get('http://localhost/E-learning/api/users/index.php');
+            console.log('API Response:', response.data);
+            
+            // Transform the data if needed
+            const transformedUsers = response.data.map((user: any) => ({
+              id: user.id,
+              first_name: user.first_name || '',
+              last_name: user.last_name || '',
+              email: user.email || '',
+              role: user.role || 'student',
+              status: user.status || 'active',
+              department: user.department || '',
+              joinDate: user.created_at || new Date().toISOString()
+            }));
+            
+            setUsers(transformedUsers);
         } catch (error) {
             console.error('Error fetching users:', error);
             alert('Failed to fetch users. Please try again later.');
@@ -199,11 +216,30 @@ const AdminDashboard = () => {
               <div className="bg-white p-6 rounded-xl shadow-sm">
                 <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
                 <div className="grid grid-cols-2 gap-4">
-                  <button className="p-4 bg-blue-50 rounded-lg text-blue-700 hover:bg-blue-100 transition-colors">
-                    <UserPlusIcon className="w-6 h-6 mb-2" />
-                    <span>Add New User</span>
+                  <button
+                    onClick={() => {
+                      setUserModalType('student');
+                      setSelectedUser(null);
+                      setUserModalMode('create');
+                      setShowUserModal(true);
+                    }}
+                    className="flex-1 sm:flex-none flex items-center justify-center px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm sm:text-base"
+                  >
+                    <UserPlusIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                    Add Student
                   </button>
-                  {/* Add more quick actions */}
+                  <button
+                    onClick={() => {
+                      setUserModalType('teacher');
+                      setSelectedUser(null);
+                      setUserModalMode('create');
+                      setShowUserModal(true);
+                    }}
+                    className="flex-1 sm:flex-none flex items-center justify-center px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm sm:text-base"
+                  >
+                    <AcademicCapIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                    Add Teacher
+                  </button>
                 </div>
               </div>
             </div>
@@ -219,6 +255,7 @@ const AdminDashboard = () => {
               <button
                 onClick={() => {
                   setSelectedUser(null);
+                  setUserModalMode('edit');
                   setShowUserModal(true);
                 }}
                 className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -299,12 +336,12 @@ const AdminDashboard = () => {
                             <div className="flex-shrink-0 h-10 w-10">
                               <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
                                 <span className="text-blue-600 font-medium">
-                                  {user.name.split(' ').map(n => n[0]).join('')}
+                                  {user.first_name.split(' ').map(n => n[0]).join('')}
                                 </span>
                               </div>
                             </div>
                             <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                              <div className="text-sm font-medium text-gray-900">{user.first_name} {user.last_name}</div>
                               <div className="text-sm text-gray-500">{user.email}</div>
                             </div>
                           </div>
@@ -333,6 +370,8 @@ const AdminDashboard = () => {
                           <button
                             onClick={() => {
                               setSelectedUser(user);
+                              setUserModalMode('edit');
+                              setUserModalType(user.role as 'student' | 'teacher');
                               setShowUserModal(true);
                             }}
                             className="text-blue-600 hover:text-blue-900 mr-4"
@@ -560,29 +599,46 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleUserSubmit = (userData: Omit<User, 'id'>) => {
-    if (selectedUser) {
-      // Update existing user
-      const updatedUsers = users.map(user => 
-        user.id === selectedUser.id 
-          ? { ...userData, id: user.id }
-          : user
-      );
-      setUsers(updatedUsers);
-    } else {
-      // Add new user
-      const newUser = {
+  const handleUserSubmit = async (userData: Partial<User>) => {
+    try {
+      const userDataToSubmit = {
         ...userData,
-        id: (users.length + 1).toString()
+        role: userModalMode, // Set the role based on userModalMode
+        status: userData.status || 'active',
       };
-      setUsers([...users, newUser]);
+
+      if (selectedUser) {
+        // Update existing user
+        const response = await axios.put(`http://localhost/E-learning/api/users/index.php?id=${selectedUser.id}`, userDataToSubmit);
+        console.log('Update response:', response.data);
+      } else {
+        // Add new user
+        const response = await axios.post('http://localhost/E-learning/api/users/index.php', userDataToSubmit);
+        console.log('Create response:', response.data);
+      }
+      
+      // Refresh the users list
+      fetchUsers();
+      setShowUserModal(false);
+      setSelectedUser(null);
+    } catch (error) {
+      console.error('Error saving user:', error);
+      alert('Failed to save user. Please try again later.');
     }
-    setShowUserModal(false);
   };
 
-  const handleDeleteUser = (userId: string) => {
+  const handleDeleteUser = async (userId: string) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
-      setUsers(users.filter(user => user.id !== userId));
+      try {
+        const response = await axios.delete(`http://localhost/E-learning/api/users/index.php?id=${userId}`);
+        console.log('Delete response:', response.data);
+        
+        // Refresh the users list
+        fetchUsers();
+      } catch (error) {
+        console.error('Error deleting user:', error);
+        alert('Failed to delete user. Please try again later.');
+      }
     }
   };
 
@@ -699,11 +755,17 @@ const AdminDashboard = () => {
         {renderContent()}
       </div>
 
-      <UserModal
+      <UserManagementModal
         isOpen={showUserModal}
-        onClose={() => setShowUserModal(false)}
-        onSubmit={handleUserSubmit}
+        onClose={() => {
+          setShowUserModal(false);
+          setSelectedUser(null);
+        }}
+        mode={userModalMode}
         user={selectedUser}
+        onConfirm={handleUserSubmit}
+        userType={userModalMode}
+        schools={schools}
         departments={departmentsList.map(dept => dept.name)}
       />
 
@@ -715,7 +777,7 @@ const AdminDashboard = () => {
         departments={departmentsList.map(dept => dept.name)}
         teachers={users
           .filter(user => user.role === 'teacher')
-          .map(teacher => ({ id: teacher.id, name: teacher.name }))
+          .map(teacher => ({ id: teacher.id, name: teacher.first_name }))
         }
       />
 
@@ -726,7 +788,7 @@ const AdminDashboard = () => {
         department={selectedDepartment}
         teachers={users
           .filter(user => user.role === 'teacher')
-          .map(teacher => ({ id: teacher.id, name: teacher.name }))
+          .map(teacher => ({ id: teacher.id, name: teacher.first_name }))
         }
       />
     </div>
