@@ -1,6 +1,7 @@
 <?php
 require_once '../config/database.php';
 require_once '../config/cors.php';
+require_once '../middleware/AuthMiddleware.php';
 
 header('Content-Type: application/json');
 
@@ -9,6 +10,9 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'PUT') {
     try {
+        // Authenticate the request
+        $authPayload = AuthMiddleware::authenticate();
+        
         // Get the request body
         $data = json_decode(file_get_contents('php://input'), true);
         

@@ -53,10 +53,21 @@ class CourseService {
     async getAllCourses(): Promise<Course[]> {
         try {
             const response = await api.get('/courses/index.php');
-            return response.data;
+            if (Array.isArray(response.data)) {
+                return response.data;
+            } else if (response.data && typeof response.data === 'object') {
+                if (Array.isArray(response.data.courses)) {
+                    return response.data.courses;
+                }
+                if (Array.isArray(response.data.data)) {
+                    return response.data.data;
+                }
+            }
+            console.error('Invalid courses data format:', response.data);
+            return [];
         } catch (error) {
             console.error('Error fetching courses:', error);
-            throw error;
+            return [];
         }
     }
 

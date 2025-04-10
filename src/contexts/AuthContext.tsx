@@ -35,6 +35,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (storedUser && storedToken) {
       try {
         const parsedUser = JSON.parse(storedUser);
+        // Ensure token is in user object
+        if (!parsedUser.token) {
+          parsedUser.token = storedToken;
+        }
         setUser(parsedUser);
       } catch (error) {
         console.error('Error parsing stored user:', error);
@@ -48,10 +52,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     try {
       const response = await userService.login(email, password);
+      console.log('Login response:', response); // Debug login response
+      
       if (response.token && response.user) {
-        setUser(response.user);
+        // Add token to user object
+        const userWithToken = {
+          ...response.user,
+          token: response.token
+        };
+        console.log('Setting user with token:', userWithToken); // Debug user object
+        
+        setUser(userWithToken);
         localStorage.setItem('token', response.token);
-        localStorage.setItem('user', JSON.stringify(response.user));
+        localStorage.setItem('user', JSON.stringify(userWithToken));
+        
+        // Verify token was stored
+        console.log('Stored token:', localStorage.getItem('token')); // Debug stored token
         
         // Redirect based on role
         switch (response.user.role) {
@@ -70,8 +86,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           default:
             navigate('/');
         }
+      } else {
+        console.error('Login response missing token or user:', response); // Debug missing data
+        throw new Error('Invalid login response');
       }
     } catch (error) {
+      console.error('Login error:', error); // Debug login error
       throw error;
     }
   };

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, Select, message, Spin } from 'antd';
-import { UserOutlined, MailOutlined, PhoneOutlined, BankOutlined } from '@ant-design/icons';
+import { UserOutlined, MailOutlined, PhoneOutlined, HomeOutlined, BankOutlined, BookOutlined, GraduationCapOutlined, HistoryOutlined } from '@ant-design/icons';
 import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
 
 interface EditTeacherProfileModalProps {
   visible: boolean;
@@ -18,9 +19,10 @@ const EditTeacherProfileModal: React.FC<EditTeacherProfileModalProps> = ({
 }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [schools, setSchools] = useState([]);
-  const [departments, setDepartments] = useState([]);
+  const [schools, setSchools] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
   const [fetchingData, setFetchingData] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
     if (visible) {
@@ -33,7 +35,10 @@ const EditTeacherProfileModal: React.FC<EditTeacherProfileModalProps> = ({
   }, [visible, teacher, form]);
 
   const getAuthToken = () => {
-    return localStorage.getItem('token') || '';
+    if (!user?.token) {
+      throw new Error('No authentication token available. Please log in again.');
+    }
+    return user.token;
   };
 
   const fetchSchools = async () => {
@@ -125,12 +130,14 @@ const EditTeacherProfileModal: React.FC<EditTeacherProfileModalProps> = ({
       setLoading(true);
       const values = await form.validateFields();
       
-      const token = getAuthToken();
-      console.log('Updating teacher profile with token:', token);
-      console.log('Update values:', values);
+      // Get token from user object in AuthContext
+      const token = user?.token || localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token available. Please log in again.');
+      }
       
-      // Use the correct API endpoint for updating teacher profiles
-      const response = await axios.put('/api/teachers/update_profile.php', {
+      // Log the request data for debugging
+      const requestData = {
         id: teacher.id,
         firstName: values.first_name,
         lastName: values.last_name,
@@ -142,15 +149,24 @@ const EditTeacherProfileModal: React.FC<EditTeacherProfileModalProps> = ({
         specialization: values.specialization || '',
         education: values.education || '',
         experience: values.experience || '',
-        old_department_id: teacher.department_id // Include the old department ID for comparison
-      }, {
+        old_department_id: teacher.department_id
+      };
+      
+      console.log('Request data:', requestData);
+
+      // Use the correct API endpoint and data structure
+      const response = await axios({
+        method: 'put',
+        url: '/api/users/update.php',
+        data: requestData,
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         }
       });
       
-      console.log('Update profile response:', response.data);
+      console.log('API Response:', response.data);
       
       if (response.data && response.data.success) {
         message.success('Profile updated successfully');
@@ -161,9 +177,17 @@ const EditTeacherProfileModal: React.FC<EditTeacherProfileModalProps> = ({
       }
     } catch (error) {
       console.error('Error updating profile:', error);
-      if (axios.isAxiosError(error) && error.response) {
+      if (error instanceof Error) {
+        if (error.message.includes('No authentication token')) {
+          message.error('Your session has expired. Please log in again.');
+          // You might want to redirect to login page here
+        } else {
+          message.error(`Failed to update profile: ${error.message}`);
+        }
+      } else if (axios.isAxiosError(error) && error.response) {
+        const errorMessage = error.response.data?.message || error.response.data?.error || 'Unknown error';
+        message.error(`Failed to update profile: ${errorMessage}`);
         console.error('Error response:', error.response.data);
-        message.error(`Failed to update profile: ${error.response.data.message || 'Unknown error'}`);
       } else {
         message.error('Failed to update profile. Please try again later.');
       }

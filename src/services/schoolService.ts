@@ -41,7 +41,11 @@ class SchoolService {
     async getAllSchools(): Promise<School[]> {
         try {
             const response = await api.get('/schools/index.php');
-            return response.data;
+            if (response.data && response.data.success && Array.isArray(response.data.schools)) {
+                return response.data.schools;
+            }
+            console.error('Invalid schools data format:', response.data);
+            return [];
         } catch (error) {
             console.error('Error fetching schools:', error);
             throw error;

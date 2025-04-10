@@ -5,11 +5,17 @@ require_once '../cors.php';
 // Include database connection
 require_once '../config/database.php';
 
+// Include authentication middleware
+require_once '../middleware/AuthMiddleware.php';
+
 // Get the request method
 $method = $_SERVER['REQUEST_METHOD'];
 
 // Get user ID from query parameter
 $userId = isset($_GET['id']) ? $_GET['id'] : null;
+
+// Authenticate the request
+$authPayload = AuthMiddleware::authenticate();
 
 // Handle different HTTP methods
 switch ($method) {

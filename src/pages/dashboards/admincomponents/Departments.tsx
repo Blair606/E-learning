@@ -3,6 +3,7 @@ import CreateDepartmentModal from '../../../components/modals/CreateDepartmentMo
 import { BuildingLibraryIcon } from '@heroicons/react/16/solid';
 import { departmentService, Department } from '../../../services/departmentService';
 import { useNavigate } from 'react-router-dom';
+import { API_URL } from '../../../config/api';
 
 function Departments() {
     const navigate = useNavigate();
@@ -34,22 +35,26 @@ function Departments() {
         try {
             setIsLoading(true);
             const token = localStorage.getItem('token');
-            if (!token) {
-                throw new Error('No authentication token found');
-            }
             console.log('Fetching departments with token:', token);
-            const data = await departmentService.getAllDepartments();
+            
+            const response = await fetch(`${API_URL}/departments/index.php`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            const data = await response.json();
             console.log('Fetched departments:', data);
-            setDepartments(data);
-            setError('');
-        } catch (err) {
-            console.error('Error loading departments:', err);
-            if (err instanceof Error && err.message.includes('401')) {
-                localStorage.removeItem('token');
-                navigate('/signin');
+            
+            if (data.success) {
+                // Extract the departments array from the response
+                setDepartments(data.departments || []);
             } else {
-                setError('Failed to load departments. Please try again later.');
+                setError(data.message || 'Failed to fetch departments');
             }
+        } catch (err) {
+            console.error('Error fetching departments:', err);
+            setError('Failed to fetch departments');
         } finally {
             setIsLoading(false);
         }
