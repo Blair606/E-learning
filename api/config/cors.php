@@ -16,12 +16,8 @@ function handleCORS() {
     
     $origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
     
-    if (in_array($origin, $allowedOrigins)) {
-        header("Access-Control-Allow-Origin: $origin");
-    } else {
-        // For development, allow any origin
-        header("Access-Control-Allow-Origin: $origin");
-    }
+    // For development, allow any origin
+    header("Access-Control-Allow-Origin: $origin");
     
     // Allow credentials
     header('Access-Control-Allow-Credentials: true');

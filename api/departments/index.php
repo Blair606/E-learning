@@ -37,7 +37,7 @@ try {
 
 $method = $_SERVER['REQUEST_METHOD'];
 
-// Verify token for all requests except OPTIONS
+// Verify token for all requests except OPTIONS and GET
 if ($method !== 'OPTIONS' && $method !== 'GET') {
     $headers = getallheaders();
     if(!isset($headers['Authorization'])) {
@@ -101,13 +101,15 @@ switch($method) {
                 echo json_encode($departments);
             } else {
                 // Get all departments
-                $stmt = $db->prepare("SELECT d.*, s.name as school_name FROM departments d 
-                                    LEFT JOIN schools s ON d.school_id = s.id");
+                $stmt = $db->prepare("SELECT id, name, code, description, status FROM departments WHERE status = 'active'");
                 $stmt->execute();
                 $departments = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 
                 http_response_code(200);
-                echo json_encode($departments);
+                echo json_encode([
+                    'success' => true,
+                    'departments' => $departments
+                ]);
             }
         } catch (Exception $e) {
             error_log("Error getting departments: " . $e->getMessage());
@@ -119,10 +121,10 @@ switch($method) {
     case 'POST':
         try {
             // Create new department
-            $data = json_decode(file_get_contents("php://input"));
+            $data = json_decode(file_get_contents("php://input"), true);
             error_log("Received data for department creation: " . print_r($data, true));
 
-            if(!isset($data->name) || !isset($data->code) || !isset($data->school_id)) {
+            if(!isset($data['name']) || !isset($data['code']) || !isset($data['school_id'])) {
                 http_response_code(400);
                 echo json_encode(array("message" => "Name, code, and school_id are required."));
                 exit();
@@ -130,7 +132,7 @@ switch($method) {
 
             // Check if school exists
             $stmt = $db->prepare("SELECT id FROM schools WHERE id = ?");
-            $stmt->execute([$data->school_id]);
+            $stmt->execute([$data['school_id']]);
             if($stmt->rowCount() === 0) {
                 http_response_code(400);
                 echo json_encode(array("message" => "Invalid school_id."));
@@ -139,7 +141,7 @@ switch($method) {
 
             // Check if code is unique
             $stmt = $db->prepare("SELECT id FROM departments WHERE code = ?");
-            $stmt->execute([$data->code]);
+            $stmt->execute([$data['code']]);
             if($stmt->rowCount() > 0) {
                 http_response_code(400);
                 echo json_encode(array("message" => "Department code already exists."));
@@ -150,20 +152,21 @@ switch($method) {
             $stmt = $db->prepare("INSERT INTO departments (name, code, school_id, description, status) 
                                 VALUES (?, ?, ?, ?, ?)");
             $stmt->execute([
-                $data->name,
-                $data->code,
-                $data->school_id,
-                $data->description ?? '',
-                $data->status ?? 'active'
+                $data['name'],
+                $data['code'],
+                $data['school_id'],
+                $data['description'] ?? '',
+                $data['status'] ?? 'active'
             ]);
 
             $departmentId = $db->lastInsertId();
 
             http_response_code(201);
-            echo json_encode(array(
-                "message" => "Department created successfully.",
-                "id" => $departmentId
-            ));
+            echo json_encode([
+                'success' => true,
+                'message' => 'Department created successfully',
+                'department_id' => $departmentId
+            ]);
 
         } catch (Exception $e) {
             error_log("Error creating department: " . $e->getMessage());
@@ -175,9 +178,9 @@ switch($method) {
     case 'PUT':
         try {
             // Update department
-            $data = json_decode(file_get_contents("php://input"));
+            $data = json_decode(file_get_contents("php://input"), true);
             
-            if(!isset($data->id)) {
+            if(!isset($data['id'])) {
                 http_response_code(400);
                 echo json_encode(array("message" => "Department ID is required."));
                 exit();
@@ -185,7 +188,7 @@ switch($method) {
 
             // Check if department exists
             $stmt = $db->prepare("SELECT id FROM departments WHERE id = ?");
-            $stmt->execute([$data->id]);
+            $stmt->execute([$data['id']]);
             if($stmt->rowCount() === 0) {
                 http_response_code(404);
                 echo json_encode(array("message" => "Department not found."));
@@ -193,9 +196,9 @@ switch($method) {
             }
 
             // If code is being updated, check if it's unique
-            if(isset($data->code)) {
+            if(isset($data['code'])) {
                 $stmt = $db->prepare("SELECT id FROM departments WHERE code = ? AND id != ?");
-                $stmt->execute([$data->code, $data->id]);
+                $stmt->execute([$data['code'], $data['id']]);
                 if($stmt->rowCount() > 0) {
                     http_response_code(400);
                     echo json_encode(array("message" => "Department code already exists."));
@@ -204,81 +207,68 @@ switch($method) {
             }
 
             // Update department
-            $updateFields = array();
-            $params = array();
+            $query = "UPDATE departments SET 
+                     name = :name,
+                     code = :code,
+                     school_id = :school_id,
+                     description = :description,
+                     status = :status
+                     WHERE id = :id";
+            
+            $stmt = $db->prepare($query);
+            
+            $stmt->bindParam(':id', $data['id']);
+            $stmt->bindParam(':name', $data['name']);
+            $stmt->bindParam(':code', $data['code']);
+            $stmt->bindParam(':school_id', $data['school_id']);
+            $stmt->bindParam(':description', $data['description']);
+            $stmt->bindParam(':status', $data['status']);
 
-            if(isset($data->name)) {
-                $updateFields[] = "name = ?";
-                $params[] = $data->name;
-            }
-            if(isset($data->code)) {
-                $updateFields[] = "code = ?";
-                $params[] = $data->code;
-            }
-            if(isset($data->school_id)) {
-                $updateFields[] = "school_id = ?";
-                $params[] = $data->school_id;
-            }
-            if(isset($data->description)) {
-                $updateFields[] = "description = ?";
-                $params[] = $data->description;
-            }
-            if(isset($data->status)) {
-                $updateFields[] = "status = ?";
-                $params[] = $data->status;
-            }
-
-            if(count($updateFields) > 0) {
-                $params[] = $data->id;
-                $sql = "UPDATE departments SET " . implode(", ", $updateFields) . " WHERE id = ?";
-                $stmt = $db->prepare($sql);
-                $stmt->execute($params);
-
-                http_response_code(200);
-                echo json_encode(array("message" => "Department updated successfully."));
+            if ($stmt->execute()) {
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Department updated successfully'
+                ]);
             } else {
-                http_response_code(400);
-                echo json_encode(array("message" => "No fields to update."));
+                throw new Exception('Failed to update department');
             }
-
         } catch (Exception $e) {
-            error_log("Error updating department: " . $e->getMessage());
+            error_log("Error in PUT request: " . $e->getMessage());
             http_response_code(500);
             echo json_encode(array("message" => "Error updating department: " . $e->getMessage()));
         }
         break;
-
+        
     case 'DELETE':
         try {
             // Delete department
-            $data = json_decode(file_get_contents("php://input"));
+            $id = isset($_GET['id']) ? $_GET['id'] : null;
             
-            if(!isset($data->id)) {
-                http_response_code(400);
-                echo json_encode(array("message" => "Department ID is required."));
-                exit();
+            if (!$id) {
+                throw new Exception('Department ID is required');
             }
 
-            // Check if department exists
-            $stmt = $db->prepare("SELECT id FROM departments WHERE id = ?");
-            $stmt->execute([$data->id]);
-            if($stmt->rowCount() === 0) {
-                http_response_code(404);
-                echo json_encode(array("message" => "Department not found."));
-                exit();
+            $query = "DELETE FROM departments WHERE id = :id";
+            $stmt = $db->prepare($query);
+            $stmt->bindParam(':id', $id);
+
+            if ($stmt->execute()) {
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Department deleted successfully'
+                ]);
+            } else {
+                throw new Exception('Failed to delete department');
             }
-
-            // Delete department
-            $stmt = $db->prepare("DELETE FROM departments WHERE id = ?");
-            $stmt->execute([$data->id]);
-
-            http_response_code(200);
-            echo json_encode(array("message" => "Department deleted successfully."));
-
         } catch (Exception $e) {
-            error_log("Error deleting department: " . $e->getMessage());
+            error_log("Error in DELETE request: " . $e->getMessage());
             http_response_code(500);
             echo json_encode(array("message" => "Error deleting department: " . $e->getMessage()));
         }
+        break;
+        
+    default:
+        http_response_code(405);
+        echo json_encode(array("message" => "Method not allowed"));
         break;
 }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../../store/slices/authSlice';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface EditTeacherProfileModalProps {
   isOpen: boolean;
@@ -24,6 +25,7 @@ const EditTeacherProfileModal: React.FC<EditTeacherProfileModalProps> = ({
   onSubmit,
   user
 }) => {
+  const { user: authUser } = useAuth();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -63,13 +65,37 @@ const EditTeacherProfileModal: React.FC<EditTeacherProfileModalProps> = ({
     // Fetch schools
     const fetchSchools = async () => {
       try {
-        const response = await fetch('/api/schools');
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.error('No authentication token found');
+          setSchools([]);
+          return;
+        }
+
+        const response = await fetch('/api/schools', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
         if (response.ok) {
           const data = await response.json();
-          setSchools(data);
+          console.log('Schools API response:', data);
+          
+          // Handle the API response format which includes a 'schools' property
+          if (data.success && Array.isArray(data.schools)) {
+            setSchools(data.schools);
+          } else {
+            console.error('Invalid schools data format:', data);
+            setSchools([]);
+          }
+        } else {
+          console.error('Failed to fetch schools:', response.statusText);
+          setSchools([]);
         }
       } catch (error) {
         console.error('Error fetching schools:', error);
+        setSchools([]);
       }
     };
 
@@ -81,14 +107,43 @@ const EditTeacherProfileModal: React.FC<EditTeacherProfileModalProps> = ({
     const fetchDepartments = async () => {
       if (formData.school_id) {
         try {
-          const response = await fetch(`/api/schools/${formData.school_id}/departments`);
+          const token = localStorage.getItem('token');
+          if (!token) {
+            console.error('No authentication token found');
+            setDepartments([]);
+            return;
+          }
+
+          const response = await fetch(`/api/departments?school_id=${formData.school_id}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
           if (response.ok) {
             const data = await response.json();
-            setDepartments(data);
+            console.log('Departments API response:', data);
+            
+            // For departments with school_id parameter, the API returns an array directly
+            if (Array.isArray(data)) {
+              setDepartments(data);
+            } else if (data.success && Array.isArray(data.departments)) {
+              // Fallback in case the API format changes
+              setDepartments(data.departments);
+            } else {
+              console.error('Invalid departments data format:', data);
+              setDepartments([]);
+            }
+          } else {
+            console.error('Failed to fetch departments:', response.statusText);
+            setDepartments([]);
           }
         } catch (error) {
           console.error('Error fetching departments:', error);
+          setDepartments([]);
         }
+      } else {
+        setDepartments([]);
       }
     };
 
@@ -109,27 +164,48 @@ const EditTeacherProfileModal: React.FC<EditTeacherProfileModalProps> = ({
     setError('');
 
     try {
-      const response = await fetch(`/api/users/${user?.id}`, {
+      // Format the data according to the API's expected format
+      const userData = {
+        id: user?.id,
+        email: formData.email,
+        role: 'teacher',
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        phone: formData.phone,
+        address: formData.address,
+        school_id: formData.school_id ? parseInt(formData.school_id) : null,
+        department_id: formData.department_id ? parseInt(formData.department_id) : null,
+        specialization: formData.specialization,
+        education: formData.education,
+        experience: formData.experience
+      };
+
+      // Get token from localStorage
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found. Please log in again.');
+      }
+
+      const response = await fetch('/api/users', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          ...formData,
-          role: 'teacher',
-          status: 'active'
-        }),
+        body: JSON.stringify(userData),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to update profile');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update profile');
       }
 
       const updatedProfile = await response.json();
       onSubmit(updatedProfile);
       onClose();
     } catch (error) {
-      setError('Failed to update profile. Please try again.');
+      console.error('Error updating profile:', error);
+      setError(error instanceof Error ? error.message : 'Failed to update profile. Please try again.');
     } finally {
       setLoading(false);
     }

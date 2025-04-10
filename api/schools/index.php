@@ -37,8 +37,8 @@ try {
 
 $method = $_SERVER['REQUEST_METHOD'];
 
-// Verify token for all requests except OPTIONS
-if ($method !== 'OPTIONS') {
+// Verify token for all requests except OPTIONS and GET
+if ($method !== 'OPTIONS' && $method !== 'GET') {
     $headers = getallheaders();
     if(!isset($headers['Authorization'])) {
         error_log("No Authorization header found");
@@ -74,46 +74,17 @@ if ($method !== 'OPTIONS') {
 switch($method) {
     case 'GET':
         try {
-            if(isset($_GET['id'])) {
-                // Get single school with its departments
-                $query = "SELECT s.*, GROUP_CONCAT(d.name) as departments 
-                         FROM schools s 
-                         LEFT JOIN school_departments sd ON s.id = sd.school_id 
-                         LEFT JOIN departments d ON sd.department_id = d.id 
-                         WHERE s.id = :id 
-                         GROUP BY s.id";
-                $stmt = $db->prepare($query);
-                $stmt->bindParam(":id", $_GET['id']);
-                $stmt->execute();
-                
-                if($stmt->rowCount() > 0) {
-                    $row = $stmt->fetch(PDO::FETCH_ASSOC);
-                    $row['departments'] = $row['departments'] ? explode(',', $row['departments']) : [];
-                    http_response_code(200);
-                    echo json_encode($row);
-                } else {
-                    http_response_code(404);
-                    echo json_encode(array("message" => "School not found."));
-                }
-            } else {
-                // Get all schools with their departments
-                $query = "SELECT s.*, GROUP_CONCAT(d.name) as departments 
-                         FROM schools s 
-                         LEFT JOIN school_departments sd ON s.id = sd.school_id 
-                         LEFT JOIN departments d ON sd.department_id = d.id 
-                         GROUP BY s.id";
-                $stmt = $db->prepare($query);
-                $stmt->execute();
-                
-                $schools = array();
-                while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                    $row['departments'] = $row['departments'] ? explode(',', $row['departments']) : [];
-                    $schools[] = $row;
-                }
-                
-                http_response_code(200);
-                echo json_encode($schools);
-            }
+            // Fetch all schools
+            $query = "SELECT id, name, code, description, status FROM schools WHERE status = 'active'";
+            $stmt = $db->prepare($query);
+            $stmt->execute();
+            
+            $schools = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            echo json_encode([
+                'success' => true,
+                'schools' => $schools
+            ]);
         } catch (Exception $e) {
             error_log("Error in GET request: " . $e->getMessage());
             http_response_code(500);
@@ -124,78 +95,30 @@ switch($method) {
     case 'POST':
         try {
             // Create new school
-            $data = json_decode(file_get_contents("php://input"));
-            error_log("Received data for school creation: " . print_r($data, true));
+            $data = json_decode(file_get_contents("php://input"), true);
             
-            if(!empty($data->name) && !empty($data->code)) {
-                // Insert school
-                $query = "INSERT INTO schools (name, code, description, status) VALUES (:name, :code, :description, :status)";
-                $stmt = $db->prepare($query);
-                $stmt->bindParam(":name", $data->name);
-                $stmt->bindParam(":code", $data->code);
-                $stmt->bindParam(":description", $data->description);
-                $status = isset($data->status) ? $data->status : 'active';
-                $stmt->bindParam(":status", $status);
-                
-                if($stmt->execute()) {
-                    $schoolId = $db->lastInsertId();
-                    
-                    // Add departments if provided
-                    if(!empty($data->departments)) {
-                        foreach($data->departments as $deptName) {
-                            // Generate department code
-                            $deptCode = strtoupper(substr(str_replace(' ', '', $deptName), 0, 3)) . rand(100, 999);
-                            
-                            // Create department if it doesn't exist
-                            $query = "INSERT INTO departments (name, code, school_id, description, status) 
-                                    VALUES (:name, :code, :school_id, :description, :status)
-                                    ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)";
-                            $stmt = $db->prepare($query);
-                            $stmt->bindParam(":name", $deptName);
-                            $stmt->bindParam(":code", $deptCode);
-                            $stmt->bindParam(":school_id", $schoolId);
-                            $stmt->bindParam(":description", $deptName);
-                            $stmt->bindParam(":status", $status);
-                            $stmt->execute();
-                            
-                            $deptId = $db->lastInsertId();
-                            
-                            // Link department to school
-                            $query = "INSERT INTO school_departments (school_id, department_id) 
-                                    VALUES (:school_id, :dept_id)
-                                    ON DUPLICATE KEY UPDATE school_id=VALUES(school_id)";
-                            $stmt = $db->prepare($query);
-                            $stmt->bindParam(":school_id", $schoolId);
-                            $stmt->bindParam(":dept_id", $deptId);
-                            $stmt->execute();
-                        }
-                    }
-                    
-                    // Fetch the created school with its departments
-                    $query = "SELECT s.*, GROUP_CONCAT(d.name) as departments 
-                             FROM schools s 
-                             LEFT JOIN school_departments sd ON s.id = sd.school_id 
-                             LEFT JOIN departments d ON sd.department_id = d.id 
-                             WHERE s.id = :id 
-                             GROUP BY s.id";
-                    $stmt = $db->prepare($query);
-                    $stmt->bindParam(":id", $schoolId);
-                    $stmt->execute();
-                    
-                    if($stmt->rowCount() > 0) {
-                        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-                        $row['departments'] = $row['departments'] ? explode(',', $row['departments']) : [];
-                        http_response_code(201);
-                        echo json_encode($row);
-                    } else {
-                        http_response_code(500);
-                        echo json_encode(array("message" => "Error retrieving created school."));
-                    }
-                }
+            if (!$data || !isset($data['name'])) {
+                throw new Exception('School name is required');
+            }
+
+            $query = "INSERT INTO schools (name, code, description, status) VALUES (:name, :code, :description, :status)";
+            $stmt = $db->prepare($query);
+            
+            $stmt->bindParam(':name', $data['name']);
+            $stmt->bindParam(':code', $data['code']);
+            $stmt->bindParam(':description', $data['description']);
+            $status = isset($data['status']) ? $data['status'] : 'active';
+            $stmt->bindParam(':status', $status);
+
+            if ($stmt->execute()) {
+                $schoolId = $db->lastInsertId();
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'School created successfully',
+                    'school_id' => $schoolId
+                ]);
             } else {
-                error_log("Missing required fields. Received data: " . print_r($data, true));
-                http_response_code(400);
-                echo json_encode(array("message" => "Unable to create school. Data is incomplete."));
+                throw new Exception('Failed to create school');
             }
         } catch (Exception $e) {
             error_log("Error in POST request: " . $e->getMessage());
@@ -207,70 +130,34 @@ switch($method) {
     case 'PUT':
         try {
             // Update school
-            $data = json_decode(file_get_contents("php://input"));
+            $data = json_decode(file_get_contents("php://input"), true);
             
-            if(!empty($data->id)) {
-                // Check if school exists
-                $query = "SELECT id FROM schools WHERE id = :id";
-                $stmt = $db->prepare($query);
-                $stmt->bindParam(":id", $data->id);
-                $stmt->execute();
-                
-                if($stmt->rowCount() === 0) {
-                    http_response_code(404);
-                    echo json_encode(array("message" => "School not found."));
-                    exit();
-                }
-                
-                // Update school
-                $query = "UPDATE schools SET 
-                         name = :name,
-                         code = :code,
-                         description = :description,
-                         status = :status,
-                         updated_at = CURRENT_TIMESTAMP
-                         WHERE id = :id";
-                         
-                $stmt = $db->prepare($query);
-                $stmt->bindParam(":name", $data->name);
-                $stmt->bindParam(":code", $data->code);
-                $stmt->bindParam(":description", $data->description);
-                $stmt->bindParam(":status", $data->status);
-                $stmt->bindParam(":id", $data->id);
-                
-                if($stmt->execute()) {
-                    // Update departments if provided
-                    if(isset($data->departments)) {
-                        // Remove existing department links
-                        $query = "DELETE FROM school_departments WHERE school_id = :school_id";
-                        $stmt = $db->prepare($query);
-                        $stmt->bindParam(":school_id", $data->id);
-                        $stmt->execute();
-                        
-                        // Add new department links
-                        foreach($data->departments as $deptName) {
-                            $query = "SELECT id FROM departments WHERE name = :name";
-                            $stmt = $db->prepare($query);
-                            $stmt->bindParam(":name", $deptName);
-                            $stmt->execute();
-                            
-                            if($stmt->rowCount() > 0) {
-                                $dept = $stmt->fetch(PDO::FETCH_ASSOC);
-                                $query = "INSERT INTO school_departments (school_id, department_id) VALUES (:school_id, :dept_id)";
-                                $stmt = $db->prepare($query);
-                                $stmt->bindParam(":school_id", $data->id);
-                                $stmt->bindParam(":dept_id", $dept['id']);
-                                $stmt->execute();
-                            }
-                        }
-                    }
-                    
-                    http_response_code(200);
-                    echo json_encode(array("message" => "School updated successfully."));
-                }
+            if (!$data || !isset($data['id'])) {
+                throw new Exception('School ID is required');
+            }
+
+            $query = "UPDATE schools SET 
+                     name = :name,
+                     code = :code,
+                     description = :description,
+                     status = :status
+                     WHERE id = :id";
+            
+            $stmt = $db->prepare($query);
+            
+            $stmt->bindParam(':id', $data['id']);
+            $stmt->bindParam(':name', $data['name']);
+            $stmt->bindParam(':code', $data['code']);
+            $stmt->bindParam(':description', $data['description']);
+            $stmt->bindParam(':status', $data['status']);
+
+            if ($stmt->execute()) {
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'School updated successfully'
+                ]);
             } else {
-                http_response_code(400);
-                echo json_encode(array("message" => "Unable to update school. Missing ID."));
+                throw new Exception('Failed to update school');
             }
         } catch (Exception $e) {
             error_log("Error in PUT request: " . $e->getMessage());
@@ -282,33 +169,23 @@ switch($method) {
     case 'DELETE':
         try {
             // Delete school
-            $data = json_decode(file_get_contents("php://input"));
+            $id = isset($_GET['id']) ? $_GET['id'] : null;
             
-            if(!empty($data->id)) {
-                // Check if school exists
-                $query = "SELECT id FROM schools WHERE id = :id";
-                $stmt = $db->prepare($query);
-                $stmt->bindParam(":id", $data->id);
-                $stmt->execute();
-                
-                if($stmt->rowCount() === 0) {
-                    http_response_code(404);
-                    echo json_encode(array("message" => "School not found."));
-                    exit();
-                }
-                
-                // Delete school (will cascade delete school_departments entries)
-                $query = "DELETE FROM schools WHERE id = :id";
-                $stmt = $db->prepare($query);
-                $stmt->bindParam(":id", $data->id);
-                
-                if($stmt->execute()) {
-                    http_response_code(200);
-                    echo json_encode(array("message" => "School deleted successfully."));
-                }
+            if (!$id) {
+                throw new Exception('School ID is required');
+            }
+
+            $query = "DELETE FROM schools WHERE id = :id";
+            $stmt = $db->prepare($query);
+            $stmt->bindParam(':id', $id);
+
+            if ($stmt->execute()) {
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'School deleted successfully'
+                ]);
             } else {
-                http_response_code(400);
-                echo json_encode(array("message" => "Unable to delete school. Missing ID."));
+                throw new Exception('Failed to delete school');
             }
         } catch (Exception $e) {
             error_log("Error in DELETE request: " . $e->getMessage());
