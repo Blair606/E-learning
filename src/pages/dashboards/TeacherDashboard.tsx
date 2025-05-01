@@ -14,7 +14,6 @@ import {
   VideoCameraIcon,
   ClockIcon,
   Cog6ToothIcon,
-  DocumentTextIcon,
   UserCircleIcon,
 } from '@heroicons/react/24/outline';
 import CreateAssignmentModal from '../../components/modals/CreateAssignmentModal';
@@ -22,7 +21,6 @@ import CreateDiscussionGroupModal from '../../components/modals/CreateDiscussion
 import AddCourseContentModal from '../../components/modals/AddCourseContentModal';
 import EditTeacherProfileModal from '../../components/modals/EditTeacherProfileModal';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { Assignment } from '../../store/slices/assignmentSlice';
 import {
   LineChart, Line, PieChart, Pie, Cell,
 } from 'recharts';
@@ -32,6 +30,10 @@ import { useNavigate } from 'react-router-dom';
 import { setUser } from '../../store/slices/authSlice';
 import axios from 'axios';
 import { Department } from '../../services/departmentService';
+import { teacherService } from '../../services/teacherService';
+import type { Assignment, Notification, StudentAnalytics, CourseContent } from '../../services/teacherService';
+import type { User } from '../../store/slices/authSlice';
+import { courseService, type Course } from '../../services/courseService';
 
 interface ClassData {
   id: number;
@@ -48,24 +50,13 @@ interface DiscussionGroupData {
   numberOfGroups: number;
 }
 
-interface StudentAnalytics {
-  id: string;
-  name: string;
-  grades: {
-    unit: string;
-    grade: number;
-    attendance: number;
-    submissions: number;
-  }[];
-}
-
-interface Notification {
+interface DiscussionGroup {
   id: number;
-  title: string;
-  message: string;
-  classId: number;
-  timestamp: string;
-  emailNotification: boolean;
+  name: string;
+  course: string;
+  members: number;
+  lastActive: string;
+  topics: number;
 }
 
 interface NotificationFormData {
@@ -86,25 +77,19 @@ interface ScheduledClass {
   recording?: string;
 }
 
-interface CourseContent {
-  id: string;
-  title: string;
-  content: string;
-  questions: {
-    id: string;
-    text: string;
-    options: string[];
-    correctAnswer: number;
-  }[];
+interface UpcomingTask {
+  id: number;
+  type: string;
+  task: string;
+  deadline: string;
+  count: number;
 }
 
-interface Course {
-  id: number;
-  name: string;
-  students: number;
-  nextClass: string;
-  progress: number;
-  content: CourseContent[];
+interface ExtendedCourse extends Course {
+    students?: number;
+    nextClass?: string;
+    progress?: number;
+    content?: CourseContent[];
 }
 
 const TeacherDashboard = () => {
@@ -114,7 +99,58 @@ const TeacherDashboard = () => {
   const [teacherName, setTeacherName] = useState<string>('');
   const [department, setDepartment] = useState<string>('');
   const [departments, setDepartments] = useState<Department[]>([]);
-  
+  const [activeTab, setActiveTab] = useState('overview');
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [classes, setClasses] = useState<ClassData[]>([]);
+  const [studentStats, setStudentStats] = useState({
+    totalStudents: 0,
+    averageAttendance: 0,
+    averageGrade: '0',
+    activeDiscussions: 0
+  });
+  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [showIndividualStudent, setShowIndividualStudent] = useState(false);
+  const [selectedClassOverview, setSelectedClassOverview] = useState<ClassData | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
+  const [isDiscussionModalOpen, setIsDiscussionModalOpen] = useState(false);
+  const [isScheduleClassModalOpen, setIsScheduleClassModalOpen] = useState(false);
+  const [isAddContentModalOpen, setIsAddContentModalOpen] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<ExtendedCourse | null>(null);
+  const [discussionGroups, setDiscussionGroups] = useState<DiscussionGroup[]>([]);
+  const [scheduledClasses, setScheduledClasses] = useState<ScheduledClass[]>([]);
+  const [upcomingTasks] = useState<UpcomingTask[]>([
+    {
+      id: 1,
+      type: 'Assignment',
+      task: 'Grade Math Quiz',
+      deadline: '2024-03-15',
+      count: 25
+    },
+    {
+      id: 2,
+      type: 'Meeting',
+      task: 'Parent-Teacher Conference',
+      deadline: '2024-03-20',
+      count: 5
+    },
+    {
+      id: 3,
+      type: 'Submission',
+      task: 'Review Science Projects',
+      deadline: '2024-03-18',
+      count: 15
+    }
+  ]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  // Fetch departments
   useEffect(() => {
     const fetchDepartments = async () => {
       try {
@@ -135,24 +171,20 @@ const TeacherDashboard = () => {
     fetchDepartments();
   }, []);
 
+  // Fetch teacher data
   useEffect(() => {
     const fetchTeacherData = async () => {
       if (!user?.id) return;
       
       try {
-        console.log('Fetching teacher data for ID:', user.id);
         const response = await axios.get(`http://localhost/E-learning/api/teachers/get_teacher.php?id=${user.id}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
         });
         
-        console.log('Teacher data response:', response.data);
-        
         if (response.data.status === 'success' && response.data.data) {
           const teacherData = response.data.data;
-          console.log('Teacher data:', teacherData);
-          
           setTeacherName(`${teacherData.first_name} ${teacherData.last_name}`);
           
           if (teacherData.department_id && departments.length > 0) {
@@ -172,7 +204,7 @@ const TeacherDashboard = () => {
         console.error('Error fetching teacher data:', error);
         if (user?.firstName && user?.lastName) {
           setTeacherName(`${user.firstName} ${user.lastName}`);
-          setDepartment(user.department || 'No Department');
+          setDepartment(user.department_id ? 'No Department' : 'No Department');
         }
       }
     };
@@ -180,144 +212,81 @@ const TeacherDashboard = () => {
     fetchTeacherData();
   }, [user?.id, dispatch, departments]);
 
+  // Fetch courses when component mounts
+  const fetchCourses = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const fetchedCourses = await courseService.getCourses();
+      setCourses(fetchedCourses);
+    } catch (err) {
+      console.error('Error fetching courses:', err);
+      setError('Failed to fetch courses. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    console.log('Department state updated:', department);
-  }, [department]);
+    fetchCourses();
+  }, []);
+
+  // Fetch dashboard data
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        // Fetch courses and stats
+        const coursesData = await teacherService.getCourses();
+        setCourses(coursesData.courses || []);
+
+        setStudentStats({
+          totalStudents: coursesData.stats?.totalStudents || 0,
+    averageAttendance: 92,
+          averageGrade: coursesData.stats?.averageGrade.toFixed(1) || '0',
+          activeDiscussions: coursesData.stats?.activeAssignments || 0
+        });
+
+        // Fetch assignments
+        const assignmentsData = await teacherService.getAssignments();
+        setAssignments(assignmentsData.assignments || []);
+
+        // Fetch notifications
+        const notificationsData = await teacherService.getNotifications();
+        setNotifications(notificationsData.notifications || []);
+
+        // Fetch student analytics
+        const analyticsData = await teacherService.getStudentAnalytics();
+        const transformedClasses = (analyticsData.analytics || []).reduce((acc: ClassData[], curr: StudentAnalytics) => {
+          const existingClass = acc.find(c => c.id === curr.courseId);
+          if (existingClass) {
+            existingClass.students.push(curr);
+          } else {
+            acc.push({
+              id: curr.courseId,
+              year: 1,
+              className: curr.courseName,
+              totalStudents: 0,
+              averagePerformance: curr.averageGrade,
+              students: [curr]
+            });
+          }
+          return acc;
+        }, []);
+        setClasses(transformedClasses);
+
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
 
   console.log('TeacherDashboard user:', user);
   console.log('User role:', user?.role);
   console.log('Is admin?', user?.role === 'admin');
-  const [activeTab, setActiveTab] = useState('overview');
-  const [courses, setCourses] = useState<Course[]>([
-    { 
-      id: 1, 
-      name: 'Advanced Mathematics', 
-      students: 30, 
-      nextClass: '2:30 PM Today', 
-      progress: 75,
-      content: []
-    },
-    { 
-      id: 2, 
-      name: 'Computer Science', 
-      students: 25, 
-      nextClass: '10:00 AM Tomorrow', 
-      progress: 60,
-      content: []
-    },
-    { 
-      id: 3, 
-      name: 'Physics 101', 
-      students: 28, 
-      nextClass: '1:15 PM Tomorrow', 
-      progress: 80,
-      content: []
-    },
-  ]);
-
-  const [discussionGroups, setDiscussionGroups] = useState([
-    {
-      id: 1,
-      name: 'Math Problem Solving',
-      course: 'Advanced Mathematics',
-      members: 15,
-      lastActive: '2 hours ago',
-      topics: 8,
-    },
-    {
-      id: 2,
-      name: 'Programming Projects',
-      course: 'Computer Science',
-      members: 12,
-      lastActive: '30 minutes ago',
-      topics: 5,
-    },
-    {
-      id: 3,
-      name: 'Physics Lab Group',
-      course: 'Physics 101',
-      members: 10,
-      lastActive: '1 day ago',
-      topics: 3,
-    },
-  ]);
-
-  const [assignments, setAssignments] = useState([
-    {
-      id: 1,
-      title: 'Calculus Quiz',
-      course: 'Advanced Mathematics',
-      dueDate: '2024-03-25',
-      type: 'Quiz',
-      status: 'Active',
-      submissions: 18,
-      totalStudents: 30,
-    },
-    {
-      id: 2,
-      title: 'Programming Project',
-      course: 'Computer Science',
-      dueDate: '2024-04-01',
-      type: 'Project',
-      status: 'Draft',
-      submissions: 0,
-      totalStudents: 25,
-    },
-    {
-      id: 3,
-      title: 'Physics Lab Report',
-      course: 'Physics 101',
-      dueDate: '2024-03-28',
-      type: 'Lab Report',
-      status: 'Active',
-      submissions: 20,
-      totalStudents: 28,
-    },
-  ]);
-
-  const [upcomingTasks] = useState([
-    { id: 1, type: 'Grade', task: 'Math Assignments', deadline: 'Today', count: 15 },
-    { id: 2, type: 'Review', task: 'Project Submissions', deadline: 'Tomorrow', count: 8 },
-    { id: 3, type: 'Prepare', task: 'Lecture Materials', deadline: 'In 2 days', count: 1 },
-  ]);
-
-  const [studentStats] = useState({
-    totalStudents: 83,
-    averageAttendance: 92,
-    averageGrade: 'B+',
-    activeDiscussions: 5,
-  });
-
-  const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
-  const [isDiscussionModalOpen, setIsDiscussionModalOpen] = useState(false);
-
-  const [selectedClassOverview, setSelectedClassOverview] = useState<ClassData | null>(null);
-  const [showIndividualStudent, setShowIndividualStudent] = useState(false);
-
-  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   const GRADE_COLORS = ['#4CAF50', '#8BC34A', '#FFC107', '#FF9800', '#F44336'];
-
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-  const [scheduledClasses, setScheduledClasses] = useState<ScheduledClass[]>([
-    {
-      id: 1,
-      title: 'Introduction to Machine Learning',
-      course: 'Advanced Mathematics',
-      date: '2024-03-20',
-      time: '10:00 AM - 11:30 AM',
-      status: 'upcoming',
-    },
-  ]);
-
-  const [isScheduleClassModalOpen, setIsScheduleClassModalOpen] = useState(false);
-
-  const [isAddContentModalOpen, setIsAddContentModalOpen] = useState(false);
-  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
-
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const navItems = [
     { id: 'overview', icon: BookOpenIcon, label: 'Overview' },
@@ -329,13 +298,13 @@ const TeacherDashboard = () => {
   ];
 
   const handleCreateAssignment = (assignmentData: Assignment) => {
-    const newAssignment = {
+    const newAssignment: Assignment = {
       ...assignmentData,
       id: assignments.length + 1,
-      status: 'Active',
+      status: 'Active' as const,
       submissions: 0,
-      course: courses.find(c => c.id === assignmentData.courseId)?.name || '',
-      totalStudents: courses.find(c => c.id === assignmentData.courseId)?.students || 0,
+      course: courses.find(c => c.id === Number(assignmentData.courseId))?.name || '',
+      totalStudents: courses.find(c => c.id === Number(assignmentData.courseId))?.students || 0,
     };
 
     setAssignments([...assignments, newAssignment]);
@@ -347,7 +316,7 @@ const TeacherDashboard = () => {
       (selectedCourse?.students || 0) / groupData.numberOfGroups
     );
 
-    const newGroups = Array.from({ length: groupData.numberOfGroups }, (_, index) => ({
+    const newGroups: DiscussionGroup[] = Array.from({ length: groupData.numberOfGroups }, (_, index) => ({
       id: discussionGroups.length + index + 1,
       name: `${groupData.title} - Group ${index + 1}`,
       course: selectedCourse?.name || '',
@@ -359,88 +328,34 @@ const TeacherDashboard = () => {
     setDiscussionGroups([...discussionGroups, ...newGroups]);
   };
 
-  const [classes] = useState<ClassData[]>([
-    {
-      id: 1,
-      year: 1,
-      className: "Year 1 - Advanced Mathematics",
-      totalStudents: 30,
-      averagePerformance: 75,
-      students: [
-        {
-          id: "1",
-          name: "John Doe",
-          grades: [
-            { unit: "Calculus", grade: 85, attendance: 90, submissions: 8 },
-            { unit: "Algebra", grade: 78, attendance: 85, submissions: 7 }
-          ]
-        },
-      ]
-    },
-    {
-      id: 2,
-      year: 2,
-      className: "Year 2 - Computer Science",
-      totalStudents: 25,
-      averagePerformance: 82,
-      students: [
-        {
-          id: "2",
-          name: "Jane Smith",
-          grades: [
-            { unit: "Programming", grade: 92, attendance: 95, submissions: 9 },
-            { unit: "Algorithms", grade: 88, attendance: 92, submissions: 8 }
-          ]
-        },
-      ]
-    },
-  ]);
-
-  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
-  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
-
   const selectedClass = classes.find(c => c.id === selectedClassId);
   const selectedStudent = selectedClass?.students.find(s => s.id === selectedStudentId);
 
   const handleSendNotification = async (data: NotificationFormData) => {
     const newNotification: Notification = {
       id: notifications.length + 1,
-      ...data,
+      title: data.title,
+      message: data.message,
       timestamp: new Date().toISOString(),
+      isRead: false,
+      classId: data.classId,
+      className: classes.find(c => c.id === data.classId)?.className || null
     };
 
     setNotifications([newNotification, ...notifications]);
-
-    if (data.emailNotification) {
-      const selectedClass = classes.find(c => c.id === data.classId);
-      console.log(`Sending email to ${selectedClass?.className} students:`, data.message);
-    }
-
-    setIsNotificationModalOpen(false);
   };
 
-  const handleAddContent = (content: CourseContent) => {
-    if (selectedCourseId) {
-      setCourses(courses.map(course => {
-        if (course.id === selectedCourseId) {
-          return {
-            ...course,
-            content: [...course.content, content]
-          };
-        }
-        return course;
-      }));
-    }
+  const handleAddContent = (course: ExtendedCourse) => {
+    setSelectedCourse(course);
+    setIsAddContentModalOpen(true);
   };
 
-  const handleProfileUpdate = (updatedProfile: { 
-    department_id: number;
-    firstName: string;
-    lastName: string;
-    email: string;
-    role: string;
-  }) => {
-    dispatch(setUser(updatedProfile));
+  const handleProfileUpdate = (updatedProfile: User) => {
+    const userWithStatus: User = {
+      ...updatedProfile,
+      status: 'active' as const
+    };
+    dispatch(setUser(userWithStatus));
     if (updatedProfile.department_id) {
       console.log('Profile updated, refreshing courses for department:', updatedProfile.department_id);
     }
@@ -865,64 +780,46 @@ const TeacherDashboard = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm">
-                <h2 className="text-xl font-semibold mb-4">Your Courses</h2>
-                <div className="space-y-4">
-                  {courses.map(course => (
-                    <div key={course.id} className="border p-4 rounded-lg hover:border-blue-500 transition-colors">
-                      <div className="flex justify-between items-center mb-2">
-                        <h3 className="font-medium text-lg">{course.name}</h3>
-                        <span className="text-sm text-gray-500">{course.students} Students</span>
-                      </div>
-                      
-                      <div className="mt-4 space-y-2">
-                        <div className="flex justify-between items-center">
-                          <h4 className="text-sm font-medium text-gray-700">Course Content</h4>
-                          <button
-                            onClick={() => {
-                              setSelectedCourseId(course.id);
-                              setIsAddContentModalOpen(true);
-                            }}
-                            className="flex items-center text-sm text-blue-600 hover:text-blue-800"
-                          >
-                            <PlusIcon className="w-4 h-4 mr-1" />
-                            Add Content
-                          </button>
-                        </div>
-                        
-                        {course.content.length > 0 ? (
-                          <div className="space-y-2">
-                            {course.content.map(item => (
-                              <div key={item.id} className="bg-gray-50 p-3 rounded-lg">
-                                <div className="flex items-center">
-                                  <DocumentTextIcon className="w-5 h-5 text-blue-500 mr-2" />
-                                  <div>
-                                    <h5 className="font-medium">{item.title}</h5>
-                                    <p className="text-sm text-gray-600">
-                                      {item.questions.length} questions
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
+                <h2 className="text-xl font-semibold mb-4">My Courses</h2>
+                
+                {loading ? (
+                  <div className="flex justify-center items-center h-64">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                  </div>
+                ) : error ? (
+                  <div className="text-red-500 text-center p-4">{error}</div>
+                ) : courses.length === 0 ? (
+                  <div className="text-gray-500 text-center p-4">No courses found.</div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {courses.map((course) => (
+                      <div key={course.id} className="bg-white rounded-lg shadow-md p-6">
+                        <h3 className="text-lg font-semibold text-gray-900">{course.name}</h3>
+                        <p className="text-sm text-gray-500 mt-1">Code: {course.code}</p>
+                        <p className="text-sm text-gray-600 mt-2">{course.description}</p>
+                        <div className="mt-4 flex justify-between items-center">
+                          <span className="text-sm text-gray-500">
+                            {course.totalStudents} students
+                          </span>
+                          <div className="space-x-2">
+                            <button
+                              onClick={() => handleAddContent(course as ExtendedCourse)}
+                              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                            >
+                              Add Content
+                            </button>
+                            <button
+                              onClick={() => handleCreateAssignment(course as Assignment)}
+                              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                            >
+                              Create Assignment
+                            </button>
                           </div>
-                        ) : (
-                          <p className="text-sm text-gray-500 italic">No content added yet</p>
-                        )}
+                        </div>
                       </div>
-
-                      <div className="flex justify-between items-center text-sm text-gray-500 mt-4">
-                        <span>Next Class: {course.nextClass}</span>
-                        <span>Progress: {course.progress}%</span>
-                      </div>
-                      <div className="mt-2 bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full"
-                          style={{ width: `${course.progress}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="bg-white p-6 rounded-xl shadow-sm">
@@ -1057,13 +954,13 @@ const TeacherDashboard = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm">
-                <h2 className="text-xl font-semibold mb-4">Your Courses</h2>
+                <h2 className="text-xl font-semibold mb-4">My Courses</h2>
                 <div className="space-y-4">
                   {courses.map(course => (
                     <div key={course.id} className="border p-4 rounded-lg hover:border-blue-500 transition-colors">
                       <div className="flex justify-between items-center mb-2">
                         <h3 className="font-medium text-lg">{course.name}</h3>
-                        <span className="text-sm text-gray-500">{course.students} Students</span>
+                        <span className="text-sm text-gray-500">{course.totalStudents} Students</span>
                       </div>
                       <div className="flex justify-between items-center text-sm text-gray-500">
                         <span>Next Class: {course.nextClass}</span>
@@ -1171,7 +1068,7 @@ const TeacherDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-100">
       <header className="fixed top-0 left-0 right-0 bg-white shadow-sm z-40">
         <div className="flex items-center justify-between px-4 h-16">
           <div className="flex items-center lg:w-64">
@@ -1327,7 +1224,7 @@ const TeacherDashboard = () => {
         isOpen={isAddContentModalOpen}
         onClose={() => setIsAddContentModalOpen(false)}
         onSubmit={handleAddContent}
-        courseId={selectedCourseId || 0}
+        courseId={selectedCourse?.id || 0}
       />
 
       <EditTeacherProfileModal
