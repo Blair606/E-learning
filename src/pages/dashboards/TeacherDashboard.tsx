@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   UsersIcon,
   BookOpenIcon,
@@ -26,9 +26,11 @@ import { Assignment } from '../../store/slices/assignmentSlice';
 import {
   LineChart, Line, PieChart, Pie, Cell,
 } from 'recharts';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store/store';
 import { useNavigate } from 'react-router-dom';
+import { setUser } from '../../store/slices/authSlice';
+import axios from 'axios';
 
 interface ClassData {
   id: number;
@@ -107,6 +109,41 @@ interface Course {
 const TeacherDashboard = () => {
   const navigate = useNavigate();
   const { user } = useSelector((state: RootState) => state.auth);
+  const dispatch = useDispatch();
+  const [teacherName, setTeacherName] = useState<string>('');
+  
+  useEffect(() => {
+    const fetchTeacherName = async () => {
+      if (!user?.id) return;
+      
+      try {
+        console.log('Fetching teacher data for ID:', user.id);
+        const response = await axios.get(`http://localhost/E-learning/api/teachers/get_teacher.php?id=${user.id}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        console.log('Teacher data response:', response.data);
+        
+        if (response.data.status === 'success' && response.data.data) {
+          const teacherData = response.data.data;
+          setTeacherName(`${teacherData.first_name} ${teacherData.last_name}`);
+          // Update Redux store with latest user data
+          dispatch(setUser(teacherData));
+        }
+      } catch (error) {
+        console.error('Error fetching teacher data:', error);
+        // Fallback to Redux store data
+        if (user?.firstName && user?.lastName) {
+          setTeacherName(`${user.firstName} ${user.lastName}`);
+        }
+      }
+    };
+
+    fetchTeacherName();
+  }, [user?.id, dispatch]);
+
   console.log('TeacherDashboard user:', user);
   console.log('User role:', user?.role);
   console.log('Is admin?', user?.role === 'admin');
@@ -362,7 +399,7 @@ const TeacherDashboard = () => {
 
   const handleProfileUpdate = (updatedProfile: any) => {
     // Update the user in the Redux store
-    dispatch(updateUser(updatedProfile));
+    dispatch(setUser(updatedProfile));
     // Refresh the courses based on the new department
     if (updatedProfile.department_id) {
       // You might want to fetch courses for the new department here
@@ -1146,7 +1183,7 @@ const TeacherDashboard = () => {
             </button>
             <div className="flex items-center border-l pl-4 ml-4">
               <div className="hidden sm:block text-right mr-3">
-                <p className="text-sm font-medium text-gray-900">{user?.firstName} {user?.lastName}</p>
+                <p className="text-sm font-medium text-gray-900">{teacherName || `${user?.firstName} ${user?.lastName}`}</p>
                 <p className="text-xs text-gray-500">{user?.department || 'No Department'}</p>
               </div>
               <button
@@ -1215,7 +1252,7 @@ const TeacherDashboard = () => {
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 sm:p-8 rounded-2xl shadow-lg">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                  <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Welcome back, Prof. Smith! 👋</h1>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Welcome back, {teacherName || `${user?.firstName} ${user?.lastName}`}! 👋</h1>
                   <p className="text-blue-100">You have {courses.length} classes scheduled for today.</p>
                 </div>
                 <button

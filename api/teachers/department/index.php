@@ -1,7 +1,8 @@
 <?php
 header('Access-Control-Allow-Origin: http://localhost:5173');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept');
+header('Access-Control-Allow-Credentials: true');
 header('Content-Type: application/json');
 
 // Handle preflight OPTIONS request
@@ -28,6 +29,13 @@ try {
     if (!$pdo) {
         throw new Exception('Failed to establish database connection');
     }
+
+    // Debug: Check all users in the department
+    $debugQuery = "SELECT id, first_name, last_name, role, department_id FROM users WHERE department_id = :department_id";
+    $debugStmt = $pdo->prepare($debugQuery);
+    $debugStmt->execute(['department_id' => $departmentId]);
+    $allUsers = $debugStmt->fetchAll(PDO::FETCH_ASSOC);
+    error_log("All users in department " . $departmentId . ": " . print_r($allUsers, true));
 
     // First, verify the department exists
     $deptQuery = "SELECT id FROM departments WHERE id = :department_id";

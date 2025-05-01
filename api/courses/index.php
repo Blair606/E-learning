@@ -88,8 +88,8 @@ switch($method) {
                 
                 if($stmt->rowCount() > 0) {
                     $row = $stmt->fetch(PDO::FETCH_ASSOC);
-                    $row['schedule'] = json_decode($row['schedule'], true);
-                    $row['prerequisites'] = json_decode($row['prerequisites'], true);
+                    $row['schedule'] = $row['schedule'] ? json_decode($row['schedule'], true) : null;
+                    $row['prerequisites'] = $row['prerequisites'] ? json_decode($row['prerequisites'], true) : null;
                     http_response_code(200);
                     echo json_encode($row);
                 } else {
@@ -110,8 +110,8 @@ switch($method) {
                 
                 $courses = array();
                 while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                    $row['schedule'] = json_decode($row['schedule'], true);
-                    $row['prerequisites'] = json_decode($row['prerequisites'], true);
+                    $row['schedule'] = $row['schedule'] ? json_decode($row['schedule'], true) : null;
+                    $row['prerequisites'] = $row['prerequisites'] ? json_decode($row['prerequisites'], true) : null;
                     $courses[] = $row;
                 }
                 
@@ -131,8 +131,8 @@ switch($method) {
                 
                 $courses = array();
                 while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                    $row['schedule'] = json_decode($row['schedule'], true);
-                    $row['prerequisites'] = json_decode($row['prerequisites'], true);
+                    $row['schedule'] = $row['schedule'] ? json_decode($row['schedule'], true) : null;
+                    $row['prerequisites'] = $row['prerequisites'] ? json_decode($row['prerequisites'], true) : null;
                     $courses[] = $row;
                 }
                 
@@ -150,8 +150,8 @@ switch($method) {
                 
                 $courses = array();
                 while($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                    $row['schedule'] = json_decode($row['schedule'], true);
-                    $row['prerequisites'] = json_decode($row['prerequisites'], true);
+                    $row['schedule'] = $row['schedule'] ? json_decode($row['schedule'], true) : null;
+                    $row['prerequisites'] = $row['prerequisites'] ? json_decode($row['prerequisites'], true) : null;
                     $courses[] = $row;
                 }
                 
@@ -214,8 +214,8 @@ switch($method) {
                     
                     if($stmt->rowCount() > 0) {
                         $row = $stmt->fetch(PDO::FETCH_ASSOC);
-                        $row['schedule'] = json_decode($row['schedule'], true);
-                        $row['prerequisites'] = json_decode($row['prerequisites'], true);
+                        $row['schedule'] = $row['schedule'] ? json_decode($row['schedule'], true) : null;
+                        $row['prerequisites'] = $row['prerequisites'] ? json_decode($row['prerequisites'], true) : null;
                         http_response_code(201);
                         echo json_encode($row);
                     } else {

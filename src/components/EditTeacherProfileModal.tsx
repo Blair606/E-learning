@@ -35,10 +35,17 @@ const EditTeacherProfileModal: React.FC<EditTeacherProfileModalProps> = ({
   }, [visible, teacher, form]);
 
   const getAuthToken = () => {
-    if (!user?.token) {
+    // First try to get token from user object
+    if (user?.token) {
+      return user.token;
+    }
+    
+    // Fallback to localStorage
+    const token = localStorage.getItem('token');
+    if (!token) {
       throw new Error('No authentication token available. Please log in again.');
     }
-    return user.token;
+    return token;
   };
 
   const fetchSchools = async () => {
@@ -46,7 +53,13 @@ const EditTeacherProfileModal: React.FC<EditTeacherProfileModalProps> = ({
       setFetchingData(true);
       console.log('Fetching schools...');
       
-      const response = await axios.get('/api/schools/index.php');
+      // Add authorization header to the request
+      const token = getAuthToken();
+      const response = await axios.get('/api/schools/index.php', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       
       console.log('Schools API response:', response.data);
       console.log('Schools API response type:', typeof response.data);
@@ -88,7 +101,13 @@ const EditTeacherProfileModal: React.FC<EditTeacherProfileModalProps> = ({
       setFetchingData(true);
       console.log('Fetching departments...');
       
-      const response = await axios.get('/api/departments/index.php');
+      // Add authorization header to the request
+      const token = getAuthToken();
+      const response = await axios.get('/api/departments/index.php', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       
       console.log('Departments API response:', response.data);
       console.log('Departments API response type:', typeof response.data);
@@ -130,34 +149,30 @@ const EditTeacherProfileModal: React.FC<EditTeacherProfileModalProps> = ({
       setLoading(true);
       const values = await form.validateFields();
       
-      // Get token from user object in AuthContext
-      const token = user?.token || localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No authentication token available. Please log in again.');
-      }
+      // Get token using the getAuthToken function
+      const token = getAuthToken();
       
       // Log the request data for debugging
       const requestData = {
-        id: teacher.id,
-        firstName: values.first_name,
-        lastName: values.last_name,
+        first_name: values.first_name,
+        last_name: values.last_name,
         email: values.email,
+        role: teacher.role,
+        department: values.department_id, // Use department_id as department
         phone: values.phone,
         address: values.address || '',
-        school_id: values.school_id,
-        department_id: values.department_id,
         specialization: values.specialization || '',
         education: values.education || '',
-        experience: values.experience || '',
-        old_department_id: teacher.department_id
+        experience: values.experience || ''
       };
       
       console.log('Request data:', requestData);
+      console.log('Using token:', token); // Debug token
 
       // Use the correct API endpoint and data structure
       const response = await axios({
         method: 'put',
-        url: '/api/users/update.php',
+        url: `/api/users/profile.php?id=${teacher.id}`,
         data: requestData,
         headers: {
           'Authorization': `Bearer ${token}`,
