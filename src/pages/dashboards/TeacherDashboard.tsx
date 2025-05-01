@@ -31,6 +31,7 @@ import { RootState } from '../../store/store';
 import { useNavigate } from 'react-router-dom';
 import { setUser } from '../../store/slices/authSlice';
 import axios from 'axios';
+import { Department } from '../../services/departmentService';
 
 interface ClassData {
   id: number;
@@ -112,19 +113,19 @@ const TeacherDashboard = () => {
   const dispatch = useDispatch();
   const [teacherName, setTeacherName] = useState<string>('');
   const [department, setDepartment] = useState<string>('');
-  const [departments, setDepartments] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   
   useEffect(() => {
     const fetchDepartments = async () => {
       try {
-        const response = await axios.get('http://localhost/E-learning/api/departments/get_departments.php', {
+        const response = await axios.get('http://localhost/E-learning/api/departments/index.php', {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
         });
         
-        if (response.data.status === 'success' && response.data.data) {
-          setDepartments(response.data.data);
+        if (response.data.success && response.data.departments) {
+          setDepartments(response.data.departments);
         }
       } catch (error) {
         console.error('Error fetching departments:', error);
@@ -432,7 +433,13 @@ const TeacherDashboard = () => {
     }
   };
 
-  const handleProfileUpdate = (updatedProfile: any) => {
+  const handleProfileUpdate = (updatedProfile: { 
+    department_id: number;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: string;
+  }) => {
     dispatch(setUser(updatedProfile));
     if (updatedProfile.department_id) {
       console.log('Profile updated, refreshing courses for department:', updatedProfile.department_id);
