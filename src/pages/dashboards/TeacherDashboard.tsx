@@ -111,9 +111,31 @@ const TeacherDashboard = () => {
   const { user } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch();
   const [teacherName, setTeacherName] = useState<string>('');
+  const [department, setDepartment] = useState<string>('');
+  const [departments, setDepartments] = useState<any[]>([]);
   
   useEffect(() => {
-    const fetchTeacherName = async () => {
+    const fetchDepartments = async () => {
+      try {
+        const response = await axios.get('http://localhost/E-learning/api/departments/get_departments.php', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (response.data.status === 'success' && response.data.data) {
+          setDepartments(response.data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching departments:', error);
+      }
+    };
+
+    fetchDepartments();
+  }, []);
+
+  useEffect(() => {
+    const fetchTeacherData = async () => {
       if (!user?.id) return;
       
       try {
@@ -128,21 +150,38 @@ const TeacherDashboard = () => {
         
         if (response.data.status === 'success' && response.data.data) {
           const teacherData = response.data.data;
+          console.log('Teacher data:', teacherData);
+          
           setTeacherName(`${teacherData.first_name} ${teacherData.last_name}`);
-          // Update Redux store with latest user data
+          
+          if (teacherData.department_id && departments.length > 0) {
+            const dept = departments.find(d => d.id === teacherData.department_id);
+            if (dept) {
+              setDepartment(dept.name);
+            } else {
+              setDepartment('No Department');
+            }
+          } else {
+            setDepartment('No Department');
+          }
+          
           dispatch(setUser(teacherData));
         }
       } catch (error) {
         console.error('Error fetching teacher data:', error);
-        // Fallback to Redux store data
         if (user?.firstName && user?.lastName) {
           setTeacherName(`${user.firstName} ${user.lastName}`);
+          setDepartment(user.department || 'No Department');
         }
       }
     };
 
-    fetchTeacherName();
-  }, [user?.id, dispatch]);
+    fetchTeacherData();
+  }, [user?.id, dispatch, departments]);
+
+  useEffect(() => {
+    console.log('Department state updated:', department);
+  }, [department]);
 
   console.log('TeacherDashboard user:', user);
   console.log('User role:', user?.role);
@@ -270,7 +309,6 @@ const TeacherDashboard = () => {
       time: '10:00 AM - 11:30 AM',
       status: 'upcoming',
     },
-    // Add more sample classes...
   ]);
 
   const [isScheduleClassModalOpen, setIsScheduleClassModalOpen] = useState(false);
@@ -336,7 +374,6 @@ const TeacherDashboard = () => {
             { unit: "Algebra", grade: 78, attendance: 85, submissions: 7 }
           ]
         },
-        // Add more students...
       ]
     },
     {
@@ -354,10 +391,8 @@ const TeacherDashboard = () => {
             { unit: "Algorithms", grade: 88, attendance: 92, submissions: 8 }
           ]
         },
-        // Add more students...
       ]
     },
-    // Add more classes...
   ]);
 
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
@@ -398,11 +433,8 @@ const TeacherDashboard = () => {
   };
 
   const handleProfileUpdate = (updatedProfile: any) => {
-    // Update the user in the Redux store
     dispatch(setUser(updatedProfile));
-    // Refresh the courses based on the new department
     if (updatedProfile.department_id) {
-      // You might want to fetch courses for the new department here
       console.log('Profile updated, refreshing courses for department:', updatedProfile.department_id);
     }
   };
@@ -556,7 +588,6 @@ const TeacherDashboard = () => {
               </button>
             </div>
 
-            {/* Scheduled Classes List */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {scheduledClasses.map((class_) => (
                 <div key={class_.id} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all">
@@ -618,7 +649,6 @@ const TeacherDashboard = () => {
           <div className="space-y-8">
             <h2 className="text-2xl font-semibold mb-6">Analytics Dashboard</h2>
 
-            {/* Class Selection */}
             <div className="bg-white p-6 rounded-xl shadow-sm">
               <div className="flex space-x-4 mb-6">
                 <select
@@ -655,7 +685,6 @@ const TeacherDashboard = () => {
 
               {selectedClassId && !selectedStudentId && (
                 <>
-                  {/* Class Overview Charts */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div className="bg-white p-6 rounded-xl shadow-sm">
                       <h3 className="text-lg font-semibold mb-4">Class Performance</h3>
@@ -715,7 +744,6 @@ const TeacherDashboard = () => {
 
               {selectedStudentId && (
                 <>
-                  {/* Individual Student Analytics */}
                   <div className="space-y-6">
                     <h3 className="text-xl font-semibold">
                       Student Analysis: {selectedStudent?.name}
@@ -756,7 +784,6 @@ const TeacherDashboard = () => {
                       </div>
                     </div>
 
-                    {/* Student Metrics Summary */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       {[
                         {
@@ -790,7 +817,6 @@ const TeacherDashboard = () => {
       case 'overview':
         return (
           <div className="space-y-6">
-            {/* Quick Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
               <div className="bg-white p-6 rounded-xl shadow-sm">
                 <div className="flex items-center">
@@ -831,7 +857,6 @@ const TeacherDashboard = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Course Overview */}
               <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm">
                 <h2 className="text-xl font-semibold mb-4">Your Courses</h2>
                 <div className="space-y-4">
@@ -842,7 +867,6 @@ const TeacherDashboard = () => {
                         <span className="text-sm text-gray-500">{course.students} Students</span>
                       </div>
                       
-                      {/* Course Content Section */}
                       <div className="mt-4 space-y-2">
                         <div className="flex justify-between items-center">
                           <h4 className="text-sm font-medium text-gray-700">Course Content</h4>
@@ -894,7 +918,6 @@ const TeacherDashboard = () => {
                 </div>
               </div>
 
-              {/* Upcoming Tasks */}
               <div className="bg-white p-6 rounded-xl shadow-sm">
                 <h2 className="text-xl font-semibold mb-4">Pending Tasks</h2>
                 <div className="space-y-4">
@@ -916,7 +939,6 @@ const TeacherDashboard = () => {
               </div>
             </div>
 
-            {/* Class Overview Section */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               {courses.map((classData) => (
                 <div 
@@ -938,7 +960,6 @@ const TeacherDashboard = () => {
               ))}
             </div>
 
-            {/* Analytics Section */}
             {selectedClassOverview && (
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex justify-between items-center mb-6">
@@ -951,7 +972,6 @@ const TeacherDashboard = () => {
                   </button>
                 </div>
 
-                {/* Class Performance Chart */}
                 {!showIndividualStudent ? (
                   <BarChart
                     width={1000}
@@ -967,7 +987,6 @@ const TeacherDashboard = () => {
                     <Bar dataKey="averagePerformance" fill="#8884d8" name="Class Average Performance" />
                   </BarChart>
                 ) : (
-                  // Individual Students Performance Chart
                   <BarChart
                     width={1000}
                     height={400}
@@ -991,7 +1010,6 @@ const TeacherDashboard = () => {
         return (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-              {/* Quick Stats */}
               <div className="bg-white p-6 rounded-xl shadow-sm">
                 <div className="flex items-center">
                   <UsersIcon className="w-12 h-12 text-blue-500" />
@@ -1031,7 +1049,6 @@ const TeacherDashboard = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Course Overview */}
               <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm">
                 <h2 className="text-xl font-semibold mb-4">Your Courses</h2>
                 <div className="space-y-4">
@@ -1056,7 +1073,6 @@ const TeacherDashboard = () => {
                 </div>
               </div>
 
-              {/* Upcoming Tasks */}
               <div className="bg-white p-6 rounded-xl shadow-sm">
                 <h2 className="text-xl font-semibold mb-4">Pending Tasks</h2>
                 <div className="space-y-4">
@@ -1078,7 +1094,6 @@ const TeacherDashboard = () => {
               </div>
             </div>
 
-            {/* Class Overview Section */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               {courses.map((classData) => (
                 <div 
@@ -1100,7 +1115,6 @@ const TeacherDashboard = () => {
               ))}
             </div>
 
-            {/* Analytics Section */}
             {selectedClassOverview && (
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex justify-between items-center mb-6">
@@ -1113,7 +1127,6 @@ const TeacherDashboard = () => {
                   </button>
                 </div>
 
-                {/* Class Performance Chart */}
                 {!showIndividualStudent ? (
                   <BarChart
                     width={1000}
@@ -1129,7 +1142,6 @@ const TeacherDashboard = () => {
                     <Bar dataKey="averagePerformance" fill="#8884d8" name="Class Average Performance" />
                   </BarChart>
                 ) : (
-                  // Individual Students Performance Chart
                   <BarChart
                     width={1000}
                     height={400}
@@ -1155,7 +1167,6 @@ const TeacherDashboard = () => {
     <div className="min-h-screen bg-gray-50">
       <header className="fixed top-0 left-0 right-0 bg-white shadow-sm z-40">
         <div className="flex items-center justify-between px-4 h-16">
-          {/* Left side - Menu button and logo */}
           <div className="flex items-center lg:w-64">
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -1168,7 +1179,6 @@ const TeacherDashboard = () => {
             </div>
           </div>
 
-          {/* Right side - Actions and profile */}
           <div className="flex items-center justify-end flex-1 space-x-4">
             <div className="hidden sm:flex items-center space-x-2">
               <span className="text-sm text-gray-500">Spring 2024</span>
@@ -1184,7 +1194,7 @@ const TeacherDashboard = () => {
             <div className="flex items-center border-l pl-4 ml-4">
               <div className="hidden sm:block text-right mr-3">
                 <p className="text-sm font-medium text-gray-900">{teacherName || `${user?.firstName} ${user?.lastName}`}</p>
-                <p className="text-xs text-gray-500">{user?.department || 'No Department'}</p>
+                <p className="text-xs text-gray-500">{department || 'No Department'}</p>
               </div>
               <button
                 onClick={() => setIsProfileModalOpen(true)}
@@ -1320,7 +1330,6 @@ const TeacherDashboard = () => {
         user={user}
       />
 
-      {/* Add Admin Access Button if user has admin privileges */}
       {user?.role === 'admin' && (
         <div className="fixed bottom-4 right-4 z-50">
           <button
