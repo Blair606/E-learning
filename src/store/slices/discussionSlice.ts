@@ -1,4 +1,5 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
+import axios from 'axios';
 
 export interface DiscussionGroup {
   id: number;
@@ -35,42 +36,33 @@ const initialState: DiscussionState = {
   error: null,
 };
 
+// Async thunks
+export const createDiscussionGroups = createAsyncThunk(
+  'discussions/createGroups',
+  async (groupData: {
+    title: string;
+    courseId: number;
+    description: string;
+    dueDate: string;
+    numberOfGroups: number;
+  }) => {
+    const response = await axios.post('http://localhost/api/discussion_groups.php', groupData);
+    return response.data;
+  }
+);
+
+export const fetchDiscussionGroups = createAsyncThunk(
+  'discussions/fetchGroups',
+  async (courseId: number) => {
+    const response = await axios.get(`http://localhost/E-learning/api/discussion_groups.php?course_id=${courseId}`);
+    return response.data;
+  }
+);
+
 const discussionSlice = createSlice({
   name: 'discussions',
   initialState,
   reducers: {
-    createDiscussionGroups: (state, action: PayloadAction<{
-      title: string;
-      courseId: number;
-      courseName: string;
-      description: string;
-      dueDate: string;
-      numberOfGroups: number;
-      students: { id: number; name: string; }[];
-    }>) => {
-      const { numberOfGroups, students, ...groupData } = action.payload;
-      const studentsPerGroup = Math.ceil(students.length / numberOfGroups);
-      
-      // Distribute students across groups
-      for (let i = 0; i < numberOfGroups; i++) {
-        const groupMembers = students.slice(
-          i * studentsPerGroup,
-          Math.min((i + 1) * studentsPerGroup, students.length)
-        );
-        
-        const newGroup: DiscussionGroup = {
-          id: Date.now() + i,
-          ...groupData,
-          groupNumber: i + 1,
-          totalGroups: numberOfGroups,
-          members: groupMembers,
-          messages: [],
-          lastActive: new Date().toISOString(),
-        };
-        
-        state.groups.push(newGroup);
-      }
-    },
     addMessage: (state, action: PayloadAction<{
       groupId: number;
       userId: number;
@@ -97,10 +89,37 @@ const discussionSlice = createSlice({
       }
     },
   },
+  extraReducers: (builder) => {
+    builder
+      .addCase(createDiscussionGroups.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createDiscussionGroups.fulfilled, (state, action) => {
+        state.loading = false;
+        // The API will return the created groups, so we can update the state
+        state.groups = [...state.groups, ...action.payload.groups];
+      })
+      .addCase(createDiscussionGroups.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to create discussion groups';
+      })
+      .addCase(fetchDiscussionGroups.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchDiscussionGroups.fulfilled, (state, action) => {
+        state.loading = false;
+        state.groups = action.payload;
+      })
+      .addCase(fetchDiscussionGroups.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.error.message || 'Failed to fetch discussion groups';
+      });
+  },
 });
 
 export const {
-  createDiscussionGroups,
   addMessage,
   updateGroupMembers,
 } = discussionSlice.actions;

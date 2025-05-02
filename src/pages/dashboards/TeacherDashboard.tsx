@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   UsersIcon,
   BookOpenIcon,
@@ -15,6 +15,8 @@ import {
   ClockIcon,
   Cog6ToothIcon,
   UserCircleIcon,
+  BellIcon,
+  ArrowRightOnRectangleIcon,
 } from '@heroicons/react/24/outline';
 import CreateAssignmentModal from '../../components/modals/CreateAssignmentModal';
 import CreateDiscussionGroupModal from '../../components/modals/CreateDiscussionGroupModal';
@@ -34,6 +36,7 @@ import { teacherService } from '../../services/teacherService';
 import type { Assignment, Notification, StudentAnalytics, CourseContent } from '../../services/teacherService';
 import type { User } from '../../store/slices/authSlice';
 import { courseService, type Course } from '../../services/courseService';
+import { createDiscussionGroups, fetchDiscussionGroups } from '../../store/slices/discussionSlice';
 
 interface ClassData {
   id: number;
@@ -48,6 +51,8 @@ interface DiscussionGroupData {
   title: string;
   course: string;
   numberOfGroups: number;
+  description?: string;
+  dueDate: string;
 }
 
 interface DiscussionGroup {
@@ -101,6 +106,7 @@ const TeacherDashboard = () => {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [activeTab, setActiveTab] = useState('overview');
   const [courses, setCourses] = useState<Course[]>([]);
+  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [classes, setClasses] = useState<ClassData[]>([]);
@@ -123,32 +129,12 @@ const TeacherDashboard = () => {
   const [selectedCourse, setSelectedCourse] = useState<ExtendedCourse | null>(null);
   const [discussionGroups, setDiscussionGroups] = useState<DiscussionGroup[]>([]);
   const [scheduledClasses, setScheduledClasses] = useState<ScheduledClass[]>([]);
-  const [upcomingTasks] = useState<UpcomingTask[]>([
-    {
-      id: 1,
-      type: 'Assignment',
-      task: 'Grade Math Quiz',
-      deadline: '2024-03-15',
-      count: 25
-    },
-    {
-      id: 2,
-      type: 'Meeting',
-      task: 'Parent-Teacher Conference',
-      deadline: '2024-03-20',
-      count: 5
-    },
-    {
-      id: 3,
-      type: 'Submission',
-      task: 'Review Science Projects',
-      deadline: '2024-03-18',
-      count: 15
-    }
-  ]);
+  const [pendingTasks, setPendingTasks] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const profileDropdownRef = useRef<HTMLDivElement>(null);
 
   // Fetch departments
   useEffect(() => {
@@ -217,8 +203,18 @@ const TeacherDashboard = () => {
     try {
       setLoading(true);
       setError(null);
-      const fetchedCourses = await courseService.getCourses();
-      setCourses(fetchedCourses);
+      const response = await axios.get('http://localhost/E-learning/api/courses/get_courses.php', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.data.success && response.data.courses) {
+        setCourses(response.data.courses);
+      } else {
+        setError('Failed to fetch courses');
+      }
     } catch (err) {
       console.error('Error fetching courses:', err);
       setError('Failed to fetch courses. Please try again later.');
@@ -282,6 +278,12 @@ const TeacherDashboard = () => {
     fetchDashboardData();
   }, []);
 
+  // Fetch real-time pending tasks (assignments) when assignments change
+  useEffect(() => {
+    // Filter assignments for those that are not completed
+    setPendingTasks(assignments.filter(a => a.status !== 'Completed'));
+  }, [assignments]);
+
   console.log('TeacherDashboard user:', user);
   console.log('User role:', user?.role);
   console.log('Is admin?', user?.role === 'admin');
@@ -298,35 +300,52 @@ const TeacherDashboard = () => {
   ];
 
   const handleCreateAssignment = (assignmentData: Assignment) => {
+    const selectedCourse = courses.find(c => c.id === Number(assignmentData.courseId));
+    if (selectedCourse) {
+      setSelectedCourseId(selectedCourse.id);
+    }
     const newAssignment: Assignment = {
       ...assignmentData,
       id: assignments.length + 1,
       status: 'Active' as const,
       submissions: 0,
-      course: courses.find(c => c.id === Number(assignmentData.courseId))?.name || '',
-      totalStudents: courses.find(c => c.id === Number(assignmentData.courseId))?.students || 0,
+      course: selectedCourse?.name || '',
+      totalStudents: selectedCourse?.students || 0,
     };
-
     setAssignments([...assignments, newAssignment]);
   };
 
-  const handleCreateDiscussionGroup = (groupData: DiscussionGroupData) => {
-    const selectedCourse = courses.find(c => c.id.toString() === groupData.course);
-    const studentsPerGroup = Math.ceil(
-      (selectedCourse?.students || 0) / groupData.numberOfGroups
-    );
+  const handleCreateDiscussionGroup = async (groupData: DiscussionGroupData) => {
+    try {
+      const selectedCourse = courses.find(c => c.id.toString() === groupData.course);
+      if (!selectedCourse) {
+        throw new Error('Selected course not found');
+      }
 
-    const newGroups: DiscussionGroup[] = Array.from({ length: groupData.numberOfGroups }, (_, index) => ({
-      id: discussionGroups.length + index + 1,
-      name: `${groupData.title} - Group ${index + 1}`,
-      course: selectedCourse?.name || '',
-      members: studentsPerGroup,
-      lastActive: 'Just created',
-      topics: 0,
-    }));
+      await dispatch(createDiscussionGroups({
+        title: groupData.title,
+        courseId: selectedCourse.id,
+        description: groupData.description || '',
+        dueDate: groupData.dueDate,
+        numberOfGroups: groupData.numberOfGroups
+      })).unwrap();
 
-    setDiscussionGroups([...discussionGroups, ...newGroups]);
+      // Refresh the discussion groups list
+      await dispatch(fetchDiscussionGroups(selectedCourse.id)).unwrap();
+      
+      setIsDiscussionModalOpen(false);
+    } catch (error) {
+      console.error('Failed to create discussion groups:', error);
+      // You might want to show an error message to the user here
+    }
   };
+
+  // Load discussion groups when a course is selected
+  useEffect(() => {
+    if (selectedCourseId) {
+      dispatch(fetchDiscussionGroups(selectedCourseId));
+    }
+  }, [selectedCourseId, dispatch]);
 
   const selectedClass = classes.find(c => c.id === selectedClassId);
   const selectedStudent = selectedClass?.students.find(s => s.id === selectedStudentId);
@@ -347,6 +366,7 @@ const TeacherDashboard = () => {
 
   const handleAddContent = (course: ExtendedCourse) => {
     setSelectedCourse(course);
+    setSelectedCourseId(course.id);
     setIsAddContentModalOpen(true);
   };
 
@@ -359,6 +379,28 @@ const TeacherDashboard = () => {
     if (updatedProfile.department_id) {
       console.log('Profile updated, refreshing courses for department:', updatedProfile.department_id);
     }
+  };
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
+        setIsProfileDropdownOpen(false);
+      }
+    }
+    if (isProfileDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isProfileDropdownOpen]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    dispatch(setUser(null));
+    setIsProfileDropdownOpen(false);
+    navigate('/login');
   };
 
   const renderContent = () => {
@@ -781,7 +823,6 @@ const TeacherDashboard = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm">
                 <h2 className="text-xl font-semibold mb-4">My Courses</h2>
-                
                 {loading ? (
                   <div className="flex justify-center items-center h-64">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
@@ -791,33 +832,39 @@ const TeacherDashboard = () => {
                 ) : courses.length === 0 ? (
                   <div className="text-gray-500 text-center p-4">No courses found.</div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {courses.map((course) => (
-                      <div key={course.id} className="bg-white rounded-lg shadow-md p-6">
-                        <h3 className="text-lg font-semibold text-gray-900">{course.name}</h3>
-                        <p className="text-sm text-gray-500 mt-1">Code: {course.code}</p>
-                        <p className="text-sm text-gray-600 mt-2">{course.description}</p>
-                        <div className="mt-4 flex justify-between items-center">
-                          <span className="text-sm text-gray-500">
-                            {course.totalStudents} students
-                          </span>
-                          <div className="space-x-2">
+                  <div className="w-full flex justify-center">
+                    <div className="grid grid-cols-1 gap-8 w-full">
+                      {courses.map((course) => (
+                        <div
+                          key={course.id}
+                          className="bg-white rounded-2xl shadow-lg px-10 py-8 border border-gray-100 hover:shadow-2xl hover:border-blue-300 transition-all duration-300 flex flex-col md:flex-row items-start md:items-center justify-between min-h-[160px] w-full max-w-4xl mx-auto mb-2"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-2xl font-bold text-gray-900 mb-2">{course.name}</h3>
+                            <div className="mb-2">
+                              <span className="block text-base text-gray-800 font-medium">Total Students: <span className="font-semibold">{course.totalStudents}</span></span>
+                              <span className="block text-base text-gray-800 font-medium">Average Performance: <span className="font-semibold">{course.progress ?? 0}%</span></span>
+                            </div>
+                            <div className="text-xs text-gray-400 mb-1 font-mono tracking-wide">Code: {course.code}</div>
+                            <div className="text-sm text-gray-600 mb-2 line-clamp-2">{course.description}</div>
+                          </div>
+                          <div className="flex flex-col md:flex-row gap-2 md:gap-4 mt-4 md:mt-0 md:ml-8">
                             <button
                               onClick={() => handleAddContent(course as ExtendedCourse)}
-                              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                              className="px-4 py-2 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 font-medium text-sm transition whitespace-nowrap"
                             >
                               Add Content
                             </button>
                             <button
                               onClick={() => handleCreateAssignment(course as Assignment)}
-                              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                              className="px-4 py-2 rounded-md bg-green-50 text-green-600 hover:bg-green-100 font-medium text-sm transition whitespace-nowrap"
                             >
                               Create Assignment
                             </button>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -825,20 +872,24 @@ const TeacherDashboard = () => {
               <div className="bg-white p-6 rounded-xl shadow-sm">
                 <h2 className="text-xl font-semibold mb-4">Pending Tasks</h2>
                 <div className="space-y-4">
-                  {upcomingTasks.map(task => (
-                    <div key={task.id} className="border p-4 rounded-lg hover:border-blue-500 transition-colors">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <span className="text-sm font-medium text-blue-600">{task.type}</span>
-                          <h3 className="font-medium mt-1">{task.task}</h3>
-                          <p className="text-sm text-gray-500">Due: {task.deadline}</p>
+                  {pendingTasks.length === 0 ? (
+                    <div className="text-gray-500 text-center p-4">No pending tasks.</div>
+                  ) : (
+                    pendingTasks.map(task => (
+                      <div key={task.id} className="border p-4 rounded-lg hover:border-blue-500 transition-colors">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-sm font-medium text-blue-600">{task.type}</span>
+                            <h3 className="font-medium mt-1">{task.title}</h3>
+                            <p className="text-sm text-gray-500">Due: {task.dueDate}</p>
+                          </div>
+                          <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                            {task.totalStudents - task.submissions} items
+                          </span>
                         </div>
-                        <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                          {task.count} items
-                        </span>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -980,20 +1031,24 @@ const TeacherDashboard = () => {
               <div className="bg-white p-6 rounded-xl shadow-sm">
                 <h2 className="text-xl font-semibold mb-4">Pending Tasks</h2>
                 <div className="space-y-4">
-                  {upcomingTasks.map(task => (
-                    <div key={task.id} className="border p-4 rounded-lg hover:border-blue-500 transition-colors">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <span className="text-sm font-medium text-blue-600">{task.type}</span>
-                          <h3 className="font-medium mt-1">{task.task}</h3>
-                          <p className="text-sm text-gray-500">Due: {task.deadline}</p>
+                  {pendingTasks.length === 0 ? (
+                    <div className="text-gray-500 text-center p-4">No pending tasks.</div>
+                  ) : (
+                    pendingTasks.map(task => (
+                      <div key={task.id} className="border p-4 rounded-lg hover:border-blue-500 transition-colors">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <span className="text-sm font-medium text-blue-600">{task.type}</span>
+                            <h3 className="font-medium mt-1">{task.title}</h3>
+                            <p className="text-sm text-gray-500">Due: {task.dueDate}</p>
+                          </div>
+                          <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                            {task.totalStudents - task.submissions} items
+                          </span>
                         </div>
-                        <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
-                          {task.count} items
-                        </span>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -1095,17 +1150,45 @@ const TeacherDashboard = () => {
               <EnvelopeIcon className="w-4 h-4 mr-2" />
               <span className="hidden sm:inline">Send Message</span>
             </button>
-            <div className="flex items-center border-l pl-4 ml-4">
-              <div className="hidden sm:block text-right mr-3">
-                <p className="text-sm font-medium text-gray-900">{teacherName || `${user?.firstName} ${user?.lastName}`}</p>
-                <p className="text-xs text-gray-500">{department || 'No Department'}</p>
-              </div>
+            {/* Profile Dropdown */}
+            <div className="relative" ref={profileDropdownRef}>
               <button
-                onClick={() => setIsProfileModalOpen(true)}
-                className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center hover:bg-blue-200 transition-colors"
+                onClick={() => setIsProfileDropdownOpen((open) => !open)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition"
               >
-                <UserCircleIcon className="w-6 h-6 text-blue-600" />
+                <BellIcon className="w-5 h-5 text-gray-500" />
+                <UserCircleIcon className="w-7 h-7 text-gray-600" />
+                <div className="text-left hidden sm:block">
+                  <div className="font-medium text-gray-800 leading-tight">{teacherName || `${user?.firstName} ${user?.lastName}`}</div>
+                  <div className="text-xs text-gray-500">{user?.role || 'teacher'}</div>
+                </div>
               </button>
+              {isProfileDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg py-2 z-50 border">
+                  <button
+                    className="flex items-center w-full px-4 py-2 text-gray-700 hover:bg-gray-50 gap-2"
+                    onClick={() => {
+                      setIsProfileDropdownOpen(false);
+                      setIsProfileModalOpen(true);
+                    }}
+                  >
+                    <UserCircleIcon className="w-5 h-5" />
+                    Profile
+                  </button>
+                  <button className="flex items-center w-full px-4 py-2 text-gray-700 hover:bg-gray-50 gap-2">
+                    <Cog6ToothIcon className="w-5 h-5" />
+                    Settings
+                  </button>
+                  <div className="border-t my-1" />
+                  <button
+                    className="flex items-center w-full px-4 py-2 text-red-600 hover:bg-red-50 gap-2"
+                    onClick={handleLogout}
+                  >
+                    <ArrowRightOnRectangleIcon className="w-5 h-5" />
+                    Logout
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -53,17 +53,17 @@ const CourseModal = ({ isOpen, onClose, onSubmit, course, departments, teachers 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-medium text-gray-900">
+    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+      <div className="relative w-full max-w-xl mx-auto bg-white rounded-2xl shadow-2xl p-8">
+        <div className="flex justify-between items-center mb-6 border-b pb-4">
+          <h3 className="text-2xl font-bold text-blue-700">
             {course ? 'Edit Course' : 'Add New Course'}
           </h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-500"
+            className="text-gray-400 hover:text-gray-600 transition"
           >
-            <XMarkIcon className="w-6 h-6" />
+            <XMarkIcon className="w-7 h-7" />
           </button>
         </div>
 
@@ -72,34 +72,34 @@ const CourseModal = ({ isOpen, onClose, onSubmit, course, departments, teachers 
           onSubmit(formData);
           onClose();
         }}>
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Course Code</label>
+              <label className="block font-semibold text-gray-700 mb-1">Course Code</label>
               <input
                 type="text"
                 required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
                 value={formData.code}
                 onChange={(e) => setFormData({ ...formData, code: e.target.value })}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Course Name</label>
+              <label className="block font-semibold text-gray-700 mb-1">Course Name</label>
               <input
                 type="text"
                 required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Department</label>
+              <label className="block font-semibold text-gray-700 mb-1">Department</label>
               <select
                 required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
                 value={formData.department}
                 onChange={(e) => setFormData({ ...formData, department: e.target.value })}
               >
@@ -111,10 +111,10 @@ const CourseModal = ({ isOpen, onClose, onSubmit, course, departments, teachers 
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Teacher</label>
+              <label className="block font-semibold text-gray-700 mb-1">Teacher</label>
               <select
                 required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
                 value={formData.teacher}
                 onChange={(e) => setFormData({ ...formData, teacher: e.target.value })}
               >
@@ -126,9 +126,9 @@ const CourseModal = ({ isOpen, onClose, onSubmit, course, departments, teachers 
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Status</label>
+              <label className="block font-semibold text-gray-700 mb-1">Status</label>
               <select
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
                 value={formData.status}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value as Course['status'] })}
               >
@@ -138,17 +138,17 @@ const CourseModal = ({ isOpen, onClose, onSubmit, course, departments, teachers 
             </div>
           </div>
 
-          <div className="mt-6 flex justify-end space-x-3">
+          <div className="flex justify-end gap-4 mt-10">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+              className="px-6 py-2 rounded-lg bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+              className="px-6 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 shadow transition"
             >
               {course ? 'Save Changes' : 'Add Course'}
             </button>

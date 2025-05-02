@@ -5,22 +5,40 @@ ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/../logs/php_errors.log');
 
-// Include database configuration
-include_once 'database.php';
+require_once 'database.php';
+
+header('Content-Type: application/json');
 
 try {
-    // Get database connection
     $db = getConnection();
     
-    // Read SQL file
-    $sql = file_get_contents(__DIR__ . '/update_tables.sql');
+    // Read the SQL file
+    $sql = file_get_contents('database.sql');
     
-    // Execute SQL statements
-    $db->exec($sql);
+    if ($sql === false) {
+        throw new Exception('Could not read database.sql file');
+    }
     
-    echo "Tables updated successfully!";
+    // Split the SQL file into individual statements
+    $statements = array_filter(array_map('trim', explode(';', $sql)));
+    
+    // Execute each statement
+    foreach ($statements as $statement) {
+        if (!empty($statement)) {
+            $db->exec($statement);
+        }
+    }
+    
+    echo json_encode([
+        'success' => true,
+        'message' => 'Database tables updated successfully'
+    ]);
+    
 } catch (Exception $e) {
-    echo "Error updating tables: " . $e->getMessage();
-    error_log("Error updating tables: " . $e->getMessage());
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => $e->getMessage()
+    ]);
 }
 ?> 

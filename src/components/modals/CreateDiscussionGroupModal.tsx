@@ -19,7 +19,9 @@ const CreateDiscussionGroupModal = ({ isOpen, onClose, courses, onSubmit }: Crea
   });
 
   const selectedCourse = courses.find(c => c.id.toString() === formData.course);
-  const maxGroups = selectedCourse ? Math.floor(selectedCourse.students / 2) : 2;
+  const maxGroups = selectedCourse && !isNaN(selectedCourse.students) 
+    ? Math.max(2, Math.floor(selectedCourse.students / 2))
+    : 2;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
