@@ -38,7 +38,7 @@ try {
     $query = "
         SELECT 
             c.id,
-            c.name as name,
+            c.name as title,
             c.code,
             c.description,
             c.credits,

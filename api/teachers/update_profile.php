@@ -116,9 +116,9 @@ if ($method === 'PUT') {
         // If department changed, update teacher's courses
         if ($department_id !== null && $oldDepartmentId !== $department_id) {
             // Remove teacher from old department's courses
-            $removeCoursesQuery = "UPDATE courses SET teacher_id = NULL 
+            $removeCoursesQuery = "UPDATE courses SET instructor_id = NULL 
                                  WHERE department_id = :old_department_id 
-                                 AND teacher_id = :teacher_id";
+                                 AND instructor_id = :teacher_id";
             $removeStmt = $conn->prepare($removeCoursesQuery);
             $removeStmt->bindParam(':old_department_id', $oldDepartmentId);
             $removeStmt->bindParam(':teacher_id', $data['id']);

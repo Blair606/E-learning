@@ -64,6 +64,10 @@ CREATE TABLE IF NOT EXISTS courses (
     FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE
 );
 
+-- Add status column to courses table if it doesn't exist
+ALTER TABLE courses 
+ADD COLUMN IF NOT EXISTS status ENUM('active', 'inactive', 'pending') NOT NULL DEFAULT 'active' AFTER prerequisites;
+
 -- Create course_enrollments table
 CREATE TABLE IF NOT EXISTS course_enrollments (
     id INT AUTO_INCREMENT PRIMARY KEY,
