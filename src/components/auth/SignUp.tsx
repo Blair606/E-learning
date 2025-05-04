@@ -13,8 +13,8 @@ const SignUp: React.FC = () => {
         email: '',
         password: '',
         confirmPassword: '',
-        firstName: '',
-        lastName: '',
+        first_name: '',
+        last_name: '',
         role: 'student' as User['role'],
         status: 'active' as User['status']
     });
@@ -41,18 +41,22 @@ const SignUp: React.FC = () => {
         }
 
         try {
-            await userService.register({
+            const registrationData = {
                 email: formData.email,
                 password: formData.password,
-                firstName: formData.firstName,
-                lastName: formData.lastName,
-                role: formData.role,
-                status: formData.status
-            });
+                first_name: formData.first_name,
+                last_name: formData.last_name,
+                role: formData.role
+            };
+
+            console.log('Sending registration data:', registrationData);
+            
+            await userService.register(registrationData);
             navigate(`/signin/${formData.role}`);
         } catch (err) {
-            const error = err as SignUpError;
-            setError(error.message || 'Failed to create account');
+            console.error('Registration error:', err);
+            const error = err as Error;
+            setError(error.message || 'Failed to create account. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -74,32 +78,32 @@ const SignUp: React.FC = () => {
                     )}
                     <div className="rounded-md shadow-sm -space-y-px">
                         <div>
-                            <label htmlFor="firstName" className="sr-only">
+                            <label htmlFor="first_name" className="sr-only">
                                 First Name
                             </label>
                             <input
-                                id="firstName"
-                                name="firstName"
+                                id="first_name"
+                                name="first_name"
                                 type="text"
                                 required
                                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                                 placeholder="First Name"
-                                value={formData.firstName}
+                                value={formData.first_name}
                                 onChange={handleChange}
                             />
                         </div>
                         <div>
-                            <label htmlFor="lastName" className="sr-only">
+                            <label htmlFor="last_name" className="sr-only">
                                 Last Name
                             </label>
                             <input
-                                id="lastName"
-                                name="lastName"
+                                id="last_name"
+                                name="last_name"
                                 type="text"
                                 required
                                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                                 placeholder="Last Name"
-                                value={formData.lastName}
+                                value={formData.last_name}
                                 onChange={handleChange}
                             />
                         </div>

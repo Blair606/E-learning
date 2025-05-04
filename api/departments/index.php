@@ -100,8 +100,11 @@ switch($method) {
                 http_response_code(200);
                 echo json_encode($departments);
             } else {
-                // Get all departments
-                $stmt = $db->prepare("SELECT id, name, code, description, status FROM departments WHERE status = 'active'");
+                // Get all departments with school information
+                $stmt = $db->prepare("SELECT d.*, s.name as school_name, s.code as school_code 
+                                    FROM departments d 
+                                    LEFT JOIN schools s ON d.school_id = s.id 
+                                    WHERE d.status = 'active'");
                 $stmt->execute();
                 $departments = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 

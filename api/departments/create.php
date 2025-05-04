@@ -41,6 +41,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $department_id = $db->lastInsertId();
         
+        // Create the school-department relationship
+        $relationship_query = "INSERT INTO school_departments (school_id, department_id) VALUES (?, ?)";
+        $relationship_stmt = $db->prepare($relationship_query);
+        $relationship_stmt->execute([$data->school_id, $department_id]);
+        
         // If courses are provided, create them
         if (isset($data->courses) && is_array($data->courses)) {
             $course_query = "INSERT INTO courses (department_id, code, name, description, credits) VALUES (?, ?, ?, ?, ?)";

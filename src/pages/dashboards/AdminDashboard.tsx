@@ -176,7 +176,7 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        const coursesData = await courseService.getAllCourses();
+        const coursesData = await courseService.getCourses();
         // Ensure coursesData is an array
         if (Array.isArray(coursesData)) {
           setCourses(coursesData);
@@ -354,11 +354,11 @@ const AdminDashboard = () => {
       const response = await schoolService.createSchool(schoolData);
       const updatedSchools = await schoolService.getAllSchools();
       setSchools(updatedSchools);
-      toast.success('School created successfully');
+      toast.success('School and departments created successfully');
       return true;
     } catch (error) {
       console.error('Error creating school:', error);
-      toast.error('Failed to create school');
+      toast.error('Failed to create school and departments');
       return false;
     }
   };
@@ -606,6 +606,16 @@ const AdminDashboard = () => {
                               </div>
                             </td>
                             <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+                              {/* Departments column: show names, comma separated, or a placeholder */}
+                              {school.departments && school.departments.length > 0 ? (
+                                <span className="text-xs text-gray-700">
+                                  {school.departments.map((dep: any) => dep.name).join(', ')}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-gray-400">No departments</span>
+                              )}
+                            </td>
+                            <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
                               <span
                                 className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                                   school.status === "active"
@@ -616,15 +626,12 @@ const AdminDashboard = () => {
                                 {school.status}
                               </span>
                             </td>
-                            <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
-                              {school.departments?.length || 0}
-                            </td>
-                            <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500">
-                              {new Date(school.createdAt).toLocaleDateString()}
-                            </td>
                             <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-right text-xs sm:text-sm font-medium">
                               <button
-                                onClick={() => handleEditSchool(school)}
+                                onClick={() => {
+                                  setSelectedSchool(school);
+                                  setIsSchoolModalOpen(true);
+                                }}
                                 className="text-indigo-600 hover:text-indigo-900 mr-2"
                               >
                                 Edit

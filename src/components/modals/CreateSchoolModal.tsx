@@ -6,7 +6,11 @@ export interface SchoolFormData {
   code: string;
   description: string;
   status: "active" | "inactive";
-  departments: string[];
+  departments: Array<{
+    name: string;
+    code: string;
+    description: string;
+  }>;
 }
 
 interface CreateSchoolModalProps {
@@ -57,6 +61,30 @@ const CreateSchoolModal: React.FC<CreateSchoolModalProps> = ({
     return `${code}${randomNum}`;
   };
 
+  // Function to generate department code from department name
+  const generateDepartmentCode = (name: string): string => {
+    if (!name.trim()) return "";
+    
+    // Split the name into words and filter out common words
+    const words = name.toLowerCase().split(' ');
+    const filteredWords = words.filter(word => 
+      !['of', 'and', 'the', 'in', 'at', 'on', 'for', 'to'].includes(word)
+    );
+    
+    // Take first letter of each word and join them
+    const initials = filteredWords.map(word => word[0]).join('');
+    
+    // If we have more than 3 letters, take first 3
+    // If we have less than 3 letters, pad with first letter
+    let code = initials.length >= 3 
+        ? initials.slice(0, 3).toUpperCase()
+        : (initials + initials[0].repeat(3 - initials.length)).toUpperCase();
+
+    // Add a random number to ensure uniqueness
+    const randomNum = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    return `${code}${randomNum}`;
+  };
+
   // Update code when name changes
   useEffect(() => {
     if (!editData && formData.name) {
@@ -69,11 +97,13 @@ const CreateSchoolModal: React.FC<CreateSchoolModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Ensure departments are not empty strings
-    const validDepartments = formData.departments.filter(dept => dept.trim() !== '');
+    // Ensure departments are not empty strings and have proper structure
+    const validDepartments = formData.departments
+      .filter(dept => dept.name.trim() !== '');
+    
     onSubmit({
-        ...formData,
-        departments: validDepartments
+      ...formData,
+      departments: validDepartments
     });
   };
 
@@ -81,16 +111,20 @@ const CreateSchoolModal: React.FC<CreateSchoolModalProps> = ({
     if (newDepartment.trim()) {
       setFormData((prev) => ({
         ...prev,
-        departments: [...prev.departments, newDepartment.trim()],
+        departments: [...prev.departments, {
+          name: newDepartment.trim(),
+          code: generateDepartmentCode(newDepartment),
+          description: `Department of ${newDepartment.trim()}`
+        }],
       }));
       setNewDepartment("");
     }
   };
 
-  const handleRemoveDepartment = (department: string) => {
+  const handleRemoveDepartment = (department: { name: string; code: string; description: string }) => {
     setFormData((prev) => ({
       ...prev,
-      departments: prev.departments.filter((d) => d !== department),
+      departments: prev.departments.filter((d) => d.name !== department.name),
     }));
   };
 
@@ -205,10 +239,10 @@ const CreateSchoolModal: React.FC<CreateSchoolModalProps> = ({
             <div className="mt-2 flex flex-wrap gap-2">
               {formData.departments.map((dept) => (
                 <span
-                  key={dept}
+                  key={dept.name}
                   className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800"
                 >
-                  {dept}
+                  {dept.name}
                   <button
                     type="button"
                     onClick={() => handleRemoveDepartment(dept)}

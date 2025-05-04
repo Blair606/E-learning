@@ -32,10 +32,14 @@ try {
         AND role = 'teacher'
     ");
 
+    if (!$stmt) {
+        throw new Exception('Failed to prepare query: ' . implode(' ', $conn->errorInfo()));
+    }
+
     $stmt->bindParam(':teacher_id', $teacher_id, PDO::PARAM_INT);
     
     if (!$stmt->execute()) {
-        throw new Exception('Failed to execute query');
+        throw new Exception('Failed to execute query: ' . implode(' ', $stmt->errorInfo()));
     }
     
     $teacher = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -53,6 +57,7 @@ try {
 
 } catch (Exception $e) {
     error_log("Error in get_teacher.php: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
     http_response_code(500);
     echo json_encode([
         'status' => 'error',

@@ -184,13 +184,28 @@ const TeacherDashboard = () => {
             setDepartment('No Department');
           }
           
-          dispatch(setUser(teacherData));
+          console.log('Fetched teacherData:', teacherData);
+          dispatch(setUser({
+            ...teacherData,
+            firstName: teacherData.first_name,
+            lastName: teacherData.last_name,
+          }));
+          console.log('Redux user after setUser:', {
+            ...teacherData,
+            firstName: teacherData.first_name,
+            lastName: teacherData.last_name,
+          });
         }
       } catch (error) {
         console.error('Error fetching teacher data:', error);
-        if (user?.firstName && user?.lastName) {
-          setTeacherName(`${user.firstName} ${user.lastName}`);
+        if (user?.first_name && user?.last_name) {
+          setTeacherName(`${user.first_name} ${user.last_name}`);
           setDepartment(user.department_id ? 'No Department' : 'No Department');
+          dispatch(setUser({
+            ...user,
+            firstName: user.first_name,
+            lastName: user.last_name,
+          }));
         }
       }
     };
@@ -1159,7 +1174,7 @@ const TeacherDashboard = () => {
                 <BellIcon className="w-5 h-5 text-gray-500" />
                 <UserCircleIcon className="w-7 h-7 text-gray-600" />
                 <div className="text-left hidden sm:block">
-                  <div className="font-medium text-gray-800 leading-tight">{teacherName || `${user?.firstName} ${user?.lastName}`}</div>
+                  <div className="font-medium text-gray-800 leading-tight">{teacherName || (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : 'Teacher')}</div>
                   <div className="text-xs text-gray-500">{user?.role || 'teacher'}</div>
                 </div>
               </button>
@@ -1249,7 +1264,7 @@ const TeacherDashboard = () => {
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 sm:p-8 rounded-2xl shadow-lg">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                  <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Welcome back, {teacherName || `${user?.firstName} ${user?.lastName}`}! 👋</h1>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Welcome back, {teacherName || (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : 'Teacher')}! 👋</h1>
                   <p className="text-blue-100">You have {courses.length} classes scheduled for today.</p>
                 </div>
                 <button

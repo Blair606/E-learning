@@ -53,8 +53,12 @@ function ensureDatabaseExists() {
                 role ENUM('admin', 'teacher', 'student') NOT NULL,
                 status ENUM('active', 'inactive', 'pending') DEFAULT 'pending',
                 token VARCHAR(255),
+                department_id INT,
+                school_id INT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE SET NULL,
+                FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE SET NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
             
             CREATE TABLE IF NOT EXISTS schools (

@@ -33,18 +33,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // If departments are provided, create them
         if (isset($data->departments) && is_array($data->departments)) {
-            $dept_query = "INSERT INTO departments (school_id, name, description, head_of_department) VALUES (?, ?, ?, ?)";
+            $dept_query = "INSERT INTO departments (name, code, description, status) VALUES (?, ?, ?, 'active')";
             $dept_stmt = $db->prepare($dept_query);
+            
+            $relationship_query = "INSERT INTO school_departments (school_id, department_id) VALUES (?, ?)";
+            $relationship_stmt = $db->prepare($relationship_query);
             
             foreach ($data->departments as $dept) {
                 if (!isset($dept->name) || empty($dept->name)) continue;
                 
+                // Create department
                 $dept_stmt->execute([
-                    $school_id,
                     $dept->name,
-                    $dept->description ?? null,
-                    $dept->head_of_department ?? null
+                    $dept->code,
+                    $dept->description ?? null
                 ]);
+                
+                $department_id = $db->lastInsertId();
+                
+                // Create the school-department relationship
+                $relationship_stmt->execute([$school_id, $department_id]);
             }
         }
 

@@ -3,22 +3,13 @@ import { User } from '../../store/slices/authSlice';
 import { useAuth } from '../../contexts/AuthContext';
 import { useDispatch } from 'react-redux';
 import { setUser } from '../../store/slices/authSlice';
+import { schoolService, School, Department } from '../../services/schoolService';
 
 interface EditTeacherProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: any) => void;
   user: User | null;
-}
-
-interface School {
-  id: number;
-  name: string;
-}
-
-interface Department {
-  id: number;
-  name: string;
 }
 
 const EditTeacherProfileModal: React.FC<EditTeacherProfileModalProps> = ({
@@ -65,80 +56,31 @@ const EditTeacherProfileModal: React.FC<EditTeacherProfileModalProps> = ({
   }, [user]);
 
   useEffect(() => {
-    // Fetch schools
+    // Fetch schools using service
     const fetchSchools = async () => {
       try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          console.error('No authentication token found');
-          setSchools([]);
-          return;
-        }
-
-        const response = await fetch('/api/schools', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Schools API response:', data);
-          
-          // Handle the API response format which includes a 'schools' property
-          if (data.success && Array.isArray(data.schools)) {
-            setSchools(data.schools);
-          } else {
-            console.error('Invalid schools data format:', data);
-            setSchools([]);
-          }
-        } else {
-          console.error('Failed to fetch schools:', response.statusText);
-          setSchools([]);
-        }
+        const schools = await schoolService.getAllSchools();
+        setSchools(schools);
       } catch (error) {
         console.error('Error fetching schools:', error);
         setSchools([]);
       }
     };
-
     fetchSchools();
   }, []);
 
   useEffect(() => {
-    // Fetch departments when school is selected
+    // Fetch departments when school is selected using service
     const fetchDepartments = async () => {
       if (formData.school_id) {
         try {
-          const token = localStorage.getItem('token');
-          if (!token) {
-            console.error('No authentication token found');
-            setDepartments([]);
-            return;
-          }
-
-          const response = await fetch(`/api/departments?school_id=${formData.school_id}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            console.log('Departments API response:', data);
-            
-            // For departments with school_id parameter, the API returns an array directly
-            if (Array.isArray(data)) {
-              setDepartments(data);
-            } else if (data.success && Array.isArray(data.departments)) {
-              // Fallback in case the API format changes
-              setDepartments(data.departments);
-            } else {
-              console.error('Invalid departments data format:', data);
-              setDepartments([]);
-            }
+          const departments = await schoolService.getDepartmentsBySchool(Number(formData.school_id));
+          // Handle if departments are wrapped in a property
+          if (Array.isArray(departments)) {
+            setDepartments(departments);
+          } else if (departments && Array.isArray(departments.departments)) {
+            setDepartments(departments.departments);
           } else {
-            console.error('Failed to fetch departments:', response.statusText);
             setDepartments([]);
           }
         } catch (error) {
@@ -149,7 +91,6 @@ const EditTeacherProfileModal: React.FC<EditTeacherProfileModalProps> = ({
         setDepartments([]);
       }
     };
-
     fetchDepartments();
   }, [formData.school_id]);
 
@@ -183,8 +124,10 @@ const EditTeacherProfileModal: React.FC<EditTeacherProfileModalProps> = ({
         email: formData.email,
         phone: formData.phone,
         address: formData.address,
-        school_id: formData.school_id ? parseInt(formData.school_id) : null,
-        department_id: formData.department_id ? parseInt(formData.department_id) : null,
+        school: formData.school_id ? schools.find(s => s.id.toString() === formData.school_id)?.name || '' : '',
+        department: formData.department_id ? departments.find(d => d.id.toString() === formData.department_id)?.name || '' : '',
+        school_id: formData.school_id ? Number(formData.school_id) : null,
+        department_id: formData.department_id ? Number(formData.department_id) : null,
         specialization: formData.specialization,
         education: formData.education,
         experience: formData.experience

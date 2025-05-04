@@ -60,10 +60,27 @@ class UserService {
 
   async register(userData: Partial<User>): Promise<User> {
     try {
+      // Log the request data
+      console.log('Sending registration request with data:', userData);
+      
       const response = await api.post('/auth/register.php', userData);
-      return response.data;
+      
+      // Log the full response for debugging
+      console.log('Full registration response:', response);
+      console.log('Response data:', response.data);
+      
+      if (!response.data.success) {
+        throw new Error(response.data.error || 'Registration failed');
+      }
+      
+      return response.data.user;
     } catch (error) {
       console.error('Registration error:', error);
+      if (this.isAxiosError(error)) {
+        console.error('Error response:', error.response?.data);
+        const errorMessage = error.response?.data?.error || error.message;
+        throw new Error(errorMessage);
+      }
       throw error;
     }
   }

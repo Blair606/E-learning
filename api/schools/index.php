@@ -74,16 +74,37 @@ if ($method !== 'OPTIONS' && $method !== 'GET') {
 switch($method) {
     case 'GET':
         try {
-            // Fetch all schools
-            $query = "SELECT id, name, code, description, status FROM schools WHERE status = 'active'";
+            // Fetch all schools with their departments
+            $query = "SELECT s.id, s.name, s.code, s.description, s.status, 
+                     GROUP_CONCAT(d.id) as department_ids,
+                     GROUP_CONCAT(d.name) as department_names
+                     FROM schools s 
+                     LEFT JOIN departments d ON s.id = d.school_id 
+                     WHERE s.status = 'active'
+                     GROUP BY s.id";
             $stmt = $db->prepare($query);
             $stmt->execute();
             
             $schools = $stmt->fetchAll(PDO::FETCH_ASSOC);
             
+            // Format the departments data
+            $formattedSchools = array_map(function($school) {
+                $departmentIds = $school['department_ids'] ? explode(',', $school['department_ids']) : [];
+                $departmentNames = $school['department_names'] ? explode(',', $school['department_names']) : [];
+                $departments = array_map(function($id, $name) {
+                    return ['id' => $id, 'name' => $name];
+                }, $departmentIds, $departmentNames);
+                
+                unset($school['department_ids']);
+                unset($school['department_names']);
+                $school['departments'] = $departments;
+                
+                return $school;
+            }, $schools);
+            
             echo json_encode([
                 'success' => true,
-                'schools' => $schools
+                'schools' => $formattedSchools
             ]);
         } catch (Exception $e) {
             error_log("Error in GET request: " . $e->getMessage());

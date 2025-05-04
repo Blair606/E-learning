@@ -14,8 +14,8 @@ const TeacherSignUp: React.FC = () => {
         email: '',
         password: '',
         confirmPassword: '',
-        firstName: '',
-        lastName: ''
+        first_name: '',
+        last_name: ''
     });
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
@@ -48,8 +48,8 @@ const TeacherSignUp: React.FC = () => {
             const userData = {
                 email: formData.email,
                 password: formData.password,
-                firstName: formData.firstName,
-                lastName: formData.lastName,
+                first_name: formData.first_name,
+                last_name: formData.last_name,
                 role: 'teacher' as const,
                 status: 'active' as const
             };
@@ -138,7 +138,7 @@ const TeacherSignUp: React.FC = () => {
                             <div className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
+                                        <label htmlFor="first_name" className="block text-sm font-medium text-gray-700">
                                             First Name
                                         </label>
                                         <div className="mt-1 relative group">
@@ -146,20 +146,20 @@ const TeacherSignUp: React.FC = () => {
                                                 <UserIcon className="h-5 w-5 text-gray-400 group-focus-within:text-green-500 transition-colors duration-200" />
                                             </div>
                                             <input
-                                                id="firstName"
-                                                name="firstName"
+                                                id="first_name"
+                                                name="first_name"
                                                 type="text"
                                                 required
                                                 className="appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
                                                 placeholder="First name"
-                                                value={formData.firstName}
+                                                value={formData.first_name}
                                                 onChange={handleChange}
                                             />
                                         </div>
                                     </div>
 
                                     <div>
-                                        <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
+                                        <label htmlFor="last_name" className="block text-sm font-medium text-gray-700">
                                             Last Name
                                         </label>
                                         <div className="mt-1 relative group">
@@ -167,13 +167,13 @@ const TeacherSignUp: React.FC = () => {
                                                 <UserIcon className="h-5 w-5 text-gray-400 group-focus-within:text-green-500 transition-colors duration-200" />
                                             </div>
                                             <input
-                                                id="lastName"
-                                                name="lastName"
+                                                id="last_name"
+                                                name="last_name"
                                                 type="text"
                                                 required
                                                 className="appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200"
                                                 placeholder="Last name"
-                                                value={formData.lastName}
+                                                value={formData.last_name}
                                                 onChange={handleChange}
                                             />
                                         </div>

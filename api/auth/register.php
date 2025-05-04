@@ -14,15 +14,20 @@ try {
     
     // Get posted data
     $rawData = file_get_contents("php://input");
-    error_log("Received data: " . $rawData);
+    error_log("Raw input received: " . $rawData);
     
-    $data = json_decode($rawData);
+    $data = json_decode($rawData, true); // Decode as associative array
     if (json_last_error() !== JSON_ERROR_NONE) {
         error_log("JSON decode error: " . json_last_error_msg());
         http_response_code(400);
         echo json_encode(['error' => 'Invalid JSON data']);
         exit;
     }
+    
+    // Log the decoded data
+    error_log("Decoded data: " . print_r($data, true));
+    error_log("Data type: " . gettype($data));
+    error_log("Data properties: " . implode(', ', array_keys($data)));
     
     // Validate request method
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -35,11 +40,11 @@ try {
     error_log("Received registration data: " . print_r($data, true));
     
     // Validate required fields
-    $requiredFields = ['email', 'password', 'firstName', 'lastName', 'role'];
+    $requiredFields = ['email', 'password', 'first_name', 'last_name', 'role'];
     $missingFields = [];
     
     foreach ($requiredFields as $field) {
-        if (!isset($data->$field)) {
+        if (!isset($data[$field]) || empty($data[$field])) {
             $missingFields[] = $field;
         }
     }
@@ -55,8 +60,8 @@ try {
     }
     
     // Validate email format
-    if (!filter_var($data->email, FILTER_VALIDATE_EMAIL)) {
-        error_log("Invalid email format: " . $data->email);
+    if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+        error_log("Invalid email format: " . $data['email']);
         http_response_code(400);
         echo json_encode(['error' => 'Invalid email format']);
         exit;
@@ -64,8 +69,8 @@ try {
     
     // Validate role
     $validRoles = ['admin', 'teacher', 'student', 'parent'];
-    if (!in_array($data->role, $validRoles)) {
-        error_log("Invalid role: " . $data->role);
+    if (!in_array($data['role'], $validRoles)) {
+        error_log("Invalid role: " . $data['role']);
         http_response_code(400);
         echo json_encode([
             'error' => 'Invalid role',
@@ -76,29 +81,29 @@ try {
     
     // Check if email already exists
     $stmt = $conn->prepare("SELECT id FROM users WHERE email = ?");
-    $stmt->execute([$data->email]);
+    $stmt->execute([$data['email']]);
     if ($stmt->rowCount() > 0) {
-        error_log("Email already exists: " . $data->email);
+        error_log("Email already exists: " . $data['email']);
         http_response_code(400);
         echo json_encode(['error' => 'Email already exists']);
         exit;
     }
     
     // Hash password
-    $hashedPassword = password_hash($data->password, PASSWORD_DEFAULT);
+    $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
     
     // Prepare insert query
     $query = "INSERT INTO users (email, password, first_name, last_name, role, status) 
-              VALUES (:email, :password, :firstName, :lastName, :role, 'active')";
+              VALUES (:email, :password, :first_name, :last_name, :role, 'active')";
     
     $stmt = $conn->prepare($query);
     
     // Bind parameters
-    $stmt->bindParam(':email', $data->email);
+    $stmt->bindParam(':email', $data['email']);
     $stmt->bindParam(':password', $hashedPassword);
-    $stmt->bindParam(':firstName', $data->firstName);
-    $stmt->bindParam(':lastName', $data->lastName);
-    $stmt->bindParam(':role', $data->role);
+    $stmt->bindParam(':first_name', $data['first_name']);
+    $stmt->bindParam(':last_name', $data['last_name']);
+    $stmt->bindParam(':role', $data['role']);
     
     // Execute query
     if (!$stmt->execute()) {
@@ -109,8 +114,7 @@ try {
     // Get the created user with role-specific ID
     $userId = $conn->lastInsertId();
     $stmt = $conn->prepare("
-        SELECT id, email, first_name, last_name, role, status, 
-               student_id, teacher_id, admin_id, parent_id 
+        SELECT id, email, first_name, last_name, role, status
         FROM users 
         WHERE id = ?
     ");

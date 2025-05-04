@@ -58,7 +58,11 @@ if ($method === 'PUT') {
         $currentUserStmt = $conn->prepare("SELECT department_id FROM users WHERE id = ?");
         $currentUserStmt->execute([$data['id']]);
         $currentUser = $currentUserStmt->fetch(PDO::FETCH_ASSOC);
-        $oldDepartmentId = $currentUser['department_id'];
+        $oldDepartmentId = $currentUser['department_id'] ?? null;
+
+        // Safely get department_id and school_id from data
+        $department_id = $data['department_id'] ?? null;
+        $school_id = $data['school_id'] ?? null;
 
         // Update user table
         $userQuery = "UPDATE users SET 
@@ -67,13 +71,19 @@ if ($method === 'PUT') {
             email = :email,
             phone = :phone,
             address = :address,
-            school_id = :school_id,
-            department_id = :department_id,
+            school = :school,
+            department = :department,
             specialization = :specialization,
             education = :education,
             experience = :experience,
-            updated_at = CURRENT_TIMESTAMP
-            WHERE id = :id AND role = 'teacher'";
+            updated_at = CURRENT_TIMESTAMP";
+        if ($school_id !== null) {
+            $userQuery .= ", school_id = :school_id";
+        }
+        if ($department_id !== null) {
+            $userQuery .= ", department_id = :department_id";
+        }
+        $userQuery .= " WHERE id = :id AND role = 'teacher'";
 
         $userStmt = $conn->prepare($userQuery);
         $userStmt->bindParam(':first_name', $data['first_name']);
@@ -81,11 +91,17 @@ if ($method === 'PUT') {
         $userStmt->bindParam(':email', $data['email']);
         $userStmt->bindParam(':phone', $data['phone']);
         $userStmt->bindParam(':address', $data['address']);
-        $userStmt->bindParam(':school_id', $data['school_id']);
-        $userStmt->bindParam(':department_id', $data['department_id']);
+        $userStmt->bindParam(':school', $data['school']);
+        $userStmt->bindParam(':department', $data['department']);
         $userStmt->bindParam(':specialization', $data['specialization']);
         $userStmt->bindParam(':education', $data['education']);
         $userStmt->bindParam(':experience', $data['experience']);
+        if ($school_id !== null) {
+            $userStmt->bindParam(':school_id', $school_id);
+        }
+        if ($department_id !== null) {
+            $userStmt->bindParam(':department_id', $department_id);
+        }
         $userStmt->bindParam(':id', $data['id']);
 
         error_log("Executing query: " . $userQuery);
@@ -98,7 +114,7 @@ if ($method === 'PUT') {
         }
 
         // If department changed, update teacher's courses
-        if ($oldDepartmentId !== $data['department_id']) {
+        if ($department_id !== null && $oldDepartmentId !== $department_id) {
             // Remove teacher from old department's courses
             $removeCoursesQuery = "UPDATE courses SET teacher_id = NULL 
                                  WHERE department_id = :old_department_id 
