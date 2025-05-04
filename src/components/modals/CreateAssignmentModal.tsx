@@ -1,176 +1,178 @@
-import { Fragment, useState } from 'react';
-import { Dialog, Transition } from '@headlessui/react';
+import { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { Assignment } from '../../store/slices/assignmentSlice';    
+import axios from 'axios';
+
+interface Course {
+  id: number;
+  name: string;
+}
 
 interface CreateAssignmentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  courses: Array<{ id: number; name: string }>;
-  onSubmit: (assignmentData: Assignment) => void;
+  onAssignmentCreated: () => void;
+  courses: Course[];
 }
 
+const CreateAssignmentModal = ({ isOpen, onClose, onAssignmentCreated, courses }: CreateAssignmentModalProps) => {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [totalMarks, setTotalMarks] = useState('');
+  const [courseId, setCourseId] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
+  useEffect(() => {
+    if (courses.length > 0 && !courseId) {
+      setCourseId(courses[0].id.toString());
+    }
+  }, [courses, courseId]);
 
-const CreateAssignmentModal = ({ isOpen, onClose, courses, onSubmit }: CreateAssignmentModalProps) => {
-  const [formData, setFormData] = useState<Assignment>({
-    id: 0,
-    title: '',
-    courseId: 0,
-    courseName: '',
-    type: 'Assignment',
-    dueDate: '',
-    description: '',
-    totalPoints: 100,
-    status: 'Draft',
-    submissions: 0,
-    totalStudents: 0
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
-    onClose();
+    setError('');
+    setIsSubmitting(true);
+
+    try {
+      const response = await axios.post(
+        'http://localhost/E-learning/api/assignments/create_assignment.php',
+        {
+          title,
+          description,
+          due_date: dueDate,
+          total_marks: parseInt(totalMarks),
+          course_id: parseInt(courseId)
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          validateStatus: () => true // Always resolve, handle errors manually
+        }
+      );
+
+      if (response.status === 200 && response.data.success) {
+        onAssignmentCreated();
+        onClose();
+        // Reset form
+        setTitle('');
+        setDescription('');
+        setDueDate('');
+        setTotalMarks('');
+        setCourseId(courses.length > 0 ? courses[0].id.toString() : '');
+      } else {
+        setError(response.data?.message || response.data?.error || 'Failed to create assignment');
+        console.error('Assignment creation error:', response);
+      }
+    } catch (err: any) {
+      console.error('Assignment creation error:', err, err.response);
+      setError(err.response?.data?.message || err.message || 'An error occurred while creating the assignment');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose}>
-        <Transition.Child
-          enter="ease-out duration-300"
-          enterFrom="opacity-0"
-          enterTo="opacity-100"
-          leave="ease-in duration-200"
-          leaveFrom="opacity-100"
-          leaveTo="opacity-0"
-        >
-          <div className="fixed inset-0 bg-black bg-opacity-25" />
-        </Transition.Child>
-
-        <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4">
-            <Transition.Child
-              enter="ease-out duration-300"
-              enterFrom="opacity-0 scale-95"
-              enterTo="opacity-100 scale-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100 scale-100"
-              leaveTo="opacity-0 scale-95"
-            >
-              <Dialog.Panel className="w-full max-w-2xl transform rounded-2xl bg-white p-6 shadow-xl transition-all">
-                <div className="flex justify-between items-center mb-4">
-                  <Dialog.Title className="text-lg font-medium">
-                    Create New Assignment
-                  </Dialog.Title>
-                  <button onClick={onClose} className="text-gray-400 hover:text-gray-500">
-                    <XMarkIcon className="h-6 w-6" />
-                  </button>
-                </div>
-
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Title</label>
-                    <input
-                      type="text"
-                      required
-                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                      value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Course</label>
-                    <select
-                      required
-                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                      value={formData.courseId.toString()}
-                      onChange={(e) => setFormData({ 
-                        ...formData, 
-                        courseId: Number(e.target.value),
-                        courseName: courses.find(c => c.id === Number(e.target.value))?.name || ''
-                      })}
-                    >
-                      <option value="">Select Course</option>
-                      {courses.map((course) => (
-                        <option key={course.id} value={course.id}>
-                          {course.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Type</label>
-                    <select
-                      required
-                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                      value={formData.type}
-                      onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    >
-                      <option value="Assignment">Assignment</option>
-                      <option value="Quiz">Quiz</option>
-                      <option value="Project">Project</option>
-                      <option value="Lab Report">Lab Report</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Due Date</label>
-                    <input
-                      type="datetime-local"
-                      required
-                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                      value={formData.dueDate}
-                      onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Description</label>
-                    <textarea
-                      required
-                      rows={4}
-                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">Total Points</label>
-                    <input
-                      type="number"
-                      required
-                      min="0"
-                      className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                      value={formData.totalPoints}
-                      onChange={(e) => setFormData({ ...formData, totalPoints: Number(e.target.value) })}
-                    />
-                  </div>
-
-                  <div className="mt-4 flex justify-end space-x-3">
-                    <button
-                      type="button"
-                      onClick={onClose}
-                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-                    >
-                      Create Assignment
-                    </button>
-                  </div>
-                </form>
-              </Dialog.Panel>
-            </Transition.Child>
-          </div>
+    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+      <div className="relative w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl p-8">
+        <div className="flex justify-between items-center mb-6 border-b pb-4">
+          <h3 className="text-2xl font-bold text-blue-700">Create Assignment</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
+            <XMarkIcon className="h-7 w-7" />
+          </button>
         </div>
-      </Dialog>
-    </Transition>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {error && (
+            <div className="bg-red-50 text-red-600 p-3 rounded-lg">
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label className="block font-semibold text-gray-700 mb-1">Course</label>
+            <select
+              value={courseId}
+              onChange={e => setCourseId(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
+              required
+            >
+              {courses.map(course => (
+                <option key={course.id} value={course.id}>{course.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block font-semibold text-gray-700 mb-1">Title</label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block font-semibold text-gray-700 mb-1">Description</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={4}
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block font-semibold text-gray-700 mb-1">Due Date</label>
+              <input
+                type="datetime-local"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-gray-700 mb-1">Total Marks</label>
+              <input
+                type="number"
+                value={totalMarks}
+                onChange={(e) => setTotalMarks(e.target.value)}
+                min="1"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-4 pt-6 border-t mt-6">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2 rounded-lg bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-6 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 shadow transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? 'Creating...' : 'Create Assignment'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 };
 

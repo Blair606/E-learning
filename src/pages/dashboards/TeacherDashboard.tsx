@@ -1286,7 +1286,7 @@ const TeacherDashboard = () => {
         isOpen={isAssignmentModalOpen}
         onClose={() => setIsAssignmentModalOpen(false)}
         courses={courses}
-        onSubmit={handleCreateAssignment}
+        onAssignmentCreated={handleCreateAssignment}
       />
 
       <CreateDiscussionGroupModal

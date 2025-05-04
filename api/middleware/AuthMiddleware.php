@@ -13,6 +13,11 @@ class AuthMiddleware {
 
         $token = str_replace('Bearer ', '', $headers['Authorization']);
         
+        if (empty($token)) {
+            echo ApiResponse::error('Empty token provided', 401);
+            exit;
+        }
+
         // First try to validate as JWT token
         $payload = JWTHandler::validateToken($token);
         
@@ -24,7 +29,7 @@ class AuthMiddleware {
         require_once __DIR__ . '/../config/database.php';
         $conn = getConnection();
         
-        $stmt = $conn->prepare("SELECT id, role FROM users WHERE token = ?");
+        $stmt = $conn->prepare("SELECT id, role, email FROM users WHERE token = ?");
         $stmt->execute([$token]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
         
@@ -35,7 +40,8 @@ class AuthMiddleware {
         
         return [
             'sub' => $user['id'],
-            'role' => $user['role']
+            'role' => $user['role'],
+            'email' => $user['email']
         ];
     }
 
@@ -43,7 +49,7 @@ class AuthMiddleware {
         $payload = self::authenticate();
         
         if (!in_array($payload['role'], $allowedRoles)) {
-            echo ApiResponse::error('Unauthorized access', 403);
+            echo ApiResponse::error('Unauthorized access - Invalid role', 403);
             exit;
         }
 

@@ -12,9 +12,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // Authenticate teacher
-$auth = new Auth();
-$user = $auth->verifyToken();
-if (!$user || $user['role'] !== 'teacher') {
+$payload = AuthMiddleware::authenticate();
+if (!$payload || $payload['role'] !== 'teacher') {
     http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit();
@@ -33,21 +32,40 @@ if (
 
 try {
     $conn = getConnection();
+    $conn->beginTransaction();
+
     // Insert course content
-    $stmt = $conn->prepare("INSERT INTO course_contents (teacher_id, title, content) VALUES (?, ?, ?)");
-    $stmt->execute([$user['id'], $data['title'], $data['content']]);
+    $stmt = $conn->prepare("INSERT INTO course_content (title, content) VALUES (?, ?)");
+    $stmt->execute([$data['title'], $data['content']]);
     $contentId = $conn->lastInsertId();
 
     // Insert questions
-    $questionStmt = $conn->prepare("INSERT INTO course_questions (content_id, question_text, options, correct_answer) VALUES (?, ?, ?, ?)");
-    foreach ($data['questions'] as $q) {
-        $optionsJson = json_encode($q['options']);
-        $questionStmt->execute([$contentId, $q['text'], $optionsJson, $q['correctAnswer']]);
+    $stmt = $conn->prepare("INSERT INTO course_questions (content_id, question_text, option1, option2, option3, option4, correct_answer) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    
+    foreach ($data['questions'] as $question) {
+        if (!isset($question['text']) || !isset($question['options']) || !is_array($question['options']) || 
+            count($question['options']) !== 4 || !isset($question['correctAnswer'])) {
+            throw new Exception('Invalid question format');
+        }
+        
+        $stmt->execute([
+            $contentId,
+            $question['text'],
+            $question['options'][0],
+            $question['options'][1],
+            $question['options'][2],
+            $question['options'][3],
+            $question['correctAnswer']
+        ]);
     }
 
-    echo json_encode(['success' => true, 'message' => 'Content saved']);
+    $conn->commit();
+    echo json_encode(['success' => true, 'message' => 'Course content added successfully']);
 } catch (Exception $e) {
+    if ($conn->inTransaction()) {
+        $conn->rollBack();
+    }
     http_response_code(500);
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
 }
 ?> 

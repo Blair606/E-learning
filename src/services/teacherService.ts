@@ -85,12 +85,27 @@ class TeacherService {
   }
 
   async getAssignments() {
-    const response = await axios.get(`${this.baseUrl}/get_teacher_assignments.php`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
       }
-    });
-    return response.data;
+
+      const response = await axios.get(`${this.baseUrl}/get_teacher_assignments.php`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.data.success) {
+        throw new Error(response.data.error || 'Failed to fetch assignments');
+      }
+
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching assignments:', error);
+      throw error;
+    }
   }
 
   async getStudentAnalytics(courseId?: number) {

@@ -10,8 +10,8 @@ define('APP_URL', 'http://localhost:5173');
 define('API_URL', 'http://localhost/api');
 
 // JWT configuration
-define('JWT_SECRET', 'your-secret-key-here');
-define('JWT_EXPIRY', 86400); // 24 hours in seconds
+define('JWT_SECRET', 'e-learning-secure-key-2024');
+define('JWT_EXPIRY', 86400 * 7); // 7 days in seconds
 
 // Error reporting
 error_reporting(E_ALL);

@@ -102,8 +102,8 @@ const AddCourseContentModal = ({ isOpen, onClose }: AddCourseContentModalProps) 
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-      <div className="relative w-full max-w-3xl mx-auto bg-white rounded-2xl shadow-2xl p-8">
-        <div className="flex justify-between items-center mb-6 border-b pb-4">
+      <div className="relative w-full max-w-3xl mx-auto bg-white rounded-2xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white z-10 flex justify-between items-center mb-6 border-b pb-4">
           <h3 className="text-2xl font-bold text-blue-700">Add Course Content</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
             <XMarkIcon className="h-7 w-7" />
@@ -215,7 +215,7 @@ const AddCourseContentModal = ({ isOpen, onClose }: AddCourseContentModalProps) 
             </div>
           </div>
 
-          <div className="flex justify-end gap-4 pt-8 border-t-2 border-dashed border-blue-100 mt-8">
+          <div className="sticky bottom-0 bg-white z-10 flex justify-end gap-4 pt-8 border-t-2 border-dashed border-blue-100 mt-8">
             <button
               type="button"
               onClick={onClose}
