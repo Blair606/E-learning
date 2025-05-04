@@ -17,4 +17,13 @@ SELECT IF(
 
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
-DEALLOCATE PREPARE stmt; 
+DEALLOCATE PREPARE stmt;
+
+-- Add status column to assignments table
+ALTER TABLE `assignments` ADD COLUMN `status` ENUM('Active', 'Completed') DEFAULT 'Active' AFTER `due_date`;
+
+-- Add total_marks column to assignments table
+ALTER TABLE `assignments` ADD COLUMN `total_marks` INT DEFAULT 100 AFTER `status`;
+
+-- Add submissions column to assignments table
+ALTER TABLE `assignments` ADD COLUMN `submissions` INT DEFAULT 0 AFTER `total_marks`; 

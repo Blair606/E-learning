@@ -314,20 +314,27 @@ const TeacherDashboard = () => {
     { id: 'analytics', icon: ChartBarIcon, label: 'Analytics' },
   ];
 
-  const handleCreateAssignment = (assignmentData: Assignment) => {
-    const selectedCourse = courses.find(c => c.id === Number(assignmentData.courseId));
-    if (selectedCourse) {
-      setSelectedCourseId(selectedCourse.id);
+  const handleCreateAssignment = (data: Course | Assignment) => {
+    if ('courseId' in data) {
+      // This is an Assignment object
+      const selectedCourse = courses.find(c => c.id === Number(data.courseId));
+      if (selectedCourse) {
+        setSelectedCourseId(selectedCourse.id);
+      }
+      const newAssignment: Assignment = {
+        ...data,
+        id: assignments.length + 1,
+        status: 'Active' as const,
+        submissions: 0,
+        course: selectedCourse?.name || '',
+        totalStudents: selectedCourse?.students || 0,
+      };
+      setAssignments([...assignments, newAssignment]);
+    } else {
+      // This is a Course object
+      setSelectedCourseId(data.id);
+      setIsAssignmentModalOpen(true);
     }
-    const newAssignment: Assignment = {
-      ...assignmentData,
-      id: assignments.length + 1,
-      status: 'Active' as const,
-      submissions: 0,
-      course: selectedCourse?.name || '',
-      totalStudents: selectedCourse?.students || 0,
-    };
-    setAssignments([...assignments, newAssignment]);
   };
 
   const handleCreateDiscussionGroup = async (groupData: DiscussionGroupData) => {

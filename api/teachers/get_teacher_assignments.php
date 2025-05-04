@@ -2,6 +2,7 @@
 require_once '../config/cors.php';
 header('Content-Type: application/json');
 require_once '../config/database.php';
+$conn = getConnection();
 require_once '../middleware/auth.php';
 
 try {
@@ -22,15 +23,11 @@ try {
             a.description,
             a.due_date,
             c.name as course_name,
-            COUNT(DISTINCT s.id) as total_students,
-            COUNT(DISTINCT sa.id) as submissions
+            a.status,
+            a.total_points
         FROM assignments a
         JOIN courses c ON a.course_id = c.id
-        JOIN enrollments e ON c.id = e.course_id
-        JOIN students s ON e.student_id = s.id
-        LEFT JOIN student_assignments sa ON a.id = sa.assignment_id
-        WHERE c.teacher_id = ?
-        GROUP BY a.id
+        WHERE c.instructor_id = ?
         ORDER BY a.due_date DESC
     ";
 

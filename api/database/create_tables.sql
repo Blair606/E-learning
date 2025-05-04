@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS assignments (
     title VARCHAR(255) NOT NULL,
     description TEXT NOT NULL,
     due_date DATETIME NOT NULL,
-    total_marks INT NOT NULL,
+    total_points INT NOT NULL,
+    status ENUM('draft', 'published', 'closed') DEFAULT 'draft',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
