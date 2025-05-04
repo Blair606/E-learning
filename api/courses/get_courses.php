@@ -34,6 +34,17 @@ try {
     $conn = getConnection();
     error_log("Database connection established");
     
+    // Get the authenticated user's ID from the token
+    $headers = getallheaders();
+    $token = str_replace('Bearer ', '', $headers['Authorization'] ?? '');
+    $user_id = getUserIdFromToken($token);
+    
+    if (!$user_id) {
+        throw new Exception("Unable to get user ID from token");
+    }
+    
+    error_log("User ID from token: " . $user_id);
+    
     // Query to get courses with instructor and department information
     $query = "
         SELECT 
@@ -53,7 +64,7 @@ try {
         LEFT JOIN departments d ON c.department_id = d.id
         LEFT JOIN schools s ON c.school_id = s.id
         LEFT JOIN users u ON c.instructor_id = u.id
-        WHERE c.status = 'active'
+        WHERE c.instructor_id = :instructor_id
         ORDER BY c.name ASC
     ";
     
@@ -63,6 +74,10 @@ try {
         error_log("Prepare failed: " . implode(", ", $conn->errorInfo()));
         throw new Exception("Failed to prepare query");
     }
+    
+    $stmt->bindParam(':instructor_id', $user_id, PDO::PARAM_INT);
+    
+    error_log("Executing query with instructor_id: " . $user_id);
     
     $result = $stmt->execute();
     if (!$result) {

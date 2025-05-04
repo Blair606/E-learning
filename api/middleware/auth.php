@@ -8,8 +8,7 @@ function verifyToken($token) {
     }
 
     try {
-        $auth = new AuthMiddleware();
-        return $auth->verifyToken($token);
+        return AuthMiddleware::authenticate();
     } catch (Exception $e) {
         error_log("Token verification failed: " . $e->getMessage());
         return false;
@@ -23,9 +22,8 @@ function getUserIdFromToken($token) {
     }
 
     try {
-        $auth = new AuthMiddleware();
-        $decoded = $auth->verifyToken($token);
-        return $decoded->user_id ?? null;
+        $payload = AuthMiddleware::authenticate();
+        return $payload['sub'] ?? null;
     } catch (Exception $e) {
         error_log("Failed to get user ID from token: " . $e->getMessage());
         return null;
@@ -39,9 +37,8 @@ function isAdmin($token) {
     }
 
     try {
-        $auth = new AuthMiddleware();
-        $decoded = $auth->verifyToken($token);
-        return isset($decoded->role) && $decoded->role === 'admin';
+        $payload = AuthMiddleware::authenticate();
+        return isset($payload['role']) && $payload['role'] === 'admin';
     } catch (Exception $e) {
         error_log("Failed to check admin status: " . $e->getMessage());
         return false;
