@@ -20,8 +20,6 @@ import DashboardHeader from "../../components/DashboardHeader";
 import CreateCourseModal, {
   CourseFormData,
 } from "../../components/modals/CreateCourseModal";
-import CourseDetailsModal from "../../components/modals/CourseDetailsModal";
-import CreateUserModal from "../../components/modals/CreateUserModal";
 import { User, Student, Teacher } from "../../types/user";
 
 import "react-datepicker/dist/react-datepicker.css";
@@ -35,6 +33,7 @@ import { schoolService } from '../../services/schoolService';
 import type { School, Department } from '../../types/school';
 import { courseService, Course } from '../../services/courseService';
 import { toast } from "react-hot-toast";
+import axios from "axios";
 
 interface UserFilters {
   role: 'all' | 'teacher' | 'student' | 'admin';
@@ -50,14 +49,15 @@ interface ApiResponse<T> {
 
 // Add School interface
 interface School {
-  id: string;
+  id: number;
   name: string;
   code: string;
   description: string;
   status: "active" | "inactive";
-  departments: string[];
-  createdAt: string;
-  updatedAt: string;
+  departments: Array<{
+    id: number;
+    name: string;
+  }>;
 }
 
 // Add Department interface
@@ -101,6 +101,22 @@ interface SystemSettings {
     attendanceThreshold: number;
     lateSubmissionPolicy: "strict" | "flexible" | "none";
   };
+}
+
+interface Course {
+  id: number;
+  code: string;
+  name: string;
+  title: string;
+  description: string;
+  department: string;
+  department_name: string;
+  teacher: string;
+  instructor_name: string;
+  students: number;
+  status: "active" | "inactive";
+  school_name: string;
+  enrollment_capacity: number;
 }
 
 const AdminDashboard = () => {
@@ -152,45 +168,41 @@ const AdminDashboard = () => {
   // Add this state to track departments for the selected school
   const [schoolDepartments, setSchoolDepartments] = useState<string[]>([]);
 
-  useEffect(() => {
-    const fetchSchools = async () => {
-      try {
-        const schoolsData = await schoolService.getAllSchools();
-        // Ensure schoolsData is an array
-        if (Array.isArray(schoolsData)) {
-          setSchools(schoolsData);
-        } else {
-          console.error('Schools data is not an array:', schoolsData);
-          setSchools([]);
+  const fetchCourses = async () => {
+    try {
+      const response = await axios.get('http://localhost/E-learning/api/courses/index.php', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
-      } catch (error) {
-        console.error('Error fetching schools:', error);
-        toast.error('Failed to fetch schools');
-        setSchools([]);
+      });
+      
+      if (Array.isArray(response.data)) {
+        const transformedCourses = response.data.map((course: any) => ({
+          id: course.id,
+          code: course.code,
+          name: course.name,
+          title: course.name,
+          description: course.description,
+          department: course.department_name,
+          department_name: course.department_name,
+          teacher: course.instructor_name,
+          instructor_name: course.instructor_name,
+          students: course.current_enrollment || 0,
+          status: course.status,
+          school_name: course.school_name,
+          enrollment_capacity: course.enrollment_capacity || 0
+        }));
+        setCourses(transformedCourses);
+      } else {
+        throw new Error('Invalid courses data format');
       }
-    };
-
-    fetchSchools();
-  }, []);
+    } catch (error) {
+      console.error('Error fetching courses:', error);
+      toast.error('Failed to fetch courses');
+    }
+  };
 
   useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        const coursesData = await courseService.getCourses();
-        // Ensure coursesData is an array
-        if (Array.isArray(coursesData)) {
-          setCourses(coursesData);
-        } else {
-          console.error('Courses data is not an array:', coursesData);
-          setCourses([]);
-        }
-      } catch (error) {
-        console.error('Error fetching courses:', error);
-        toast.error('Failed to fetch courses');
-        setCourses([]);
-      }
-    };
-
     fetchCourses();
   }, []);
 
@@ -252,10 +264,17 @@ const AdminDashboard = () => {
 
   const handleCreateCourse = async (courseData: CourseFormData) => {
     try {
-      const newCourse = await courseService.createCourse(courseData);
-      setCourses([...courses, newCourse]);
-      setIsCourseModalOpen(false);
-      toast.success('Course created successfully');
+      const response = await axios.post('http://localhost/E-learning/api/courses/add_course.php', courseData, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      if (response.data.success) {
+        toast.success('Course created successfully');
+        fetchCourses(); // Refresh the courses list
+      } else {
+        throw new Error(response.data.error || 'Failed to create course');
+      }
     } catch (error) {
       console.error('Error creating course:', error);
       toast.error('Failed to create course');
@@ -407,11 +426,41 @@ const AdminDashboard = () => {
     // Find the selected school and update departments
     const selectedSchool = schools.find(school => school.id === schoolId);
     if (selectedSchool) {
-      setSchoolDepartments(selectedSchool.departments || []);
+      setSchoolDepartments(selectedSchool.departments.map(dep => dep.name));
     } else {
       setSchoolDepartments([]);
     }
   };
+
+  const fetchSchools = async () => {
+    try {
+      const response = await axios.get('http://localhost/E-learning/api/schools/index.php', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (response.data.success) {
+        const formattedSchools = response.data.schools.map((school: any) => ({
+          ...school,
+          departments: school.departments.map((dep: any) => ({
+            id: dep.id,
+            name: dep.name
+          }))
+        }));
+        setSchools(formattedSchools);
+      } else {
+        throw new Error('Failed to fetch schools');
+      }
+    } catch (error) {
+      console.error('Error fetching schools:', error);
+      toast.error('Failed to fetch schools');
+    }
+  };
+
+  useEffect(() => {
+    fetchSchools();
+  }, []);
 
   const renderContent = () => {
     switch (activeTab) {
@@ -637,7 +686,7 @@ const AdminDashboard = () => {
                                 Edit
                               </button>
                               <button
-                                onClick={() => handleDeleteSchool(school.id)}
+                                onClick={() => handleDeleteSchool(school.id.toString())}
                                 className="text-red-600 hover:text-red-900"
                               >
                                 Delete
@@ -981,8 +1030,9 @@ const AdminDashboard = () => {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {courses
                       .filter((course) => {
-                        const matchesSearch = course.code.toLowerCase().includes(courseSearchTerm.toLowerCase()) ||
-                          course.title.toLowerCase().includes(courseSearchTerm.toLowerCase());
+                        if (!course) return false;
+                        const matchesSearch = course.code?.toLowerCase().includes(courseSearchTerm.toLowerCase()) ||
+                          course.name?.toLowerCase().includes(courseSearchTerm.toLowerCase());
                         const matchesSchool = !schoolFilter || course.school_name === schoolFilter;
                         const matchesStatus = !courseStatusFilter || course.status === courseStatusFilter;
                         return matchesSearch && matchesSchool && matchesStatus;
@@ -1004,7 +1054,7 @@ const AdminDashboard = () => {
                             <div className="text-sm text-gray-900">{course.department_name}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{course.instructor_name}</div>
+                            <div className="text-sm text-gray-900">{course.teacher}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
@@ -1014,7 +1064,7 @@ const AdminDashboard = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-900">
-                              {course.current_enrollment}/{course.enrollment_capacity}
+                              {course.students}/{course.enrollment_capacity}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -1028,7 +1078,7 @@ const AdminDashboard = () => {
                               <PencilIcon className="w-5 h-5" />
                             </button>
                             <button
-                              onClick={() => handleDeleteCourse(course.id)}
+                              onClick={() => handleDeleteCourse(course.id.toString())}
                               className="text-red-600 hover:text-red-900"
                             >
                               <TrashIcon className="w-5 h-5" />

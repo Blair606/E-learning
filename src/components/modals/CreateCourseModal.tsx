@@ -15,7 +15,7 @@ interface CourseModalProps {
 export interface CourseFormData {
   id?: string;
   code: string;
-  title: string;
+  name: string;
   description: string;
   credits: number;
   school_id: number;
@@ -40,7 +40,7 @@ const CreateCourseModal = ({ isOpen, onClose, onSubmit, editData }: CourseModalP
   const [selectedSchool, setSelectedSchool] = useState<number | null>(null);
   const [formData, setFormData] = useState<CourseFormData>({
     code: '',
-    title: '',
+    name: '',
     description: '',
     credits: 3,
     school_id: 0,
@@ -287,15 +287,15 @@ const CreateCourseModal = ({ isOpen, onClose, onSubmit, editData }: CourseModalP
 
                         {/* Course Title */}
                         <div>
-                          <label htmlFor="title" className="block text-sm font-medium text-gray-700">
-                            Course Title*
+                          <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                            Course Name*
                           </label>
                           <input
                             type="text"
-                            id="title"
+                            id="name"
                             required
-                            value={formData.title}
-                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                            value={formData.name}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-purple-500 focus:outline-none"
                           />
                         </div>
