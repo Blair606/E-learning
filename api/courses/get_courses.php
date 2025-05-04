@@ -81,7 +81,7 @@ try {
             try {
                 return [
                     'id' => $course['id'],
-                    'name' => $course['name'],
+                    'name' => $course['title'],
                     'code' => $course['code'],
                     'description' => $course['description'],
                     'credits' => $course['credits'],
