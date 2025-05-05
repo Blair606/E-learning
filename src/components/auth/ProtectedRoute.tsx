@@ -10,16 +10,17 @@ interface ProtectedRouteProps {
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
     const { user, loading } = useAuth();
     const token = localStorage.getItem('token');
+    const userRole = localStorage.getItem('userRole');
 
     if (loading) {
         return <div>Loading...</div>;
     }
 
-    if (!token || !user) {
-        return <Navigate to="/login" replace />;
+    if (!token || !user || !userRole) {
+        return <Navigate to="/" replace />;
     }
 
-    if (!allowedRoles.includes(user.role)) {
+    if (!allowedRoles.includes(userRole.toLowerCase())) {
         return <Navigate to="/unauthorized" replace />;
     }
 

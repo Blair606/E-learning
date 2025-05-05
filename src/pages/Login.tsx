@@ -33,8 +33,10 @@ const Login: React.FC = () => {
       }
 
       // Store user data in localStorage
-      localStorage.setItem('userId', data.user.id);
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('userRole', data.user.role);
+      localStorage.setItem('userId', data.user.id);
       localStorage.setItem('userName', `${data.user.first_name} ${data.user.last_name}`);
 
       // If user is a guardian, fetch their student's ID
@@ -47,23 +49,28 @@ const Login: React.FC = () => {
         }
       }
 
-      // Redirect based on role
-      switch (data.user.role) {
+      // Force redirect based on role
+      const role = data.user.role.toLowerCase();
+      let redirectUrl = '/';
+      
+      switch (role) {
         case 'student':
-          navigate('/student-dashboard');
+          redirectUrl = '/dashboard/student';
           break;
         case 'parent':
-          navigate('/parent-dashboard');
+          redirectUrl = '/dashboard/parent';
           break;
         case 'admin':
-          navigate('/admin-dashboard');
+          redirectUrl = '/dashboard/admin';
           break;
         case 'teacher':
-          navigate('/teacher-dashboard');
+          redirectUrl = '/dashboard/teacher';
           break;
-        default:
-          throw new Error('Invalid user role');
       }
+
+      // Force a hard redirect
+      window.location.href = redirectUrl;
+      
     } catch (error) {
       console.error('Login error:', error);
       setError(error instanceof Error ? error.message : 'Login failed. Please try again.');

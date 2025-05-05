@@ -216,38 +216,32 @@ const TeacherDashboard = () => {
   // Fetch assignments
   useEffect(() => {
     const fetchAssignments = async () => {
+      if (!selectedCourseId) {
+        setAssignments([]);
+        return;
+      }
+
       try {
         setLoading(true);
-        // Only fetch assignments if a course is selected
-        if (selectedCourseId) {
-          const response = await axios.get(`http://localhost/E-learning/api/teachers/get_teacher_assignments.php?course_id=${selectedCourseId}`, {
+        setError(null);
+        
+        const response = await axios.get(
+          `http://localhost/E-learning/api/teachers/get_teacher_assignments.php?course_id=${selectedCourseId}`,
+          {
             headers: {
               'Authorization': `Bearer ${localStorage.getItem('token')}`
             }
-          });
-          
-          if (response.data.success) {
-            const formattedAssignments = response.data.data.map((assignment: any) => ({
-              id: assignment.id,
-              title: assignment.title,
-              description: assignment.description,
-              dueDate: assignment.dueDate,
-              course: assignment.course,
-              courseId: assignment.courseId,
-              totalStudents: assignment.totalStudents || 0,
-              submissions: assignment.submissions || 0,
-              status: assignment.status === 'published' ? 'Active' : 'Draft',
-              type: assignment.type || 'text'
-            }));
-            setAssignments(formattedAssignments);
           }
+        );
+        
+        if (response.data.success) {
+          setAssignments(response.data.data);
         } else {
-          // If no course is selected, clear assignments
-          setAssignments([]);
+          setError(response.data.error || 'Failed to fetch assignments');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error fetching assignments:', error);
-        setError('Failed to fetch assignments');
+        setError(error.response?.data?.error || 'Failed to fetch assignments. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -299,10 +293,6 @@ const TeacherDashboard = () => {
           averageGrade: coursesData.stats?.averageGrade.toFixed(1) || '0',
           activeDiscussions: coursesData.stats?.activeAssignments || 0
         });
-
-        // Fetch assignments for the selected course if one is selected
-        const assignmentsData = await teacherService.getAssignments(selectedCourseId);
-        setAssignments(assignmentsData.assignments || []);
 
         // Fetch notifications
         const notificationsData = await teacherService.getNotifications();
@@ -491,6 +481,12 @@ const TeacherDashboard = () => {
     }
   };
 
+  const handleCourseSelect = (courseId: number) => {
+    setSelectedCourseId(courseId);
+    setAssignments([]); // Clear existing assignments
+    setError(null); // Clear any existing errors
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'discussions':
@@ -551,7 +547,7 @@ const TeacherDashboard = () => {
               <div className="flex items-center gap-4">
                 <select
                   value={selectedCourseId || ''}
-                  onChange={(e) => setSelectedCourseId(Number(e.target.value))}
+                  onChange={(e) => handleCourseSelect(Number(e.target.value))}
                   className="rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
                 >
                   <option value="">Select a Course</option>

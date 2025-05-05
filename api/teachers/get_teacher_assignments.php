@@ -2,7 +2,6 @@
 require_once '../config/cors.php';
 header('Content-Type: application/json');
 require_once '../config/database.php';
-$conn = getConnection();
 require_once '../middleware/auth.php';
 
 try {
@@ -14,7 +13,42 @@ try {
     }
 
     $teacher_id = $user['sub'];
+    
+    // Get course_id from query parameters
     $course_id = isset($_GET['course_id']) ? (int)$_GET['course_id'] : null;
+    
+    // Validate course_id
+    if ($course_id === null || $course_id <= 0) {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Invalid course ID. Please provide a valid course ID.'
+        ]);
+        exit();
+    }
+
+    $conn = getConnection();
+    
+    // First verify that the teacher has access to this course
+    $verifyQuery = "SELECT c.id FROM courses c 
+                   WHERE c.id = ? 
+                   AND (c.instructor_id = ? 
+                   OR EXISTS (
+                       SELECT 1 FROM course_teachers ct 
+                       WHERE ct.course_id = c.id 
+                       AND ct.teacher_id = ?
+                   ))";
+    $verifyStmt = $conn->prepare($verifyQuery);
+    $verifyStmt->execute([$course_id, $teacher_id, $teacher_id]);
+    
+    if (!$verifyStmt->fetch()) {
+        http_response_code(403);
+        echo json_encode([
+            'success' => false,
+            'error' => 'You do not have access to this course'
+        ]);
+        exit();
+    }
     
     // Get assignments with submission statistics
     $query = "
@@ -42,9 +76,25 @@ try {
     $stmt->execute([$course_id]);
     $assignments = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // Format the response
+    $formattedAssignments = array_map(function($assignment) {
+        return [
+            'id' => $assignment['id'],
+            'title' => $assignment['title'],
+            'description' => $assignment['description'],
+            'dueDate' => $assignment['dueDate'],
+            'course' => $assignment['course'],
+            'courseId' => $assignment['courseId'],
+            'status' => $assignment['status'],
+            'type' => $assignment['type'],
+            'submissions' => (int)$assignment['submissions'],
+            'totalStudents' => (int)$assignment['totalStudents']
+        ];
+    }, $assignments);
+
     echo json_encode([
         'success' => true,
-        'data' => $assignments
+        'data' => $formattedAssignments
     ]);
 
 } catch (Exception $e) {

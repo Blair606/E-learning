@@ -48,14 +48,15 @@ const TeacherSignIn: React.FC = () => {
                 dispatch(setUser(response.user));
                 localStorage.setItem('token', response.token);
                 localStorage.setItem('user', JSON.stringify(response.user));
+                localStorage.setItem('userRole', response.user.role);
                 
-                // Redirect based on role
+                // Force redirect based on role
                 if (response.user.role === 'admin') {
                     console.log('Redirecting to admin dashboard');
-                    navigate('/dashboard/admin');
+                    window.location.href = '/dashboard/admin';
                 } else {
                     console.log('Redirecting to teacher dashboard');
-                    navigate('/dashboard/teacher');
+                    window.location.href = '/dashboard/teacher';
                 }
             } else {
                 console.log('Invalid role:', response.user.role);

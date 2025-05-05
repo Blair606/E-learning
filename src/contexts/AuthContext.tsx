@@ -63,24 +63,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(userWithToken);
         localStorage.setItem('token', response.token);
         localStorage.setItem('user', JSON.stringify(userWithToken));
+        localStorage.setItem('userRole', response.user.role);
         
-        // Redirect based on role
-        switch (response.user.role) {
-          case 'student':
-            navigate('/dashboard/student');
-            break;
-          case 'teacher':
-            navigate('/dashboard/teacher');
-            break;
-          case 'admin':
-            navigate('/dashboard/admin');
-            break;
-          case 'parent':
-            navigate('/dashboard/parent');
-            break;
-          default:
-            navigate('/');
-        }
+        return response;
       } else {
         throw new Error('Invalid login response');
       }
@@ -94,7 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    navigate('/login/teacher');
+    navigate('/');
   };
 
   return (

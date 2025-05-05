@@ -35,7 +35,7 @@ api.interceptors.response.use(
             // Handle unauthorized access
             localStorage.removeItem('token');
             localStorage.removeItem('user');
-            window.location.href = '/signin';
+            window.location.href = '/';
         }
         return Promise.reject(error);
     }

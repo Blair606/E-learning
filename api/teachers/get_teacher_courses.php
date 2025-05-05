@@ -28,12 +28,18 @@ try {
         FROM courses c
         LEFT JOIN enrollments e ON c.id = e.course_id
         LEFT JOIN assignments a ON c.id = a.course_id
-        WHERE c.teacher_id = :teacher_id
+        WHERE c.instructor_id = :teacher_id1 
+        OR EXISTS (
+            SELECT 1 FROM course_teachers ct 
+            WHERE ct.course_id = c.id 
+            AND ct.teacher_id = :teacher_id2
+        )
         GROUP BY c.id
     ";
     
     $stmt = $conn->prepare($courses_query);
-    $stmt->bindParam(':teacher_id', $teacher_id, PDO::PARAM_INT);
+    $stmt->bindParam(':teacher_id1', $teacher_id, PDO::PARAM_INT);
+    $stmt->bindParam(':teacher_id2', $teacher_id, PDO::PARAM_INT);
     $stmt->execute();
     $courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
@@ -58,7 +64,7 @@ try {
         LEFT JOIN enrollments e ON c.id = e.course_id
         LEFT JOIN assignments a ON c.id = a.course_id
         LEFT JOIN grades g ON a.id = g.assignment_id
-        WHERE c.teacher_id = :teacher_id
+        WHERE c.instructor_id = :teacher_id
     ";
     
     $stmt = $conn->prepare($stats_query);
