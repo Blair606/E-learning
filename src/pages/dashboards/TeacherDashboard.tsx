@@ -37,6 +37,7 @@ import type { Assignment, Notification, StudentAnalytics, CourseContent } from '
 import type { User } from '../../store/slices/authSlice';
 import { courseService, type Course } from '../../services/courseService';
 import { createDiscussionGroups, fetchDiscussionGroups } from '../../store/slices/discussionSlice';
+import ScheduleClassModal from '../../components/modals/ScheduleClassModal';
 
 interface ClassData {
   id: number;
@@ -729,6 +730,16 @@ const TeacherDashboard = () => {
                 </div>
               ))}
             </div>
+
+            <ScheduleClassModal
+              isOpen={isScheduleClassModalOpen}
+              onClose={() => setIsScheduleClassModalOpen(false)}
+              courses={courses}
+              onClassScheduled={() => {
+                // Refresh the scheduled classes list
+                fetchScheduledClasses();
+              }}
+            />
           </div>
         );
 
@@ -1246,6 +1257,28 @@ const TeacherDashboard = () => {
     }
   };
 
+  // Move fetchScheduledClasses inside the component
+  const fetchScheduledClasses = async () => {
+    try {
+      const response = await axios.get('http://localhost/E-learning/api/teachers/online_classes.php', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (response.data.success) {
+        setScheduledClasses(response.data.classes);
+      }
+    } catch (error) {
+      console.error('Error fetching scheduled classes:', error);
+    }
+  };
+
+  // Move useEffect inside the component
+  useEffect(() => {
+    fetchScheduledClasses();
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="fixed top-0 left-0 right-0 bg-white shadow-sm z-40">
@@ -1416,14 +1449,9 @@ const TeacherDashboard = () => {
         isOpen={isScheduleClassModalOpen}
         onClose={() => setIsScheduleClassModalOpen(false)}
         courses={courses}
-        onSubmit={(data) => {
-          const newClass: ScheduledClass = {
-            id: scheduledClasses.length + 1,
-            ...data,
-            status: 'upcoming',
-          };
-          setScheduledClasses([...scheduledClasses, newClass]);
-          setIsScheduleClassModalOpen(false);
+        onClassScheduled={() => {
+          // Refresh the scheduled classes list
+          fetchScheduledClasses();
         }}
       />
 
@@ -1548,113 +1576,6 @@ const NotificationModal = ({
             </div>
           </form>
         </div>
-      </div>
-    </div>
-  );
-};
-
-const ScheduleClassModal = ({ 
-  isOpen, 
-  onClose, 
-  onSubmit,
-  courses 
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
-  onSubmit: (data: Omit<ScheduledClass, 'id' | 'status'>) => void;
-  courses: { id: number; name: string; }[];
-}) => {
-  const [formData, setFormData] = useState({
-    title: '',
-    course: '',
-    date: '',
-    time: '',
-    meetingLink: '',
-  });
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-        <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">Schedule Online Class</h3>
-        <form onSubmit={(e) => {
-          e.preventDefault();
-          onSubmit(formData);
-          setFormData({ title: '', course: '', date: '', time: '', meetingLink: '' });
-        }}>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Title</label>
-              <input
-                type="text"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Course</label>
-              <select
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                value={formData.course}
-                onChange={(e) => setFormData({ ...formData, course: e.target.value })}
-                required
-              >
-                <option value="">Select Course</option>
-                {courses.map(course => (
-                  <option key={course.id} value={course.name}>{course.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Date</label>
-              <input
-                type="date"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Time</label>
-              <input
-                type="time"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                value={formData.time}
-                onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Meeting Link (Optional)</label>
-              <input
-                type="url"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                value={formData.meetingLink}
-                onChange={(e) => setFormData({ ...formData, meetingLink: e.target.value })}
-                placeholder="https://meet.google.com/..."
-              />
-            </div>
-          </div>
-          <div className="mt-6 flex justify-end space-x-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-            >
-              Schedule
-            </button>
-          </div>
-        </form>
       </div>
     </div>
   );

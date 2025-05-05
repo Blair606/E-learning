@@ -1,9 +1,5 @@
 <?php
 session_start();
-if (!isset($_SESSION['user_id'])) {
-    header('Location: login.php');
-    exit();
-}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -64,6 +60,11 @@ if (!isset($_SESSION['user_id'])) {
     <script src="assets/js/auth.js"></script>
     <script src="assets/js/discussion-groups.js"></script>
     <script>
+        // Check authentication before initializing
+        if (!Auth.isLoggedIn()) {
+            window.location.href = 'login.php';
+        }
+
         // Initialize the page
         document.addEventListener('DOMContentLoaded', async () => {
             const courseId = new URLSearchParams(window.location.search).get('course_id') || 1;
@@ -74,7 +75,11 @@ if (!isset($_SESSION['user_id'])) {
                 displayGroups(groups);
             } catch (error) {
                 console.error('Error loading groups:', error);
-                alert('Failed to load discussion groups. Please try again.');
+                if (error.message === 'Session expired') {
+                    window.location.href = 'login.php';
+                } else {
+                    alert('Failed to load discussion groups. Please try again.');
+                }
             }
 
             // Handle create group form submission
@@ -99,7 +104,11 @@ if (!isset($_SESSION['user_id'])) {
                     e.target.reset();
                 } catch (error) {
                     console.error('Error creating group:', error);
-                    alert('Failed to create group. Please try again.');
+                    if (error.message === 'Session expired') {
+                        window.location.href = 'login.php';
+                    } else {
+                        alert('Failed to create group. Please try again.');
+                    }
                 }
             });
         });
@@ -128,7 +137,11 @@ if (!isset($_SESSION['user_id'])) {
                         displayGroups(updatedGroups);
                     } catch (error) {
                         console.error('Error joining group:', error);
-                        alert('Failed to join group. Please try again.');
+                        if (error.message === 'Session expired') {
+                            window.location.href = 'login.php';
+                        } else {
+                            alert('Failed to join group. Please try again.');
+                        }
                     }
                 });
                 
