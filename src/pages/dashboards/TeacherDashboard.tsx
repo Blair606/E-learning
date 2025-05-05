@@ -41,6 +41,8 @@ import { courseService, type Course } from '../../services/courseService';
 import { createDiscussionGroups, fetchDiscussionGroups } from '../../store/slices/discussionSlice';
 import ScheduleClassModal from '../../components/modals/ScheduleClassModal';
 import UploadClassMaterialModal from '../../components/modals/UploadClassMaterialModal';
+import { analyticsService, type AnalyticsData } from '../../services/analyticsService';
+import AnalyticsDetailModal from '../../components/modals/AnalyticsDetailModal';
 
 interface ClassData {
   id: number;
@@ -142,6 +144,14 @@ const TeacherDashboard = () => {
   const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false);
   const [selectedClassForMaterial, setSelectedClassForMaterial] = useState<number | null>(null);
   const [classMaterials, setClassMaterials] = useState<any[]>([]);
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
+  const [isAnalyticsModalOpen, setIsAnalyticsModalOpen] = useState(false);
+  const [selectedClassAnalytics, setSelectedClassAnalytics] = useState<{
+    classAnalytics: ClassAnalytics;
+    studentAnalytics: StudentAnalytics[];
+    assignmentAnalytics: AssignmentAnalytics[];
+    discussionAnalytics: DiscussionAnalytics[];
+  } | null>(null);
 
   // Fetch departments
   useEffect(() => {
@@ -807,168 +817,134 @@ const TeacherDashboard = () => {
           <div className="space-y-8">
             <h2 className="text-2xl font-semibold mb-6">Analytics Dashboard</h2>
 
-            <div className="bg-white p-6 rounded-xl shadow-sm">
-              <div className="flex space-x-4 mb-6">
-                <select
-                  className="form-select rounded-md border-gray-300"
-                  value={selectedClassId || ''}
-                  onChange={(e) => {
-                    setSelectedClassId(Number(e.target.value));
-                    setSelectedStudentId(null);
-                  }}
-                >
-                  <option value="">Select Class</option>
-                  {classes.map((cls) => (
-                    <option key={cls.id} value={cls.id}>
-                      {cls.className}
-                    </option>
-                  ))}
-                </select>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-white p-6 rounded-xl shadow-sm">
+                <div className="flex items-center">
+                  <UsersIcon className="w-12 h-12 text-blue-500" />
+                  <div className="ml-4">
+                    <h3 className="text-sm font-medium text-gray-500">Total Students</h3>
+                    <p className="text-2xl font-semibold text-gray-800">
+                      {analyticsData?.classAnalytics.reduce((sum, c) => sum + c.total_students, 0) || 0}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-xl shadow-sm">
+                <div className="flex items-center">
+                  <AcademicCapIcon className="w-12 h-12 text-green-500" />
+                  <div className="ml-4">
+                    <h3 className="text-sm font-medium text-gray-500">Average Grade</h3>
+                    <p className="text-2xl font-semibold text-gray-800">
+                      {analyticsData?.classAnalytics.reduce((sum, c) => sum + c.average_grade, 0) / 
+                        (analyticsData?.classAnalytics.length || 1) || 0}%
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-xl shadow-sm">
+                <div className="flex items-center">
+                  <CalendarIcon className="w-12 h-12 text-purple-500" />
+                  <div className="ml-4">
+                    <h3 className="text-sm font-medium text-gray-500">Average Attendance</h3>
+                    <p className="text-2xl font-semibold text-gray-800">
+                      {analyticsData?.classAnalytics.reduce((sum, c) => sum + c.average_attendance, 0) / 
+                        (analyticsData?.classAnalytics.length || 1) || 0}%
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-xl shadow-sm">
+                <div className="flex items-center">
+                  <ChatBubbleLeftRightIcon className="w-12 h-12 text-yellow-500" />
+                  <div className="ml-4">
+                    <h3 className="text-sm font-medium text-gray-500">Active Discussions</h3>
+                    <p className="text-2xl font-semibold text-gray-800">
+                      {analyticsData?.discussionAnalytics.length || 0}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-                {selectedClassId && (
-                  <select
-                    className="form-select rounded-md border-gray-300"
-                    value={selectedStudentId || ''}
-                    onChange={(e) => setSelectedStudentId(e.target.value)}
-                  >
-                    <option value="">All Students</option>
-                    {selectedClass?.students.map((student) => (
-                      <option key={student.id} value={student.id}>
-                        {student.name}
-                      </option>
-                    ))}
-                  </select>
-                )}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Class Performance Overview */}
+              <div className="bg-white p-6 rounded-xl shadow-sm">
+                <h3 className="text-lg font-semibold mb-4">Class Performance Overview</h3>
+                <BarChart
+                  width={500}
+                  height={300}
+                  data={analyticsData?.classAnalytics}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="class_name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="average_grade" name="Average Grade" fill="#8884d8" />
+                  <Bar dataKey="average_attendance" name="Attendance" fill="#82ca9d" />
+                </BarChart>
               </div>
 
-              {selectedClassId && !selectedStudentId && (
-                <>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div className="bg-white p-6 rounded-xl shadow-sm">
-                      <h3 className="text-lg font-semibold mb-4">Class Performance</h3>
-                      <BarChart
-                        width={500}
-                        height={300}
-                        data={selectedClass?.students.map(student => ({
-                          name: student.name,
-                          average: student.grades.reduce((acc, curr) => acc + curr.grade, 0) / student.grades.length,
-                          attendance: student.grades.reduce((acc, curr) => acc + curr.attendance, 0) / student.grades.length
-                        }))}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
-                        <YAxis />
-                        <Tooltip />
-                        <Legend />
-                        <Bar dataKey="average" name="Average Grade" fill="#8884d8" />
-                        <Bar dataKey="attendance" name="Attendance %" fill="#82ca9d" />
-                      </BarChart>
-                    </div>
-
-                    <div className="bg-white p-6 rounded-xl shadow-sm">
-                      <h3 className="text-lg font-semibold mb-4">Unit Performance Distribution</h3>
-                      <PieChart width={400} height={300}>
-                        <Pie
-                          data={[
-                            { name: 'A (90-100)', value: selectedClass?.students.filter(s => 
-                              s.grades.some(g => g.grade >= 90)).length || 0 },
-                            { name: 'B (80-89)', value: selectedClass?.students.filter(s => 
-                              s.grades.some(g => g.grade >= 80 && g.grade < 90)).length || 0 },
-                            { name: 'C (70-79)', value: selectedClass?.students.filter(s => 
-                              s.grades.some(g => g.grade >= 70 && g.grade < 80)).length || 0 },
-                            { name: 'D (60-69)', value: selectedClass?.students.filter(s => 
-                              s.grades.some(g => g.grade >= 60 && g.grade < 70)).length || 0 },
-                            { name: 'F (<60)', value: selectedClass?.students.filter(s => 
-                              s.grades.some(g => g.grade < 60)).length || 0 },
-                          ]}
-                          dataKey="value"
-                          nameKey="name"
-                          cx={200}
-                          cy={150}
-                          labelLine={false}
-                          label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                          outerRadius={100}
-                        >
-                          {GRADE_COLORS.map((color, index) => (
-                            <Cell key={`cell-${index}`} fill={color} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {selectedStudentId && (
-                <>
-                  <div className="space-y-6">
-                    <h3 className="text-xl font-semibold">
-                      Student Analysis: {selectedStudent?.name}
-                    </h3>
-                    
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      <div className="bg-white p-6 rounded-xl shadow-sm">
-                        <h4 className="text-lg font-semibold mb-4">Performance by Unit</h4>
-                        <BarChart
-                          width={500}
-                          height={300}
-                          data={selectedStudent?.grades}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="unit" />
-                          <YAxis />
-                          <Tooltip />
-                          <Legend />
-                          <Bar dataKey="grade" name="Grade" fill="#8884d8" />
-                          <Bar dataKey="attendance" name="Attendance" fill="#82ca9d" />
-                        </BarChart>
-                      </div>
-
-                      <div className="bg-white p-6 rounded-xl shadow-sm">
-                        <h4 className="text-lg font-semibold mb-4">Submission Analysis</h4>
-                        <LineChart
-                          width={500}
-                          height={300}
-                          data={selectedStudent?.grades}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="unit" />
-                          <YAxis />
-                          <Tooltip />
-                          <Legend />
-                          <Line type="monotone" dataKey="submissions" name="Submissions" stroke="#8884d8" />
-                        </LineChart>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      {[
-                        {
-                          label: 'Average Grade',
-                          value: `${(selectedStudent?.grades.reduce((acc, curr) => acc + curr.grade, 0) || 0 / 
-                            (selectedStudent?.grades.length || 1)).toFixed(1)}%`
-                        },
-                        {
-                          label: 'Average Attendance',
-                          value: `${(selectedStudent?.grades.reduce((acc, curr) => acc + curr.attendance, 0) || 0 / 
-                            (selectedStudent?.grades.length || 1)).toFixed(1)}%`
-                        },
-                        {
-                          label: 'Total Submissions',
-                          value: selectedStudent?.grades.reduce((acc, curr) => acc + curr.submissions, 0) || 0
-                        }
-                      ].map((metric, index) => (
-                        <div key={index} className="bg-white p-6 rounded-xl shadow-sm">
-                          <h4 className="text-sm text-gray-500">{metric.label}</h4>
-                          <div className="text-2xl font-bold mt-2">{metric.value}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
+              {/* Assignment Completion Rate */}
+              <div className="bg-white p-6 rounded-xl shadow-sm">
+                <h3 className="text-lg font-semibold mb-4">Assignment Completion Rate</h3>
+                <LineChart
+                  width={500}
+                  height={300}
+                  data={analyticsData?.assignmentAnalytics}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="title" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="submitted_count" name="Submissions" stroke="#8884d8" />
+                  <Line type="monotone" dataKey="average_grade" name="Average Grade" stroke="#82ca9d" />
+                </LineChart>
+              </div>
             </div>
+
+            {/* Class List */}
+            <div className="bg-white p-6 rounded-xl shadow-sm">
+              <h3 className="text-lg font-semibold mb-4">Class List</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {analyticsData?.classAnalytics.map((classData) => (
+                  <div
+                    key={classData.class_id}
+                    className="border p-4 rounded-lg hover:border-blue-500 transition-colors cursor-pointer"
+                    onClick={() => handleClassAnalyticsClick(classData.class_id)}
+                  >
+                    <h4 className="font-medium text-lg mb-2">{classData.class_name}</h4>
+                    <div className="space-y-2 text-sm text-gray-600">
+                      <p>Students: {classData.total_students}</p>
+                      <p>Average Grade: {classData.average_grade.toFixed(1)}%</p>
+                      <p>Attendance: {classData.average_attendance.toFixed(1)}%</p>
+                      <p>Progress: {classData.average_progress.toFixed(1)}%</p>
+                    </div>
+                    <button className="mt-4 w-full px-4 py-2 text-sm bg-blue-50 text-blue-600 rounded hover:bg-blue-100">
+                      View Details
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Analytics Detail Modal */}
+            {selectedClassAnalytics && (
+              <AnalyticsDetailModal
+                isOpen={isAnalyticsModalOpen}
+                onClose={() => {
+                  setIsAnalyticsModalOpen(false);
+                  setSelectedClassAnalytics(null);
+                }}
+                classAnalytics={selectedClassAnalytics.classAnalytics}
+                studentAnalytics={selectedClassAnalytics.studentAnalytics}
+                assignmentAnalytics={selectedClassAnalytics.assignmentAnalytics}
+                discussionAnalytics={selectedClassAnalytics.discussionAnalytics}
+              />
+            )}
           </div>
         );
 
@@ -1355,6 +1331,39 @@ const TeacherDashboard = () => {
       }
     } catch (error) {
       console.error('Error fetching class materials:', error);
+    }
+  };
+
+  // Add this useEffect to fetch analytics data
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      try {
+        const data = await analyticsService.getTeacherAnalytics();
+        setAnalyticsData(data);
+      } catch (error) {
+        console.error('Error fetching analytics:', error);
+      }
+    };
+
+    fetchAnalytics();
+  }, []);
+
+  // Add this function to handle class selection for detailed analytics
+  const handleClassAnalyticsClick = async (classId: number) => {
+    try {
+      const classAnalytics = await analyticsService.getClassAnalytics(classId);
+      const studentAnalytics = await analyticsService.getStudentAnalytics(classId);
+      
+      setSelectedClassAnalytics({
+        classAnalytics,
+        studentAnalytics,
+        assignmentAnalytics: analyticsData?.assignmentAnalytics.filter(a => a.class_id === classId) || [],
+        discussionAnalytics: analyticsData?.discussionAnalytics.filter(d => d.class_id === classId) || []
+      });
+      
+      setIsAnalyticsModalOpen(true);
+    } catch (error) {
+      console.error('Error fetching detailed analytics:', error);
     }
   };
 
