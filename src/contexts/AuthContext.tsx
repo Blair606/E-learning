@@ -65,6 +65,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('user', JSON.stringify(userWithToken));
         localStorage.setItem('userRole', response.user.role);
         
+        // Redirect to appropriate dashboard based on role
+        const role = response.user.role.toLowerCase();
+        navigate(`/dashboard/${role}`);
+        
         return response;
       } else {
         throw new Error('Invalid login response');

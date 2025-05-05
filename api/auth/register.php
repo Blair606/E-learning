@@ -114,25 +114,18 @@ try {
     // Get the created user with role-specific ID
     $userId = $conn->lastInsertId();
     $stmt = $conn->prepare("
-        SELECT id, email, first_name, last_name, role, status
+        SELECT id, email, first_name, last_name, role, status, token
         FROM users 
         WHERE id = ?
     ");
     $stmt->execute([$userId]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    // Generate JWT token
-    $token = bin2hex(random_bytes(32));
-    
-    // Update user with token
-    $stmt = $conn->prepare("UPDATE users SET token = ? WHERE id = ?");
-    $stmt->execute([$token, $userId]);
-    
     // Return success response with user data and token
     echo json_encode([
         'success' => true,
         'user' => $user,
-        'token' => $token
+        'token' => $user['token']
     ]);
     
 } catch (PDOException $e) {

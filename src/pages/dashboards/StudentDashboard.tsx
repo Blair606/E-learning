@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import {
   BookOpenIcon,
   CalendarIcon,
@@ -17,7 +19,11 @@ import {
   XMarkIcon,
   VideoCameraIcon,
   DocumentTextIcon,
+  ArrowRightOnRectangleIcon,
+  Cog6ToothIcon,
 } from '@heroicons/react/24/outline';
+import EditStudentProfileModal from '../../components/modals/EditStudentProfileModal';
+import CourseDetailsModal from '../../components/modals/CourseDetailsModal';
 
 interface DiscussionTopic {
   id: number;
@@ -67,9 +73,102 @@ interface Unit {
   assignments: { id: number; title: string; dueDate: string; status: string; }[];
 }
 
+interface Course {
+  id: number;
+  name: string;
+  code: string;
+  description: string;
+  credits: number;
+  status: string;
+  schedule: Array<{
+    day: string;
+    time: string;
+    duration: number;
+  }>;
+  prerequisites: string[];
+  department: string;
+  school: string;
+  instructor: string;
+  instructorId: number;
+  isEnrolled: boolean;
+}
+
 const StudentDashboard = () => {
+  const { user } = useAuth();
   const [activeMenu, setActiveMenu] = useState('courses');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [studentData, setStudentData] = useState<any>(null);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isGuardianModalOpen, setIsGuardianModalOpen] = useState(false);
+  const profileDropdownRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate ? useNavigate() : () => {};
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchStudentData = async () => {
+      try {
+        const response = await fetch(`http://localhost/E-learning/api/students/read.php?user_id=${user?.id}`, {
+          headers: {
+            'Accept': 'application/json',
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch student data');
+        }
+        
+        const result = await response.json();
+        if (result.status === 'success' && result.data) {
+          setStudentData(result.data);
+        }
+      } catch (error) {
+        console.error('Error fetching student data:', error);
+      }
+    };
+
+    if (user?.id) {
+      fetchStudentData();
+    }
+  }, [user]);
+
+  // Add this new useEffect for fetching courses
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('http://localhost/E-learning/api/courses/get_student_courses.php', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Accept': 'application/json',
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch courses');
+        }
+
+        const data = await response.json();
+        if (data.success) {
+          // Update to use data.courses instead of data.data
+          setCourses(data.courses || []);
+        } else {
+          throw new Error(data.message || 'Failed to fetch courses');
+        }
+      } catch (error) {
+        console.error('Error fetching courses:', error);
+        setError(error instanceof Error ? error.message : 'Failed to fetch courses');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCourses();
+  }, []);
 
   const [currentUnits, setCurrentUnits] = useState<Unit[]>([
     {
@@ -694,166 +793,122 @@ const StudentDashboard = () => {
     }
   };
 
+  // Add enrollment handler
+  const handleEnroll = async (courseId: number) => {
+    try {
+      const response = await fetch('http://localhost/E-learning/api/courses/enroll.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          course_id: courseId,
+          student_id: user?.id
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to enroll in course');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        // Update the courses list to reflect the enrollment
+        setCourses(courses.map(course => 
+          course.id === courseId ? { ...course, isEnrolled: true } : course
+        ));
+      } else {
+        throw new Error(data.message || 'Failed to enroll in course');
+      }
+    } catch (error) {
+      console.error('Error enrolling in course:', error);
+      throw error;
+    }
+  };
+
   const renderContent = () => {
     switch (activeMenu) {
       case 'courses':
         return (
           <div className="space-y-6">
-            {/* Quick Stats Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {quickStats.map((stat) => (
-                <div key={stat.id} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all duration-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-600">{stat.label}</p>
-                      <p className="text-2xl font-bold mt-1">{stat.value}</p>
-                    </div>
-                    <stat.icon className={`w-8 h-8 ${stat.color}`} />
-                  </div>
-                </div>
-              ))}
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-800">My Courses</h2>
+              <div className="flex space-x-4">
+                <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                  Enroll in New Course
+                </button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Current Units with Enhanced Details */}
-              <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm">
-                <h2 className="text-xl font-semibold mb-6 flex items-center text-gray-800">
-                  <BookOpenIcon className="w-5 h-5 mr-2 text-blue-500" />
-                  Current Units
-                </h2>
-                <div className="space-y-6">
-                  {currentUnits.map(course => (
-                    <div key={course.id} className="border rounded-xl p-4 hover:shadow-md transition-all duration-200">
+            {loading ? (
+              <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+              </div>
+            ) : error ? (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-red-600">{error}</p>
+              </div>
+            ) : courses.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500">No courses available for your department.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {courses.map((course) => (
+                  <div key={course.id} className="bg-white rounded-xl shadow-md overflow-hidden">
+                    <div className="p-6">
                       <div className="flex justify-between items-start mb-4">
                         <div>
-                          <h3 className="font-semibold text-lg text-gray-800">{course.name}</h3>
-                          <p className="text-gray-600">Instructor: {course.instructor}</p>
+                          <h3 className="text-lg font-semibold text-gray-800">{course.name}</h3>
+                          <p className="text-sm text-gray-500">{course.code}</p>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <ClockIcon className="w-4 h-4 text-blue-500" />
-                          <span className="text-sm px-3 py-1 bg-blue-100 text-blue-600 rounded-full">
-                            {course.nextClass}
-                          </span>
-                        </div>
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                          course.isEnrolled ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {course.isEnrolled ? 'Enrolled' : 'Available'}
+                        </span>
                       </div>
-
-                      {/* Course Content Section */}
-                      <div className="mt-4 space-y-2">
-                        <h4 className="text-sm font-medium text-gray-700">Course Content</h4>
-                        {course.content.length > 0 ? (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {course.content.map(item => (
-                              <button
-                                key={item.id}
-                                onClick={() => {
-                                  setSelectedContent(item);
-                                  setIsContentModalOpen(true);
-                                }}
-                                className={`p-3 rounded-lg text-left transition-colors ${
-                                  item.completed
-                                    ? 'bg-green-50 hover:bg-green-100'
-                                    : 'bg-gray-50 hover:bg-gray-100'
-                                }`}
-                              >
-                                <div className="flex items-center">
-                                  <DocumentTextIcon className={`w-5 h-5 mr-2 ${
-                                    item.completed ? 'text-green-500' : 'text-blue-500'
-                                  }`} />
-                                  <div>
-                                    <h5 className="font-medium">{item.title}</h5>
-                                    <p className="text-sm text-gray-600">
-                                      {item.questions.filter(q => q.completed).length} of {item.questions.length} completed
-                                    </p>
-                                  </div>
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-sm text-gray-500 italic">No content added yet</p>
+                      
+                      <p className="text-gray-600 text-sm mb-4 line-clamp-2">{course.description}</p>
+                      
+                      <div className="space-y-2 text-sm text-gray-500">
+                        <p><span className="font-medium">Instructor:</span> {course.instructor}</p>
+                        <p><span className="font-medium">Department:</span> {course.department}</p>
+                        <p><span className="font-medium">Credits:</span> {course.credits}</p>
+                        {course.schedule && course.schedule.length > 0 && (
+                          <p>
+                            <span className="font-medium">Schedule:</span>{' '}
+                            {course.schedule.map(s => `${s.day} ${s.time}`).join(', ')}
+                          </p>
                         )}
                       </div>
 
-                      {/* Progress Bar */}
-                      <div className="mt-2 bg-gray-200 rounded-full h-2.5">
-                        <div
-                          className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
-                          style={{ width: `${course.progress}%` }}
-                        />
-                      </div>
-                      <div className="mt-2 flex justify-between items-center mb-4">
-                        <span className="text-sm text-gray-500">Progress</span>
-                        <span className="text-sm font-medium text-blue-600">{course.progress}% Complete</span>
-                      </div>
-
-                      {/* Resources and Assignments Tabs */}
-                      <div className="mt-4 border-t pt-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <h4 className="font-medium text-gray-700 mb-2">Recent Resources</h4>
-                            <div className="space-y-2">
-                              {course.resources.slice(0, 2).map(resource => (
-                                <a
-                                  key={resource.id}
-                                  href={resource.downloadUrl}
-                                  className="flex items-center p-2 hover:bg-gray-50 rounded-lg group"
-                                >
-                                  <DocumentIcon className="w-4 h-4 text-gray-400 group-hover:text-blue-500 mr-2" />
-                                  <span className="text-sm text-gray-600 group-hover:text-blue-600">
-                                    {resource.title}
-                                  </span>
-                                </a>
-                              ))}
-                            </div>
-                          </div>
-                          <div>
-                            <h4 className="font-medium text-gray-700 mb-2">Upcoming Tasks</h4>
-                            <div className="space-y-2">
-                              {course.assignments.map(assignment => (
-                                <div
-                                  key={assignment.id}
-                                  className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg"
-                                >
-                                  <span className="text-sm text-gray-600">{assignment.title}</span>
-                                  <span className={`text-xs px-2 py-1 rounded-full ${
-                                    assignment.status === 'pending' 
-                                      ? 'bg-yellow-100 text-yellow-700'
-                                      : 'bg-green-100 text-green-700'
-                                  }`}>
-                                    {assignment.status}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
+                      <div className="mt-6 flex justify-end space-x-3">
+                        {course.isEnrolled ? (
+                          <button
+                            onClick={() => navigate(`/course/${course.id}`)}
+                            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                          >
+                            View Course
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setSelectedCourse(course);
+                              setIsCourseModalOpen(true);
+                            }}
+                            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                          >
+                            View Details
+                          </button>
+                        )}
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Quick Access and Stats */}
-              <div className="space-y-6">
-                <div className="bg-white p-6 rounded-xl shadow-sm">
-                  <h3 className="text-lg font-semibold mb-4">Quick Access</h3>
-                  <div className="space-y-3">
-                    <button className="w-full px-4 py-2 text-left flex items-center space-x-3 bg-gray-50 hover:bg-blue-50 text-gray-700 hover:text-blue-600 rounded-lg transition-colors">
-                      <DocumentPlusIcon className="w-5 h-5" />
-                      <span>Submit Assignment</span>
-                    </button>
-                    <button className="w-full px-4 py-2 text-left flex items-center space-x-3 bg-gray-50 hover:bg-blue-50 text-gray-700 hover:text-blue-600 rounded-lg transition-colors">
-                      <ChatBubbleLeftRightIcon className="w-5 h-5" />
-                      <span>Contact Instructor</span>
-                    </button>
-                    <button className="w-full px-4 py-2 text-left flex items-center space-x-3 bg-gray-50 hover:bg-blue-50 text-gray-700 hover:text-blue-600 rounded-lg transition-colors">
-                      <BookmarkIcon className="w-5 h-5" />
-                      <span>View All Resources</span>
-                    </button>
                   </div>
-                </div>
+                ))}
               </div>
-            </div>
+            )}
           </div>
         );
 
@@ -870,35 +925,43 @@ const StudentDashboard = () => {
                   <thead>
                     <tr className="bg-gray-50">
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                      {weeklySchedule.map(day => (
-                        <th key={day.day} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          {day.day}
+                      {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map(day => (
+                        <th key={day} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          {day}
                         </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {/* Time slots from 9 AM to 5 PM */}
                     {Array.from({ length: 9 }, (_, i) => i + 9).map(hour => (
                       <tr key={hour} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {`${hour}:00 - ${hour + 1}:00`}
                         </td>
-                        {weeklySchedule.map(day => {
-                          const classAtThisTime = day.classes.find(c => {
-                            const [startHour] = c.time.split(' - ')[0].split(':').map(Number);
+                        {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map(day => {
+                          const classAtThisTime = courses.find(course => {
+                            if (!course.schedule) return false;
+                            const schedule = course.schedule[day];
+                            if (!schedule) return false;
+                            const [startHour] = schedule.split(':').map(Number);
                             return startHour === hour;
                           });
 
                           return (
-                            <td key={day.day} className="px-6 py-4 whitespace-nowrap">
+                            <td key={day} className="px-6 py-4 whitespace-nowrap">
                               {classAtThisTime && (
-                                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
-                                  <p className="font-medium text-blue-700">{classAtThisTime.unit}</p>
+                                <div 
+                                  className="bg-blue-50 p-3 rounded-lg border border-blue-100 cursor-pointer hover:bg-blue-100"
+                                  onClick={() => {
+                                    setSelectedCourse(classAtThisTime);
+                                    setIsCourseModalOpen(true);
+                                  }}
+                                >
+                                  <p className="font-medium text-blue-700">{classAtThisTime.name}</p>
                                   <p className="text-sm text-gray-600">{classAtThisTime.code}</p>
-                                  <p className="text-sm text-blue-600">{classAtThisTime.time}</p>
+                                  <p className="text-sm text-blue-600">{classAtThisTime.schedule[day]}</p>
                                   <p className="text-xs text-gray-500">
-                                    {classAtThisTime.room} • {classAtThisTime.instructor}
+                                    {classAtThisTime.instructor}
                                   </p>
                                 </div>
                               )}
@@ -909,25 +972,6 @@ const StudentDashboard = () => {
                     ))}
                   </tbody>
                 </table>
-              </div>
-            </div>
-
-            {/* Today's Schedule */}
-            <div className="bg-white p-6 rounded-xl shadow-sm">
-              <h2 className="text-xl font-semibold mb-4">Today's Classes</h2>
-              <div className="space-y-4">
-                {weeklySchedule[0].classes.map(class_ => (
-                  <div key={class_.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="font-medium text-gray-800">{class_.unit}</p>
-                      <p className="text-sm text-gray-600">{class_.time} • {class_.room}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-gray-600">{class_.instructor}</p>
-                      <p className="text-sm font-medium text-blue-600">{class_.code}</p>
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
           </div>
@@ -1276,44 +1320,55 @@ const StudentDashboard = () => {
       case 'profile':
         return (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Profile Overview */}
-            <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm">
-              <div className="flex items-center space-x-6 mb-6">
-                <div className="w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center">
-                  <UserCircleIcon className="w-16 h-16 text-blue-500" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-800">{profileData.name}</h2>
-                  <p className="text-gray-600">{profileData.studentId}</p>
-                  <p className="text-blue-600">{profileData.course} • {profileData.year}</p>
-                </div>
-                <button className="ml-auto px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                  Edit Profile
-                </button>
-              </div>
-              
-              {/* Contact Information */}
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-3">Contact Information</h3>
-                <div className="space-y-2 text-gray-600">
-                  <p>Email: {profileData.email}</p>
+            {/* Main Profile Content */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Profile Header with Edit Button */}
+              <div className="bg-white p-6 rounded-xl shadow-sm">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold text-gray-800">Profile Information</h2>
+              <button
+                onClick={() => setIsProfileModalOpen(true)}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                Edit Profile
+              </button>
+            </div>
+
+                {/* Profile Details */}
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500">Full Name</h3>
+                    <p className="mt-1 text-lg text-gray-900">{studentData?.first_name} {studentData?.last_name}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500">Email</h3>
+                    <p className="mt-1 text-lg text-gray-900">{studentData?.email}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500">Phone</h3>
+                    <p className="mt-1 text-lg text-gray-900">{studentData?.phone || 'Not provided'}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500">Address</h3>
+                    <p className="mt-1 text-lg text-gray-900">{studentData?.address || 'Not provided'}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500">School</h3>
+                    <p className="mt-1 text-lg text-gray-900">{studentData?.school_name || 'Not assigned'}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-500">Department</h3>
+                    <p className="mt-1 text-lg text-gray-900">{studentData?.department_name || 'Not assigned'}</p>
+                  </div>
                 </div>
               </div>
 
-              {/* Guardian Information */}
-              <div className="mb-6">
+            {/* Guardian Information */}
+              <div className="bg-white p-6 rounded-xl shadow-sm">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold">Guardian Information</h3>
                   <button
-                    onClick={() => setCurrentGuardian({
-                      firstName: '',
-                      lastName: '',
-                      email: '',
-                      phoneNumber: '',
-                      relationship: '',
-                      address: '',
-                      nationalId: '',
-                    })}
+                    onClick={() => setIsGuardianModalOpen(true)}
                     className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
                   >
                     Add New Guardian
@@ -1321,9 +1376,9 @@ const StudentDashboard = () => {
                 </div>
 
                 {/* List of Registered Guardians */}
-                <div className="space-y-4 mb-6">
+                <div className="space-y-4">
                   {guardians.map((guardian, index) => (
-                    <div key={index} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <div key={index} className="bg-gray-50 p-4 rounded-xl">
                       <div className="flex justify-between items-start">
                         <div>
                           <h4 className="font-medium text-gray-800">
@@ -1344,100 +1399,11 @@ const StudentDashboard = () => {
                     </div>
                   ))}
                 </div>
-
-                {/* Guardian Registration Form */}
-                <form onSubmit={handleGuardianRegistration} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                      <input
-                        type="text"
-                        required
-                        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        value={currentGuardian.firstName}
-                        onChange={(e) => setCurrentGuardian(prev => ({ ...prev, firstName: e.target.value }))}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                      <input
-                        type="text"
-                        required
-                        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        value={currentGuardian.lastName}
-                        onChange={(e) => setCurrentGuardian(prev => ({ ...prev, lastName: e.target.value }))}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                      <input
-                        type="email"
-                        required
-                        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        value={currentGuardian.email}
-                        onChange={(e) => setCurrentGuardian(prev => ({ ...prev, email: e.target.value }))}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                      <input
-                        type="tel"
-                        required
-                        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        value={currentGuardian.phoneNumber}
-                        onChange={(e) => setCurrentGuardian(prev => ({ ...prev, phoneNumber: e.target.value }))}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Relationship</label>
-                      <select
-                        required
-                        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        value={currentGuardian.relationship}
-                        onChange={(e) => setCurrentGuardian(prev => ({ ...prev, relationship: e.target.value }))}
-                      >
-                        <option value="">Select relationship</option>
-                        <option value="Father">Father</option>
-                        <option value="Mother">Mother</option>
-                        <option value="Guardian">Guardian</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">National ID</label>
-                      <input
-                        type="text"
-                        required
-                        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        value={currentGuardian.nationalId}
-                        onChange={(e) => setCurrentGuardian(prev => ({ ...prev, nationalId: e.target.value }))}
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                      <textarea
-                        required
-                        rows={3}
-                        className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        value={currentGuardian.address}
-                        onChange={(e) => setCurrentGuardian(prev => ({ ...prev, address: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-                  <div className="mt-6 flex justify-end">
-                    <button
-                      type="submit"
-                      className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                    >
-                      Register Guardian
-                    </button>
-                  </div>
-                </form>
               </div>
 
               {/* Achievements */}
-              <div>
-                <h3 className="text-lg font-semibold mb-3">Achievements</h3>
+              <div className="bg-white p-6 rounded-xl shadow-sm">
+                <h3 className="text-lg font-semibold mb-4">Achievements</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {profileData.achievements.map(achievement => (
                     <div key={achievement.id} className="flex items-center space-x-3 p-3 bg-blue-50 rounded-lg">
@@ -1447,32 +1413,9 @@ const StudentDashboard = () => {
                   ))}
                 </div>
               </div>
-
-              {/* Current Semester Status */}
-              <div className="mt-6">
-                <h3 className="text-lg font-semibold mb-3">Current Semester Status</h3>
-                <div className="p-4 rounded-lg border-2 border-gray-100">
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-gray-700 font-medium">{profileData.currentSemester.name}</span>
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      profileData.currentSemester.status === 'activated' 
-                        ? 'bg-green-100 text-green-800'
-                        : profileData.currentSemester.status === 'pending'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {profileData.currentSemester.status.charAt(0).toUpperCase() + profileData.currentSemester.status.slice(1)}
-                    </span>
-                  </div>
-                  <div className="space-y-2 text-sm text-gray-600">
-                    <p>Activation Date: {profileData.currentSemester.activationDate}</p>
-                    <p>Next Payment Due: {profileData.currentSemester.nextPaymentDue}</p>
-                  </div>
-                </div>
-              </div>
             </div>
 
-            {/* Quick Stats */}
+            {/* Quick Stats Sidebar */}
             <div className="space-y-6">
               <div className="bg-white p-6 rounded-xl shadow-sm">
                 <h3 className="text-lg font-semibold mb-4">Academic Overview</h3>
@@ -1484,6 +1427,33 @@ const StudentDashboard = () => {
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Credits Completed</span>
                     <span className="font-bold text-green-600">{academicResults.totalCredits}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Current Semester Status */}
+              <div className="bg-white p-6 rounded-xl shadow-sm">
+                <h3 className="text-lg font-semibold mb-4">Current Semester Status</h3>
+                <div className="space-y-4">
+                  <div>
+                    <span className="text-gray-600">Semester</span>
+                    <p className="font-medium text-gray-900">{profileData.currentSemester.name}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Status</span>
+                    <p className={`font-medium ${
+                      profileData.currentSemester.status === 'activated' 
+                        ? 'text-green-600'
+                        : profileData.currentSemester.status === 'pending'
+                        ? 'text-yellow-600'
+                        : 'text-red-600'
+                    }`}>
+                      {profileData.currentSemester.status.charAt(0).toUpperCase() + profileData.currentSemester.status.slice(1)}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Next Payment Due</span>
+                    <p className="font-medium text-gray-900">{profileData.currentSemester.nextPaymentDue}</p>
                   </div>
                 </div>
               </div>
@@ -1728,6 +1698,38 @@ const StudentDashboard = () => {
     }
   };
 
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
+        setIsProfileDropdownOpen(false);
+      }
+    }
+    if (isProfileDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isProfileDropdownOpen]);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    // If you use context or redux, also clear user state here
+    setIsProfileDropdownOpen(false);
+    navigate('/login');
+  };
+
+  // Add a handler for saving profile changes
+  const handleProfileSave = async (updatedData: any) => {
+    try {
+      setStudentData(updatedData);
+      setIsProfileModalOpen(false);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Fixed Header */}
@@ -1745,8 +1747,7 @@ const StudentDashboard = () => {
               <AcademicCapIcon className="h-8 w-8 text-blue-600" />
             </div>
           </div>
-
-          {/* Right side - Actions and profile */}
+          {/* Right side - Just student name and avatar (optional) */}
           <div className="flex items-center justify-end flex-1 space-x-4">
             <div className="hidden sm:flex items-center space-x-2">
               <span className="text-sm text-gray-500">Spring 2024</span>
@@ -1754,12 +1755,11 @@ const StudentDashboard = () => {
             </div>
             <div className="flex items-center border-l pl-4 ml-4">
               <div className="hidden sm:block text-right mr-3">
-                <p className="text-sm font-medium text-gray-900">{profileData.name}</p>
-                <p className="text-xs text-gray-500">Student</p>
+                <p className="text-sm font-medium text-gray-900">{studentData?.first_name} {studentData?.last_name}</p>
               </div>
               <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
                 <span className="text-sm font-medium text-blue-600">
-                  {profileData.name.split(' ').map(n => n[0]).join('')}
+                  {studentData?.first_name?.[0]}{studentData?.last_name?.[0]}
                 </span>
               </div>
             </div>
@@ -1824,10 +1824,10 @@ const StudentDashboard = () => {
           <div className="mb-8">
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 sm:p-8 rounded-2xl shadow-lg">
               <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-                Welcome back, {profileData.name.split(' ')[0]}! 👋
+                Welcome back, {studentData?.first_name}! 👋
               </h1>
               <p className="text-blue-100">
-                Your learning journey continues. Keep up the excellent work in {profileData.course}!
+                Your learning journey continues. Keep up the excellent work!
               </p>
             </div>
           </div>
@@ -1836,6 +1836,46 @@ const StudentDashboard = () => {
           {renderContent()}
         </div>
       </main>
+      {isProfileModalOpen && (
+        <EditStudentProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+          onSubmit={handleProfileSave}
+        user={studentData}
+      />
+      )}
+      {isGuardianModalOpen && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-8 shadow-lg w-full max-w-lg">
+            <h2 className="text-xl font-bold mb-4">Add Parent/Guardian</h2>
+            {/* Guardian Registration Form (reuse your form JSX here) */}
+            <form onSubmit={handleGuardianRegistration} className="space-y-4">
+              {/* ...form fields for guardian registration... */}
+              <button
+                type="submit"
+                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                Register Guardian
+              </button>
+              <button
+                type="button"
+                className="ml-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+                onClick={() => setIsGuardianModalOpen(false)}
+              >
+                Cancel
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+      {isCourseModalOpen && selectedCourse && (
+        <CourseDetailsModal
+          isOpen={isCourseModalOpen}
+          onClose={() => setIsCourseModalOpen(false)}
+          course={selectedCourse}
+          onEnroll={handleEnroll}
+        />
+      )}
     </div>
   );
 };

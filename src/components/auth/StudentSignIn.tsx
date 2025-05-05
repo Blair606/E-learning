@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { setUser } from '../../store/slices/authSlice';
-import { userService } from '../../services/userService';
+import { useAuth } from '../../contexts/AuthContext';
 import { UserCircleIcon, LockClosedIcon, AcademicCapIcon } from '@heroicons/react/24/outline';
 
 interface SignInError {
@@ -18,7 +16,7 @@ interface LocationState {
 const StudentSignIn: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const dispatch = useDispatch();
+    const { login } = useAuth();
     const [formData, setFormData] = useState({
         email: '',
         password: ''
@@ -40,11 +38,8 @@ const StudentSignIn: React.FC = () => {
         setLoading(true);
 
         try {
-            const response = await userService.login(formData.email, formData.password);
-            if (response.token && response.user.role === 'student') {
-                dispatch(setUser(response.user));
-                localStorage.setItem('token', response.token);
-                localStorage.setItem('user', JSON.stringify(response.user));
+            const response = await login(formData.email, formData.password);
+            if (response.user.role.toLowerCase() === 'student') {
                 const from = (location.state as LocationState)?.from?.pathname || '/dashboard/student';
                 navigate(from);
             } else {

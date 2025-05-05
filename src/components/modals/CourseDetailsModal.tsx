@@ -1,184 +1,170 @@
-import { Fragment } from 'react';
-import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon, ClockIcon, AcademicCapIcon, UserGroupIcon } from '@heroicons/react/24/outline';
-import { Course } from '../../types/course';
+import React from 'react';
+import { XMarkIcon, BookOpenIcon, DocumentTextIcon, VideoCameraIcon } from '@heroicons/react/24/outline';
 
 interface CourseDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  course: Course;
+  course: {
+    id: number;
+    name: string;
+    code: string;
+    description: string;
+    credits: number;
+    status: string;
+    schedule: any;
+    prerequisites: any[];
+    department: string;
+    school: string;
+    instructor: string;
+    instructorId: number;
+    isEnrolled: boolean;
+    content?: {
+      id: string;
+      title: string;
+      type: string;
+      description: string;
+      duration?: string;
+      completed?: boolean;
+    }[];
+  } | null;
+  onEnroll: (courseId: number) => Promise<void>;
 }
 
-const CourseDetailsModal = ({ isOpen, onClose, course }: CourseDetailsModalProps) => {
+const CourseDetailsModal: React.FC<CourseDetailsModalProps> = ({
+  isOpen,
+  onClose,
+  course,
+  onEnroll,
+}) => {
+  if (!isOpen || !course) return null;
+
+  const handleEnroll = async () => {
+    try {
+      await onEnroll(course.id);
+      onClose();
+    } catch (error) {
+      console.error('Error enrolling in course:', error);
+    }
+  };
+
   return (
-    <Transition.Root show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={onClose}>
-        <Transition.Child
-          as={Fragment}
-          enter="ease-out duration-300"
-          enterFrom="opacity-0"
-          enterTo="opacity-100"
-          leave="ease-in duration-200"
-          leaveFrom="opacity-100"
-          leaveTo="opacity-0"
-        >
-          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
-        </Transition.Child>
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl p-8 shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800">{course.name}</h2>
+            <p className="text-gray-600">{course.code}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-500"
+          >
+            <XMarkIcon className="h-6 w-6" />
+          </button>
+        </div>
 
-        <div className="fixed inset-0 z-10 overflow-y-auto">
-          <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-              enterTo="opacity-100 translate-y-0 sm:scale-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100 translate-y-0 sm:scale-100"
-              leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
-            >
-              <Dialog.Panel className="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl sm:p-6">
-                <div className="absolute right-0 top-0 pr-4 pt-4">
-                  <button
-                    type="button"
-                    className="rounded-md bg-white text-gray-400 hover:text-gray-500"
-                    onClick={onClose}
-                  >
-                    <span className="sr-only">Close</span>
-                    <XMarkIcon className="h-6 w-6" aria-hidden="true" />
-                  </button>
+        <div className="space-y-6">
+          {/* Course Description */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">Description</h3>
+            <p className="text-gray-600">{course.description}</p>
+          </div>
+
+          {/* Course Details */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">Course Information</h3>
+              <div className="space-y-2">
+                <p><span className="font-medium">Credits:</span> {course.credits}</p>
+                <p><span className="font-medium">Department:</span> {course.department}</p>
+                <p><span className="font-medium">School:</span> {course.school}</p>
+                <p><span className="font-medium">Instructor:</span> {course.instructor}</p>
+              </div>
+            </div>
+
+            {/* Schedule Information */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">Schedule</h3>
+              {course.schedule ? (
+                <div className="space-y-2">
+                  {Object.entries(course.schedule).map(([day, time]) => (
+                    <p key={day}><span className="font-medium">{day}:</span> {time}</p>
+                  ))}
                 </div>
+              ) : (
+                <p className="text-gray-500">Schedule not available</p>
+              )}
+            </div>
+          </div>
 
-                <div className="sm:flex sm:items-start">
-                  <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                    <Dialog.Title as="h3" className="text-lg font-semibold leading-6 text-gray-900 mb-4">
-                      Course Details
-                    </Dialog.Title>
-
-                    {/* Course Header */}
-                    <div className="bg-purple-50 rounded-lg p-4 mb-6">
-                      <h4 className="text-xl font-bold text-purple-900">{course.title}</h4>
-                      <p className="text-sm text-purple-700 mt-1">Course Code: {course.code}</p>
-                    </div>
-
-                    {/* Quick Stats */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-                        <div className="flex items-center">
-                          <AcademicCapIcon className="h-8 w-8 text-purple-500" />
-                          <div className="ml-3">
-                            <p className="text-sm text-gray-500">Credits</p>
-                            <p className="text-lg font-semibold">{course.credits}</p>
-                          </div>
-                        </div>
+          {/* Course Content */}
+          {course.content && course.content.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Course Content</h3>
+              <div className="space-y-4">
+                {course.content.map((item) => (
+                  <div key={item.id} className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-start space-x-3">
+                      <div className="flex-shrink-0">
+                        {item.type === 'video' ? (
+                          <VideoCameraIcon className="h-6 w-6 text-blue-500" />
+                        ) : item.type === 'document' ? (
+                          <DocumentTextIcon className="h-6 w-6 text-green-500" />
+                        ) : (
+                          <BookOpenIcon className="h-6 w-6 text-purple-500" />
+                        )}
                       </div>
-                      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-                        <div className="flex items-center">
-                          <UserGroupIcon className="h-8 w-8 text-green-500" />
-                          <div className="ml-3">
-                            <p className="text-sm text-gray-500">Enrollment</p>
-                            <p className="text-lg font-semibold">{course.currentEnrollment}/{course.enrollmentCapacity}</p>
-                          </div>
-                        </div>
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-800">{item.title}</h4>
+                        <p className="text-sm text-gray-600 mt-1">{item.description}</p>
+                        {item.duration && (
+                          <p className="text-sm text-gray-500 mt-1">Duration: {item.duration}</p>
+                        )}
                       </div>
-                      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
-                        <div className="flex items-center">
-                          <ClockIcon className="h-8 w-8 text-blue-500" />
-                          <div className="ml-3">
-                            <p className="text-sm text-gray-500">Duration</p>
-                            <p className="text-lg font-semibold">
-                              {course.schedule.reduce((total: number, slot: { duration: number }) => total + slot.duration, 0)} hrs/week
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Course Information */}
-                    <div className="space-y-6">
-                      {/* Description */}
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Description</h4>
-                        <p className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
-                          {course.description}
-                        </p>
-                      </div>
-
-                      {/* Academic Details */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <h4 className="text-sm font-medium text-gray-700 mb-2">School</h4>
-                          <p className="text-sm text-gray-600">{course.school}</p>
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-medium text-gray-700 mb-2">Department</h4>
-                          <p className="text-sm text-gray-600">{course.department}</p>
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-medium text-gray-700 mb-2">Instructor</h4>
-                          <p className="text-sm text-gray-600">{course.instructor}</p>
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-medium text-gray-700 mb-2">Status</h4>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            course.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
-                            {course.status}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Schedule */}
-                      <div>
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Schedule</h4>
-                        <div className="bg-gray-50 rounded-lg p-3">
-                          <div className="space-y-2">
-                            {course.schedule.map((slot: { day: string; time: string; duration: number }, index: number) => (
-                              <div key={index} className="flex items-center text-sm text-gray-600">
-                                <ClockIcon className="h-4 w-4 text-gray-400 mr-2" />
-                                <span>{slot.day}: {slot.time} ({slot.duration} hours)</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Prerequisites */}
-                      {course.prerequisites.length > 0 && (
-                        <div>
-                          <h4 className="text-sm font-medium text-gray-700 mb-2">Prerequisites</h4>
-                          <div className="flex flex-wrap gap-2">
-                            {course.prerequisites.map((prereq: string) => (
-                              <span
-                                key={prereq}
-                                className="inline-flex items-center rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-700"
-                              >
-                                {prereq}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
+                      {item.completed && (
+                        <span className="flex-shrink-0 px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
+                          Completed
+                        </span>
                       )}
-
-                      {/* Course Dates */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <h4 className="text-sm font-medium text-gray-700 mb-2">Start Date</h4>
-                          <p className="text-sm text-gray-600">{new Date(course.startDate).toLocaleDateString()}</p>
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-medium text-gray-700 mb-2">End Date</h4>
-                          <p className="text-sm text-gray-600">{new Date(course.endDate).toLocaleDateString()}</p>
-                        </div>
-                      </div>
                     </div>
                   </div>
-                </div>
-              </Dialog.Panel>
-            </Transition.Child>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Prerequisites */}
+          {course.prerequisites && course.prerequisites.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">Prerequisites</h3>
+              <ul className="list-disc list-inside text-gray-600">
+                {course.prerequisites.map((prereq, index) => (
+                  <li key={index}>{prereq}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Enrollment Button */}
+          <div className="flex justify-end space-x-4">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+            >
+              Close
+            </button>
+            {!course.isEnrolled && (
+              <button
+                onClick={handleEnroll}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+              >
+                Enroll Now
+              </button>
+            )}
           </div>
         </div>
-      </Dialog>
-    </Transition.Root>
+      </div>
+    </div>
   );
 };
 
