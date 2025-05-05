@@ -5,8 +5,7 @@ require_once '../config/database.php';
 require_once '../middleware/auth.php';
 
 // Verify JWT token
-$auth = new Auth();
-$user = $auth->verifyToken();
+$user = AuthMiddleware::authenticate();
 
 if (!$user || $user['role'] !== 'teacher') {
     http_response_code(401);

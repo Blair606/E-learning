@@ -21,19 +21,19 @@ try {
         exit();
     }
 
-    $data = json_decode(file_get_contents('php://input'), true);
-
     // Validate required fields
-    if (!isset($data['title']) || !isset($data['description']) || 
-        !isset($data['due_date']) || !isset($data['total_marks']) || !isset($data['course_id'])) {
+    if (!isset($_POST['title']) || !isset($_POST['description']) || 
+        !isset($_POST['due_date']) || !isset($_POST['total_marks']) || 
+        !isset($_POST['course_id']) || !isset($_POST['type'])) {
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'Missing required fields']);
         exit();
     }
 
     // Validate data types
-    if (!is_string($data['title']) || !is_string($data['description']) || 
-        !is_numeric($data['total_marks']) || !strtotime($data['due_date']) || !is_numeric($data['course_id'])) {
+    if (!is_string($_POST['title']) || !is_string($_POST['description']) || 
+        !is_numeric($_POST['total_marks']) || !strtotime($_POST['due_date']) || 
+        !is_numeric($_POST['course_id']) || !in_array($_POST['type'], ['text', 'file', 'quiz'])) {
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => 'Invalid data types']);
         exit();
@@ -43,24 +43,54 @@ try {
 
     // Check if course exists
     $stmt = $conn->prepare('SELECT id FROM courses WHERE id = ?');
-    $stmt->execute([$data['course_id']]);
+    $stmt->execute([$_POST['course_id']]);
     if ($stmt->rowCount() === 0) {
         http_response_code(404);
         echo json_encode(['success' => false, 'message' => 'Course not found']);
         exit();
     }
 
+    // Handle file upload if type is 'file'
+    $filePath = null;
+    $fileName = null;
+    if ($_POST['type'] === 'file') {
+        if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'File upload required for file type assignments']);
+            exit();
+        }
+
+        $uploadDir = '../uploads/assignments/';
+        if (!file_exists($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+        }
+
+        $fileName = basename($_FILES['file']['name']);
+        $filePath = $uploadDir . uniqid() . '_' . $fileName;
+
+        if (!move_uploaded_file($_FILES['file']['tmp_name'], $filePath)) {
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => 'Failed to upload file']);
+            exit();
+        }
+    }
+
     $stmt = $conn->prepare("
-        INSERT INTO assignments (course_id, title, description, due_date, total_marks)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO assignments (
+            course_id, title, description, due_date, total_marks, 
+            type, file_path, file_name
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ");
 
     $stmt->execute([
-        $data['course_id'],
-        $data['title'],
-        $data['description'],
-        $data['due_date'],
-        $data['total_marks']
+        $_POST['course_id'],
+        $_POST['title'],
+        $_POST['description'],
+        $_POST['due_date'],
+        $_POST['total_marks'],
+        $_POST['type'],
+        $filePath,
+        $fileName
     ]);
 
     $assignmentId = $conn->lastInsertId();

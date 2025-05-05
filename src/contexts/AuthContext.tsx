@@ -54,10 +54,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await userService.login(email, password);
       
       if (response.token && response.user) {
-        // Add token to user object
+        // Use the main token for authentication
         const userWithToken = {
           ...response.user,
-          token: response.token
+          token: response.token // Use the main token instead of user.token
         };
         
         setUser(userWithToken);

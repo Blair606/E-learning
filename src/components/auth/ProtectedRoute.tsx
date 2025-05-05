@@ -9,13 +9,14 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
     const { user, loading } = useAuth();
+    const token = localStorage.getItem('token');
 
     if (loading) {
         return <div>Loading...</div>;
     }
 
-    if (!user) {
-        return <Navigate to="/login/teacher" replace />;
+    if (!token || !user) {
+        return <Navigate to="/login" replace />;
     }
 
     if (!allowedRoles.includes(user.role)) {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import axios from 'axios';
+import type { Assignment } from '../../services/teacherService';
 
 interface Course {
   id: number;
@@ -10,7 +11,7 @@ interface Course {
 interface CreateAssignmentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAssignmentCreated: () => void;
+  onAssignmentCreated: (assignment: Assignment) => void;
   courses: Course[];
 }
 
@@ -20,6 +21,8 @@ const CreateAssignmentModal = ({ isOpen, onClose, onAssignmentCreated, courses }
   const [dueDate, setDueDate] = useState('');
   const [totalMarks, setTotalMarks] = useState('');
   const [courseId, setCourseId] = useState('');
+  const [type, setType] = useState('text');
+  const [file, setFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -35,26 +38,46 @@ const CreateAssignmentModal = ({ isOpen, onClose, onAssignmentCreated, courses }
     setIsSubmitting(true);
 
     try {
+      const formData = new FormData();
+      formData.append('title', title);
+      formData.append('description', description);
+      formData.append('due_date', dueDate);
+      formData.append('total_marks', totalMarks);
+      formData.append('course_id', courseId);
+      formData.append('type', type);
+      if (file) {
+        formData.append('file', file);
+      }
+
       const response = await axios.post(
         'http://localhost/E-learning/api/assignments/create_assignment.php',
-        {
-          title,
-          description,
-          due_date: dueDate,
-          total_marks: parseInt(totalMarks),
-          course_id: parseInt(courseId)
-        },
+        formData,
         {
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'multipart/form-data',
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           },
-          validateStatus: () => true // Always resolve, handle errors manually
+          validateStatus: () => true
         }
       );
 
       if (response.status === 200 && response.data.success) {
-        onAssignmentCreated();
+        const selectedCourse = courses.find(c => c.id.toString() === courseId);
+        const newAssignment: Assignment = {
+          id: response.data.assignment_id,
+          title: title,
+          description: description,
+          due_date: dueDate,
+          total_marks: parseInt(totalMarks),
+          type: type,
+          status: 'Active',
+          submissions: 0,
+          course_id: parseInt(courseId),
+          course_name: selectedCourse?.name || '',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        onAssignmentCreated(newAssignment);
         onClose();
         // Reset form
         setTitle('');
@@ -62,12 +85,14 @@ const CreateAssignmentModal = ({ isOpen, onClose, onAssignmentCreated, courses }
         setDueDate('');
         setTotalMarks('');
         setCourseId(courses.length > 0 ? courses[0].id.toString() : '');
+        setType('text');
+        setFile(null);
       } else {
         setError(response.data?.message || response.data?.error || 'Failed to create assignment');
         console.error('Assignment creation error:', response);
       }
-    } catch (err: any) {
-      console.error('Assignment creation error:', err, err.response);
+    } catch (err) {
+      console.error('Assignment creation error:', err);
       setError(err.response?.data?.message || err.message || 'An error occurred while creating the assignment');
     } finally {
       setIsSubmitting(false);
@@ -77,8 +102,8 @@ const CreateAssignmentModal = ({ isOpen, onClose, onAssignmentCreated, courses }
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-      <div className="relative w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl p-8">
+    <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50 overflow-y-auto">
+      <div className="relative w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-2xl p-8 my-8">
         <div className="flex justify-between items-center mb-6 border-b pb-4">
           <h3 className="text-2xl font-bold text-blue-700">Create Assignment</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
@@ -86,7 +111,7 @@ const CreateAssignmentModal = ({ isOpen, onClose, onAssignmentCreated, courses }
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
           {error && (
             <div className="bg-red-50 text-red-600 p-3 rounded-lg">
               {error}
@@ -129,29 +154,53 @@ const CreateAssignmentModal = ({ isOpen, onClose, onAssignmentCreated, courses }
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block font-semibold text-gray-700 mb-1">Due Date</label>
-              <input
-                type="datetime-local"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
-                required
-              />
-            </div>
+          <div>
+            <label className="block font-semibold text-gray-700 mb-1">Type</label>
+            <select
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
+              required
+            >
+              <option value="text">Text Submission</option>
+              <option value="file">File Submission</option>
+              <option value="quiz">Quiz</option>
+            </select>
+          </div>
 
+          {type === 'file' && (
             <div>
-              <label className="block font-semibold text-gray-700 mb-1">Total Marks</label>
+              <label className="block font-semibold text-gray-700 mb-1">Assignment File</label>
               <input
-                type="number"
-                value={totalMarks}
-                onChange={(e) => setTotalMarks(e.target.value)}
-                min="1"
+                type="file"
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
                 className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
-                required
+                required={type === 'file'}
               />
             </div>
+          )}
+
+          <div>
+            <label className="block font-semibold text-gray-700 mb-1">Due Date</label>
+            <input
+              type="datetime-local"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block font-semibold text-gray-700 mb-1">Total Marks</label>
+            <input
+              type="number"
+              value={totalMarks}
+              onChange={(e) => setTotalMarks(e.target.value)}
+              min="1"
+              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition"
+              required
+            />
           </div>
 
           <div className="flex justify-end gap-4 pt-6 border-t mt-6">

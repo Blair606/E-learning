@@ -84,14 +84,18 @@ class TeacherService {
     return response.data;
   }
 
-  async getAssignments() {
+  async getAssignments(courseId?: number) {
     try {
       const token = localStorage.getItem('token');
       if (!token) {
         throw new Error('No authentication token found');
       }
 
-      const response = await axios.get(`${this.baseUrl}/get_teacher_assignments.php`, {
+      const url = courseId 
+        ? `${this.baseUrl}/get_teacher_assignments.php?course_id=${courseId}`
+        : `${this.baseUrl}/get_teacher_assignments.php`;
+
+      const response = await axios.get(url, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -101,7 +105,20 @@ class TeacherService {
         throw new Error(response.data.error || 'Failed to fetch assignments');
       }
 
-      return response.data.data;
+      return {
+        data: response.data.data.map((assignment: any) => ({
+          id: assignment.id,
+          title: assignment.title,
+          description: assignment.description,
+          dueDate: assignment.dueDate,
+          course: assignment.course,
+          courseId: assignment.courseId,
+          type: assignment.type || 'Assignment',
+          status: assignment.status || 'Active',
+          submissions: parseInt(assignment.submissions) || 0,
+          totalStudents: parseInt(assignment.totalStudents) || 0
+        }))
+      };
     } catch (error) {
       console.error('Error fetching assignments:', error);
       throw error;

@@ -54,9 +54,8 @@ const TeacherSignIn: React.FC = () => {
                     console.log('Redirecting to admin dashboard');
                     navigate('/dashboard/admin');
                 } else {
-                    const from = (location.state as LocationState)?.from?.pathname || '/dashboard/teacher';
                     console.log('Redirecting to teacher dashboard');
-                    navigate(from);
+                    navigate('/dashboard/teacher');
                 }
             } else {
                 console.log('Invalid role:', response.user.role);
@@ -64,7 +63,6 @@ const TeacherSignIn: React.FC = () => {
             }
         } catch (err) {
             const error = err as SignInError;
-            console.error('Login error:', error);
             setError(error.message || 'Failed to sign in');
         } finally {
             setLoading(false);

@@ -213,6 +213,49 @@ const TeacherDashboard = () => {
     fetchTeacherData();
   }, [user?.id, dispatch, departments]);
 
+  // Fetch assignments
+  useEffect(() => {
+    const fetchAssignments = async () => {
+      try {
+        setLoading(true);
+        // Only fetch assignments if a course is selected
+        if (selectedCourseId) {
+          const response = await axios.get(`http://localhost/E-learning/api/teachers/get_teacher_assignments.php?course_id=${selectedCourseId}`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+          
+          if (response.data.success) {
+            const formattedAssignments = response.data.data.map((assignment: any) => ({
+              id: assignment.id,
+              title: assignment.title,
+              description: assignment.description,
+              dueDate: assignment.dueDate,
+              course: assignment.course,
+              courseId: assignment.courseId,
+              totalStudents: assignment.totalStudents || 0,
+              submissions: assignment.submissions || 0,
+              status: assignment.status === 'published' ? 'Active' : 'Draft',
+              type: assignment.type || 'text'
+            }));
+            setAssignments(formattedAssignments);
+          }
+        } else {
+          // If no course is selected, clear assignments
+          setAssignments([]);
+        }
+      } catch (error) {
+        console.error('Error fetching assignments:', error);
+        setError('Failed to fetch assignments');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAssignments();
+  }, [selectedCourseId]);
+
   // Fetch courses when component mounts
   const fetchCourses = async () => {
     try {
@@ -252,13 +295,13 @@ const TeacherDashboard = () => {
 
         setStudentStats({
           totalStudents: coursesData.stats?.totalStudents || 0,
-    averageAttendance: 92,
+          averageAttendance: 92,
           averageGrade: coursesData.stats?.averageGrade.toFixed(1) || '0',
           activeDiscussions: coursesData.stats?.activeAssignments || 0
         });
 
-        // Fetch assignments
-        const assignmentsData = await teacherService.getAssignments();
+        // Fetch assignments for the selected course if one is selected
+        const assignmentsData = await teacherService.getAssignments(selectedCourseId);
         setAssignments(assignmentsData.assignments || []);
 
         // Fetch notifications
@@ -291,7 +334,7 @@ const TeacherDashboard = () => {
     };
 
     fetchDashboardData();
-  }, []);
+  }, [selectedCourseId]);
 
   // Fetch real-time pending tasks (assignments) when assignments change
   useEffect(() => {
@@ -425,6 +468,29 @@ const TeacherDashboard = () => {
     navigate('/login');
   };
 
+  const handleEditAssignment = (assignment: Assignment) => {
+    // TODO: Implement edit functionality
+    console.log('Edit assignment:', assignment);
+  };
+
+  const handleDeleteAssignment = async (assignmentId: number) => {
+    try {
+      const response = await axios.delete(`http://localhost/E-learning/api/assignments/index.php`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        data: { id: assignmentId }
+      });
+      
+      if (response.data.success) {
+        setAssignments(assignments.filter(a => a.id !== assignmentId));
+      }
+    } catch (error) {
+      console.error('Error deleting assignment:', error);
+      setError('Failed to delete assignment');
+    }
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'discussions':
@@ -482,81 +548,121 @@ const TeacherDashboard = () => {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-semibold">Assignments</h2>
-              <button
-                onClick={() => setIsAssignmentModalOpen(true)}
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                <PlusIcon className="w-5 h-5 mr-2" />
-                Create Assignment
-              </button>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Assignment
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Course
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Due Date
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Type
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Submissions
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {assignments.map((assignment) => (
-                      <tr key={assignment.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="font-medium text-gray-900">{assignment.title}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {assignment.course}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {assignment.dueDate}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                            {assignment.type}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            assignment.status === 'Active' 
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {assignment.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {assignment.submissions} / {assignment.totalStudents}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button className="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
-                          <button className="text-red-600 hover:text-red-900">Delete</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="flex items-center gap-4">
+                <select
+                  value={selectedCourseId || ''}
+                  onChange={(e) => setSelectedCourseId(Number(e.target.value))}
+                  className="rounded-lg border border-gray-300 px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                >
+                  <option value="">Select a Course</option>
+                  {courses.map(course => (
+                    <option key={course.id} value={course.id}>{course.name}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => setIsAssignmentModalOpen(true)}
+                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  disabled={!selectedCourseId}
+                >
+                  <PlusIcon className="w-5 h-5 mr-2" />
+                  Create Assignment
+                </button>
               </div>
             </div>
+            {!selectedCourseId ? (
+              <div className="text-center text-gray-500 p-8">
+                Please select a course to view assignments
+              </div>
+            ) : loading ? (
+              <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+              </div>
+            ) : error ? (
+              <div className="text-red-500 text-center p-4">{error}</div>
+            ) : (
+              <div className="bg-white rounded-xl shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Assignment
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Due Date
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Type
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Status
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Submissions
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {assignments.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                            No assignments found for this course
+                          </td>
+                        </tr>
+                      ) : (
+                        assignments.map((assignment) => (
+                          <tr key={assignment.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="font-medium text-gray-900">{assignment.title}</div>
+                              <div className="text-sm text-gray-500">{assignment.description}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {new Date(assignment.dueDate).toLocaleDateString()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                                {assignment.type}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                assignment.status === 'Active' 
+                                  ? 'bg-green-100 text-green-800'
+                                  : assignment.status === 'Completed'
+                                  ? 'bg-gray-100 text-gray-800'
+                                  : 'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {assignment.status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {assignment.submissions} / {assignment.totalStudents}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <button 
+                                onClick={() => handleEditAssignment(assignment)}
+                                className="text-blue-600 hover:text-blue-900 mr-3"
+                              >
+                                Edit
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteAssignment(assignment.id)}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                Delete
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         );
 
