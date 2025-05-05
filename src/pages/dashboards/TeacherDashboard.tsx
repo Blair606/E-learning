@@ -17,6 +17,8 @@ import {
   UserCircleIcon,
   BellIcon,
   ArrowRightOnRectangleIcon,
+  DocumentIcon,
+  LinkIcon,
 } from '@heroicons/react/24/outline';
 import CreateAssignmentModal from '../../components/modals/CreateAssignmentModal';
 import CreateDiscussionGroupModal from '../../components/modals/CreateDiscussionGroupModal';
@@ -38,6 +40,7 @@ import type { User } from '../../store/slices/authSlice';
 import { courseService, type Course } from '../../services/courseService';
 import { createDiscussionGroups, fetchDiscussionGroups } from '../../store/slices/discussionSlice';
 import ScheduleClassModal from '../../components/modals/ScheduleClassModal';
+import UploadClassMaterialModal from '../../components/modals/UploadClassMaterialModal';
 
 interface ClassData {
   id: number;
@@ -136,6 +139,9 @@ const TeacherDashboard = () => {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
+  const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false);
+  const [selectedClassForMaterial, setSelectedClassForMaterial] = useState<number | null>(null);
+  const [classMaterials, setClassMaterials] = useState<any[]>([]);
 
   // Fetch departments
   useEffect(() => {
@@ -707,13 +713,13 @@ const TeacherDashboard = () => {
                     </div>
                   </div>
 
-                  <div className="mt-4 flex space-x-2">
+                  <div className="mt-4 flex flex-col space-y-2">
                     {class_.status === 'upcoming' ? (
                       <>
-                        <button className="flex-1 px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
+                        <button className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
                           Start Class
                         </button>
-                        <button className="flex-1 px-3 py-2 text-sm bg-red-50 text-red-600 rounded hover:bg-red-100">
+                        <button className="w-full px-3 py-2 text-sm bg-red-50 text-red-600 rounded hover:bg-red-100">
                           Cancel
                         </button>
                       </>
@@ -722,11 +728,51 @@ const TeacherDashboard = () => {
                         Join Class
                       </button>
                     ) : (
-                      <button className="w-full px-3 py-2 text-sm bg-gray-100 text-gray-600 rounded hover:bg-gray-200">
-                        View Recording
-                      </button>
+                      <>
+                        <button className="w-full px-3 py-2 text-sm bg-gray-100 text-gray-600 rounded hover:bg-gray-200">
+                          View Recording
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setSelectedClassForMaterial(class_.id);
+                            setIsMaterialModalOpen(true);
+                            fetchClassMaterials(class_.id);
+                          }}
+                          className="w-full px-3 py-2 text-sm bg-blue-50 text-blue-600 rounded hover:bg-blue-100"
+                        >
+                          Manage Materials
+                        </button>
+                      </>
                     )}
                   </div>
+
+                  {class_.id === selectedClassForMaterial && classMaterials.length > 0 && (
+                    <div className="mt-4 pt-4 border-t">
+                      <h4 className="font-medium text-sm text-gray-700 mb-2">Class Materials</h4>
+                      <div className="space-y-2">
+                        {classMaterials.map((material) => (
+                          <div key={material.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                            <div className="flex items-center">
+                              {material.material_type === 'file' ? (
+                                <DocumentIcon className="w-4 h-4 text-gray-500 mr-2" />
+                              ) : (
+                                <LinkIcon className="w-4 h-4 text-gray-500 mr-2" />
+                              )}
+                              <span className="text-sm">{material.title}</span>
+                            </div>
+                            <a
+                              href={material.file_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 text-sm"
+                            >
+                              {material.material_type === 'file' ? 'Download' : 'Open'}
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -736,8 +782,21 @@ const TeacherDashboard = () => {
               onClose={() => setIsScheduleClassModalOpen(false)}
               courses={courses}
               onClassScheduled={() => {
-                // Refresh the scheduled classes list
                 fetchScheduledClasses();
+              }}
+            />
+
+            <UploadClassMaterialModal
+              isOpen={isMaterialModalOpen}
+              onClose={() => {
+                setIsMaterialModalOpen(false);
+                setSelectedClassForMaterial(null);
+              }}
+              classId={selectedClassForMaterial || 0}
+              onMaterialUploaded={() => {
+                if (selectedClassForMaterial) {
+                  fetchClassMaterials(selectedClassForMaterial);
+                }
               }}
             />
           </div>
@@ -1279,6 +1338,26 @@ const TeacherDashboard = () => {
     fetchScheduledClasses();
   }, []);
 
+  // Add function to fetch materials
+  const fetchClassMaterials = async (classId: number) => {
+    try {
+      const response = await axios.get(
+        `http://localhost/E-learning/api/teachers/class_materials.php?class_id=${classId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        }
+      );
+      
+      if (response.data.success) {
+        setClassMaterials(response.data.materials);
+      }
+    } catch (error) {
+      console.error('Error fetching class materials:', error);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="fixed top-0 left-0 right-0 bg-white shadow-sm z-40">
@@ -1450,7 +1529,6 @@ const TeacherDashboard = () => {
         onClose={() => setIsScheduleClassModalOpen(false)}
         courses={courses}
         onClassScheduled={() => {
-          // Refresh the scheduled classes list
           fetchScheduledClasses();
         }}
       />
