@@ -14,33 +14,34 @@ if (!$user || $user['role'] !== 'teacher') {
 }
 
 try {
-    $teacher_id = $user['id'];
+    $conn = getConnection();
+    $teacher_id = $user['sub'];
     
     // Get teacher's courses with student count
     $courses_query = "
         SELECT 
             c.id,
-            c.title,
+            c.name,
             c.description,
             COUNT(e.id) as student_count,
             MAX(a.due_date) as next_class
         FROM courses c
         LEFT JOIN enrollments e ON c.id = e.course_id
         LEFT JOIN assignments a ON c.id = a.course_id
-        WHERE c.teacher_id = ?
+        WHERE c.teacher_id = :teacher_id
         GROUP BY c.id
     ";
     
     $stmt = $conn->prepare($courses_query);
-    $stmt->bind_param("i", $teacher_id);
+    $stmt->bindParam(':teacher_id', $teacher_id, PDO::PARAM_INT);
     $stmt->execute();
-    $result = $stmt->get_result();
+    $courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    $courses = [];
-    while ($row = $result->fetch_assoc()) {
-        $courses[] = [
+    $formatted_courses = [];
+    foreach ($courses as $row) {
+        $formatted_courses[] = [
             'id' => $row['id'],
-            'name' => $row['title'],
+            'name' => $row['name'],
             'description' => $row['description'],
             'students' => $row['student_count'],
             'nextClass' => $row['next_class'] ? date('h:i A', strtotime($row['next_class'])) . ' Today' : 'No upcoming class'
@@ -57,18 +58,18 @@ try {
         LEFT JOIN enrollments e ON c.id = e.course_id
         LEFT JOIN assignments a ON c.id = a.course_id
         LEFT JOIN grades g ON a.id = g.assignment_id
-        WHERE c.teacher_id = ?
+        WHERE c.teacher_id = :teacher_id
     ";
     
     $stmt = $conn->prepare($stats_query);
-    $stmt->bind_param("i", $teacher_id);
+    $stmt->bindParam(':teacher_id', $teacher_id, PDO::PARAM_INT);
     $stmt->execute();
-    $stats = $stmt->get_result()->fetch_assoc();
+    $stats = $stmt->fetch(PDO::FETCH_ASSOC);
     
     // Format the response
     $response = [
         'success' => true,
-        'courses' => $courses,
+        'courses' => $formatted_courses,
         'stats' => [
             'totalStudents' => $stats['total_students'] ?? 0,
             'averageGrade' => $stats['average_grade'] ? round($stats['average_grade'], 1) : 0,
