@@ -65,16 +65,16 @@ try {
             
             $stmt = $conn->prepare($sql);
             $stmt->execute($params);
-            $groups = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            // Format the response
-            $formattedGroups = array_map(function($group) {
-                return [
+    $groups = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Format the response
+    $formattedGroups = array_map(function($group) {
+        return [
                     'id' => intval($group['id']),
                     'title' => $group['title'],
                     'courseId' => intval($group['course_id']),
                     'courseName' => $group['course_name'],
-                    'description' => $group['description'],
+            'description' => $group['description'],
                     'dueDate' => $group['due_date'],
                     'numberOfGroups' => intval($group['number_of_groups']),
                     'memberCount' => intval($group['member_count']),
@@ -82,10 +82,10 @@ try {
                     'createdBy' => $group['creator_first_name'] . ' ' . $group['creator_last_name'],
                     'createdAt' => $group['created_at'],
                     'updatedAt' => $group['updated_at']
-                ];
-            }, $groups);
-            
-            echo json_encode([
+        ];
+    }, $groups);
+
+    echo json_encode([
                 'status' => 'success',
                 'data' => $formattedGroups
             ]);
@@ -352,5 +352,5 @@ try {
         'status' => 'error',
         'message' => 'Internal server error'
     ]);
-}
+} 
 ?> 
