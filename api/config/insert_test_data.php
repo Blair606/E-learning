@@ -32,18 +32,28 @@ try {
     echo "Created teacher user with ID: $teacherId\n";
     
     // Insert test course
-    $schedule = json_encode(['day' => 'Monday', 'time' => '10:00']);
+    $schedule = json_encode([
+        [
+            'day' => 'Monday',
+            'time' => '10:00',
+            'duration' => 60
+        ],
+        [
+            'day' => 'Wednesday',
+            'time' => '14:00',
+            'duration' => 60
+        ]
+    ]);
     $prerequisites = json_encode([]);
     $stmt = $conn->prepare("
         INSERT INTO courses (
             code, 
-            title, 
+            name,
             description, 
             credits, 
             school_id, 
             department_id, 
-            instructor_id, 
-            teacher_id,
+            instructor_id,
             status, 
             schedule, 
             prerequisites,
@@ -51,7 +61,7 @@ try {
             current_enrollment,
             start_date,
             end_date
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
     $stmt->execute([
         'CS101',
@@ -60,7 +70,6 @@ try {
         3,
         $schoolId,
         $departmentId,
-        $teacherId,
         $teacherId,
         'active',
         $schedule,

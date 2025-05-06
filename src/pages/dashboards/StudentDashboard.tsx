@@ -93,8 +93,34 @@ interface Course {
   isEnrolled: boolean;
 }
 
+interface ScheduleData {
+  regular_schedule: Array<{
+    id: number;
+    name: string;
+    code: string;
+    instructor: string;
+    schedule: Array<{
+      day: string;
+      time: string;
+      duration: number;
+    }>;
+  }>;
+  online_classes: Array<{
+    id: number;
+    title: string;
+    course_name: string;
+    course_code: string;
+    instructor: string;
+    date: string;
+    time: string;
+    duration: number;
+    meeting_link: string;
+  }>;
+}
+
 const StudentDashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [activeMenu, setActiveMenu] = useState('courses');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [studentData, setStudentData] = useState<any>(null);
@@ -102,12 +128,15 @@ const StudentDashboard = () => {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isGuardianModalOpen, setIsGuardianModalOpen] = useState(false);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate ? useNavigate() : () => {};
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
+  const [courseContent, setCourseContent] = useState<CourseContent[]>([]);
+  const [contentLoading, setContentLoading] = useState(false);
+  const [scheduleData, setScheduleData] = useState<ScheduleData | null>(null);
+  const [scheduleLoading, setScheduleLoading] = useState(true);
 
   useEffect(() => {
     const fetchStudentData = async () => {
@@ -168,6 +197,39 @@ const StudentDashboard = () => {
     };
 
     fetchCourses();
+  }, []);
+
+  // Add this new useEffect for fetching schedule
+  useEffect(() => {
+    const fetchSchedule = async () => {
+      try {
+        setScheduleLoading(true);
+        const response = await fetch('http://localhost/E-learning/api/students/get_schedule.php', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Accept': 'application/json',
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch schedule');
+        }
+
+        const data = await response.json();
+        if (data.success) {
+          setScheduleData(data.data);
+        } else {
+          throw new Error(data.message || 'Failed to fetch schedule');
+        }
+      } catch (error) {
+        console.error('Error fetching schedule:', error);
+        setError(error instanceof Error ? error.message : 'Failed to fetch schedule');
+      } finally {
+        setScheduleLoading(false);
+      }
+    };
+
+    fetchSchedule();
   }, []);
 
   const [currentUnits, setCurrentUnits] = useState<Unit[]>([
@@ -796,16 +858,37 @@ const StudentDashboard = () => {
   // Add enrollment handler
   const handleEnroll = async (courseId: number) => {
     try {
+      // First, get the student's ID from the database
+      const studentResponse = await fetch(`http://localhost/E-learning/api/students/read.php?user_id=${user?.id}`, {
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+
+      if (!studentResponse.ok) {
+        throw new Error('Failed to fetch student data');
+      }
+
+      const studentData = await studentResponse.json();
+      if (!studentData.data || !studentData.data.id) {
+        throw new Error('Student data not found');
+      }
+
+      // Create enrollment data object
+      const enrollmentData = {
+        course_id: courseId,
+        student_id: studentData.data.id,
+        enrollment_date: new Date().toISOString().split('T')[0]
+      };
+
+      // Now enroll in the course
       const response = await fetch('http://localhost/E-learning/api/courses/enroll.php', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
         },
-        body: JSON.stringify({
-          course_id: courseId,
-          student_id: user?.id
-        })
+        body: JSON.stringify(enrollmentData)
       });
 
       if (!response.ok) {
@@ -818,6 +901,32 @@ const StudentDashboard = () => {
         setCourses(courses.map(course => 
           course.id === courseId ? { ...course, isEnrolled: true } : course
         ));
+
+        // Create notification data object
+        const notificationData = {
+          user_id: user?.id,
+          title: 'Course Enrollment Successful',
+          message: `You have successfully enrolled in ${selectedCourse?.name}. You can now access the course materials and participate in class activities.`,
+          type: 'success'
+        };
+
+        // Create notification
+        const notificationResponse = await fetch('http://localhost/E-learning/api/notifications/create.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify(notificationData)
+        });
+
+        if (!notificationResponse.ok) {
+          console.error('Failed to create notification');
+        }
+
+        // Close the modal after successful enrollment
+        setIsCourseModalOpen(false);
+        setSelectedCourse(null);
       } else {
         throw new Error(data.message || 'Failed to enroll in course');
       }
@@ -827,6 +936,142 @@ const StudentDashboard = () => {
     }
   };
 
+  // Add fetchCourseContent function
+  const fetchCourseContent = async (courseId: number) => {
+    try {
+      setContentLoading(true);
+      const response = await fetch(`http://localhost/E-learning/api/courses/get_content.php?course_id=${courseId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Accept': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch course content');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        setCourseContent(data.data || []);
+      } else {
+        throw new Error(data.message || 'Failed to fetch course content');
+      }
+    } catch (error) {
+      console.error('Error fetching course content:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch course content');
+    } finally {
+      setContentLoading(false);
+    }
+  };
+
+  // Update the handleViewDetails function
+  const handleViewDetails = async (course: Course) => {
+    setSelectedCourse(course);
+    setIsCourseModalOpen(true);
+    await fetchCourseContent(course.id);
+  };
+
+  // Add this new function to render the schedule section
+  const renderSchedule = () => {
+    if (scheduleLoading) {
+      return (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
+      );
+    }
+
+    if (!scheduleData) {
+      return (
+        <div className="text-center py-12">
+          <p className="text-gray-500">No schedule data available</p>
+        </div>
+      );
+    }
+
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+    const hours = Array.from({ length: 9 }, (_, i) => i + 9); // 9 AM to 5 PM
+
+    return (
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-800">Weekly Schedule</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                {days.map(day => (
+                  <th key={day} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    {day}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {hours.map(hour => (
+                <tr key={hour} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {`${hour}:00 - ${hour + 1}:00`}
+                  </td>
+                  {days.map(day => {
+                    // Find regular classes at this time
+                    const regularClass = scheduleData.regular_schedule.find(course => {
+                      return course.schedule.some(slot => {
+                        const [startHour] = slot.time.split(':').map(Number);
+                        return slot.day === day && startHour === hour;
+                      });
+                    });
+
+                    // Find online classes at this time
+                    const onlineClass = scheduleData.online_classes.find(online => {
+                      const classDate = new Date(online.date);
+                      const classDay = classDate.toLocaleDateString('en-US', { weekday: 'long' });
+                      const [classHour] = online.time.split(':').map(Number);
+                      return classDay === day && classHour === hour;
+                    });
+
+                    return (
+                      <td key={day} className="px-6 py-4 whitespace-nowrap">
+                        {regularClass && (
+                          <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                            <p className="font-medium text-blue-800">{regularClass.name}</p>
+                            <p className="text-sm text-blue-600">{regularClass.code}</p>
+                            <p className="text-xs text-blue-500">{regularClass.instructor}</p>
+                          </div>
+                        )}
+                        {onlineClass && (
+                          <div className="bg-green-50 p-3 rounded-lg border border-green-100 mt-2">
+                            <p className="font-medium text-green-800">{onlineClass.title}</p>
+                            <p className="text-sm text-green-600">{onlineClass.course_code}</p>
+                            <p className="text-xs text-green-500">{onlineClass.instructor}</p>
+                            {onlineClass.meeting_link && (
+                              <a
+                                href={onlineClass.meeting_link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-green-600 hover:text-green-800 mt-1 inline-block"
+                              >
+                                Join Meeting →
+                              </a>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  // Update the renderContent function to include the schedule section
   const renderContent = () => {
     switch (activeMenu) {
       case 'courses':
@@ -894,10 +1139,7 @@ const StudentDashboard = () => {
                           </button>
                         ) : (
                           <button
-                            onClick={() => {
-                              setSelectedCourse(course);
-                              setIsCourseModalOpen(true);
-                            }}
+                            onClick={() => handleViewDetails(course)}
                             className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
                           >
                             View Details
@@ -914,66 +1156,11 @@ const StudentDashboard = () => {
 
       case 'schedule':
         return (
-          <div className="space-y-4 sm:space-y-6">
-            <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm overflow-x-auto">
-              <h2 className="text-xl font-semibold mb-6 flex items-center text-gray-800">
-                <CalendarIcon className="w-5 h-5 mr-2 text-blue-500" />
-                Weekly Timetable
-              </h2>
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead>
-                    <tr className="bg-gray-50">
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                      {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map(day => (
-                        <th key={day} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          {day}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {Array.from({ length: 9 }, (_, i) => i + 9).map(hour => (
-                      <tr key={hour} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {`${hour}:00 - ${hour + 1}:00`}
-                        </td>
-                        {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map(day => {
-                          const classAtThisTime = courses.find(course => {
-                            if (!course.schedule) return false;
-                            const schedule = course.schedule[day];
-                            if (!schedule) return false;
-                            const [startHour] = schedule.split(':').map(Number);
-                            return startHour === hour;
-                          });
-
-                          return (
-                            <td key={day} className="px-6 py-4 whitespace-nowrap">
-                              {classAtThisTime && (
-                                <div 
-                                  className="bg-blue-50 p-3 rounded-lg border border-blue-100 cursor-pointer hover:bg-blue-100"
-                                  onClick={() => {
-                                    setSelectedCourse(classAtThisTime);
-                                    setIsCourseModalOpen(true);
-                                  }}
-                                >
-                                  <p className="font-medium text-blue-700">{classAtThisTime.name}</p>
-                                  <p className="text-sm text-gray-600">{classAtThisTime.code}</p>
-                                  <p className="text-sm text-blue-600">{classAtThisTime.schedule[day]}</p>
-                                  <p className="text-xs text-gray-500">
-                                    {classAtThisTime.instructor}
-                                  </p>
-                                </div>
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-800">My Schedule</h2>
             </div>
+            {renderSchedule()}
           </div>
         );
 
@@ -1871,8 +2058,14 @@ const StudentDashboard = () => {
       {isCourseModalOpen && selectedCourse && (
         <CourseDetailsModal
           isOpen={isCourseModalOpen}
-          onClose={() => setIsCourseModalOpen(false)}
+          onClose={() => {
+            setIsCourseModalOpen(false);
+            setSelectedCourse(null);
+            setCourseContent([]);
+          }}
           course={selectedCourse}
+          content={courseContent}
+          contentLoading={contentLoading}
           onEnroll={handleEnroll}
         />
       )}

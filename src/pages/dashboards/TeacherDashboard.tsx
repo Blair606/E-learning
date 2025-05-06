@@ -63,11 +63,17 @@ interface DiscussionGroupData {
 
 interface DiscussionGroup {
   id: number;
-  name: string;
-  course: string;
-  members: number;
-  lastActive: string;
-  topics: number;
+  title: string;
+  courseId: number;
+  courseName: string;
+  description: string;
+  dueDate: string;
+  numberOfGroups: number;
+  memberCount: number;
+  topicCount: number;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface NotificationFormData {
@@ -103,7 +109,108 @@ interface ExtendedCourse extends Course {
     content?: CourseContent[];
 }
 
-const TeacherDashboard = () => {
+// Move NotificationModal interface outside
+interface NotificationModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (data: NotificationFormData) => void;
+  classes: { id: number; className: string }[];
+}
+
+// Move NotificationModal component outside
+const NotificationModal: React.FC<NotificationModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  onSubmit, 
+  classes 
+}) => {
+  const [formData, setFormData] = useState<NotificationFormData>({
+    title: '',
+    message: '',
+    classId: 0,
+    emailNotification: true,
+  });
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div className="mt-3">
+          <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">Send Class Notification</h3>
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            onSubmit(formData);
+            setFormData({ title: '', message: '', classId: 0, emailNotification: true });
+          }}>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700">Select Class</label>
+              <select
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                value={formData.classId}
+                onChange={(e) => setFormData({ ...formData, classId: Number(e.target.value) })}
+                required
+              >
+                <option value="">Select a class</option>
+                {classes.map((cls) => (
+                  <option key={cls.id} value={cls.id}>{cls.className}</option>
+                ))}
+              </select>
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700">Title</label>
+              <input
+                type="text"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                required
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700">Message</label>
+              <textarea
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                rows={4}
+                value={formData.message}
+                onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                required
+              />
+            </div>
+            <div className="mb-4">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  checked={formData.emailNotification}
+                  onChange={(e) => setFormData({ ...formData, emailNotification: e.target.checked })}
+                />
+                <span className="ml-2 text-sm text-gray-600">Send email notification</span>
+              </label>
+            </div>
+            <div className="flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+              >
+                Send
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const TeacherDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch();
@@ -133,7 +240,6 @@ const TeacherDashboard = () => {
   const [isScheduleClassModalOpen, setIsScheduleClassModalOpen] = useState(false);
   const [isAddContentModalOpen, setIsAddContentModalOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<ExtendedCourse | null>(null);
-  const [discussionGroups, setDiscussionGroups] = useState<DiscussionGroup[]>([]);
   const [scheduledClasses, setScheduledClasses] = useState<ScheduledClass[]>([]);
   const [pendingTasks, setPendingTasks] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -152,6 +258,10 @@ const TeacherDashboard = () => {
     assignmentAnalytics: AssignmentAnalytics[];
     discussionAnalytics: DiscussionAnalytics[];
   } | null>(null);
+
+  // Get discussions state from Redux
+  const discussionsState = useSelector((state: RootState) => state.discussions);
+  const { groups: reduxDiscussionGroups, loading: discussionsLoading, error: discussionsError } = discussionsState;
 
   // Fetch departments
   useEffect(() => {
@@ -308,7 +418,7 @@ const TeacherDashboard = () => {
           totalStudents: coursesData.stats?.totalStudents || 0,
           averageAttendance: 92,
           averageGrade: coursesData.stats?.averageGrade.toFixed(1) || '0',
-          activeDiscussions: coursesData.stats?.activeAssignments || 0
+          activeDiscussions: reduxDiscussionGroups.length || 0
         });
 
         // Fetch notifications
@@ -341,7 +451,7 @@ const TeacherDashboard = () => {
     };
 
     fetchDashboardData();
-  }, [selectedCourseId]);
+  }, [reduxDiscussionGroups.length]);
 
   // Fetch real-time pending tasks (assignments) when assignments change
   useEffect(() => {
@@ -394,7 +504,7 @@ const TeacherDashboard = () => {
         throw new Error('Selected course not found');
       }
 
-      await dispatch(createDiscussionGroups({
+      const result = await dispatch(createDiscussionGroups({
         title: groupData.title,
         courseId: selectedCourse.id,
         description: groupData.description || '',
@@ -402,10 +512,11 @@ const TeacherDashboard = () => {
         numberOfGroups: groupData.numberOfGroups
       })).unwrap();
 
-      // Refresh the discussion groups list
-      await dispatch(fetchDiscussionGroups(selectedCourse.id)).unwrap();
-      
-      setIsDiscussionModalOpen(false);
+      if (result.status === 'success') {
+        // Refresh the discussion groups list
+        await dispatch(fetchDiscussionGroups(selectedCourse.id)).unwrap();
+        setIsDiscussionModalOpen(false);
+      }
     } catch (error) {
       console.error('Failed to create discussion groups:', error);
       // You might want to show an error message to the user here
@@ -519,40 +630,58 @@ const TeacherDashboard = () => {
                 New Group
               </button>
             </div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {discussionGroups.map((group) => (
-                <div key={group.id} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition">
-                  <div className="flex justify-between items-start mb-4">
-                    <h3 className="font-semibold text-lg">{group.name}</h3>
-                    <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
-                      {group.course}
-                    </span>
-                  </div>
-                  <div className="space-y-2 text-sm text-gray-600">
-                    <div className="flex justify-between">
-                      <span>Members:</span>
-                      <span className="font-medium">{group.members}</span>
+            {discussionsLoading ? (
+              <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+              </div>
+            ) : discussionsError ? (
+              <div className="text-red-500 text-center p-4">{discussionsError}</div>
+            ) : reduxDiscussionGroups?.length === 0 ? (
+              <div className="text-gray-500 text-center p-4">No discussion groups found.</div>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {reduxDiscussionGroups?.map((group) => (
+                  <div key={group.id} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition">
+                    <div className="flex justify-between items-start mb-4">
+                      <h3 className="font-semibold text-lg">{group.title}</h3>
+                      <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                        {group.courseName}
+                      </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Topics:</span>
-                      <span className="font-medium">{group.topics}</span>
+                    <div className="space-y-2 text-sm text-gray-600">
+                      <div className="flex justify-between">
+                        <span>Members:</span>
+                        <span className="font-medium">{group.memberCount}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Topics:</span>
+                        <span className="font-medium">{group.topicCount}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Created By:</span>
+                        <span className="font-medium">{group.createdBy}</span>
+                      </div>
+                      {group.dueDate && (
+                        <div className="flex justify-between">
+                          <span>Due Date:</span>
+                          <span className="font-medium">
+                            {new Date(group.dueDate).toLocaleDateString()}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex justify-between">
-                      <span>Last Active:</span>
-                      <span className="font-medium">{group.lastActive}</span>
+                    <div className="mt-4 flex space-x-2">
+                      <button className="flex-1 px-3 py-2 text-sm bg-blue-50 text-blue-600 rounded hover:bg-blue-100">
+                        View Discussions
+                      </button>
+                      <button className="flex-1 px-3 py-2 text-sm bg-gray-50 text-gray-600 rounded hover:bg-gray-100">
+                        Manage Members
+                      </button>
                     </div>
                   </div>
-                  <div className="mt-4 flex space-x-2">
-                    <button className="flex-1 px-3 py-2 text-sm bg-blue-50 text-blue-600 rounded hover:bg-blue-100">
-                      View Discussions
-                    </button>
-                    <button className="flex-1 px-3 py-2 text-sm bg-gray-50 text-gray-600 rounded hover:bg-gray-100">
-                      Manage Members
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         );
 
@@ -1567,103 +1696,6 @@ const TeacherDashboard = () => {
           </button>
         </div>
       )}
-    </div>
-  );
-};
-
-const NotificationModal = ({ 
-  isOpen, 
-  onClose, 
-  onSubmit, 
-  classes 
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
-  onSubmit: (data: NotificationFormData) => void;
-  classes: { id: number; className: string }[];
-}) => {
-  const [formData, setFormData] = useState<NotificationFormData>({
-    title: '',
-    message: '',
-    classId: 0,
-    emailNotification: true,
-  });
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-        <div className="mt-3">
-          <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">Send Class Notification</h3>
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            onSubmit(formData);
-            setFormData({ title: '', message: '', classId: 0, emailNotification: true });
-          }}>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700">Select Class</label>
-              <select
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                value={formData.classId}
-                onChange={(e) => setFormData({ ...formData, classId: Number(e.target.value) })}
-                required
-              >
-                <option value="">Select a class</option>
-                {classes.map((cls) => (
-                  <option key={cls.id} value={cls.id}>{cls.className}</option>
-                ))}
-              </select>
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700">Title</label>
-              <input
-                type="text"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                required
-              />
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700">Message</label>
-              <textarea
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                rows={4}
-                value={formData.message}
-                onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                required
-              />
-            </div>
-            <div className="mb-4">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  checked={formData.emailNotification}
-                  onChange={(e) => setFormData({ ...formData, emailNotification: e.target.checked })}
-                />
-                <span className="ml-2 text-sm text-gray-600">Send email notification</span>
-              </label>
-            </div>
-            <div className="flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-              >
-                Send
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
     </div>
   );
 };

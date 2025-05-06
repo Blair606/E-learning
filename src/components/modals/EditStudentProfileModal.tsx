@@ -1,14 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { User } from '../../store/slices/authSlice';
 import { useAuth } from '../../contexts/AuthContext';
-import { useDispatch } from 'react-redux';
-import { setUser } from '../../store/slices/authSlice';
-import { schoolService, School, Department } from '../../services/schoolService';
+
+interface User {
+  id: number;
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone?: string;
+  address?: string;
+  school_id?: number;
+  department_id?: number;
+}
 
 interface EditStudentProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: any) => void;
+  onSubmit: (data: User) => void;
   user: User | null;
 }
 
@@ -32,8 +39,6 @@ const EditStudentProfileModal: React.FC<EditStudentProfileModalProps> = ({
     schoolId: user?.school_id || '',
     departmentId: user?.department_id || '',
   });
-
-  const dispatch = useDispatch();
 
   useEffect(() => {
     if (isOpen) {

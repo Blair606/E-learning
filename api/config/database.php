@@ -178,6 +178,19 @@ function ensureDatabaseExists() {
                 FOREIGN KEY (graded_by) REFERENCES users(id) ON DELETE SET NULL,
                 UNIQUE KEY unique_grade (student_id, assignment_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+            CREATE TABLE IF NOT EXISTS course_content (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                course_id INT NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                content TEXT,
+                type ENUM('text', 'video', 'quiz', 'assignment') NOT NULL,
+                order_number INT NOT NULL DEFAULT 0,
+                status ENUM('active', 'inactive', 'draft') DEFAULT 'active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
         ");
         
         error_log("Database and tables created/verified successfully");

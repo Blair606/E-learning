@@ -1,39 +1,34 @@
 <?php
-include_once 'config/database.php';
+// Include database file
+include_once 'database/database.php';
 
-try {
-    $database = new Database();
-    $db = $database->getConnection();
+// Create database connection
+$database = new Database();
+$db = $database->getConnection();
+
+if ($db) {
+    echo "Database connection successful!\n";
     
-    if($db) {
-        echo "Database connection successful!\n";
-        
-        // Test if tables exist
-        $tables = array('users', 'courses', 'enrollments', 'assignments', 'grades', 'notifications');
-        foreach($tables as $table) {
-            $query = "SHOW TABLES LIKE :table";
-            $stmt = $db->prepare($query);
-            $stmt->bindParam(":table", $table);
-            $stmt->execute();
-            
-            if($stmt->rowCount() > 0) {
-                echo "Table '$table' exists\n";
-            } else {
-                echo "Table '$table' does NOT exist\n";
-            }
-        }
-        
-        // Test if we can query the users table
-        $query = "SELECT COUNT(*) as count FROM users";
+    // Test course_content table
+    try {
+        $query = "SELECT COUNT(*) as count FROM course_content";
         $stmt = $db->prepare($query);
         $stmt->execute();
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        echo "\nTotal users in database: " . $row['count'] . "\n";
+        echo "Number of records in course_content table: " . $row['count'] . "\n";
         
-    } else {
-        echo "Database connection failed!\n";
+        // Show table structure
+        $query = "DESCRIBE course_content";
+        $stmt = $db->prepare($query);
+        $stmt->execute();
+        echo "\nTable structure for course_content:\n";
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            echo $row['Field'] . " - " . $row['Type'] . "\n";
+        }
+    } catch (PDOException $e) {
+        echo "Error checking course_content table: " . $e->getMessage() . "\n";
     }
-} catch(PDOException $e) {
-    echo "Connection error: " . $e->getMessage() . "\n";
+} else {
+    echo "Database connection failed!\n";
 }
 ?> 

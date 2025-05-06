@@ -113,6 +113,23 @@ try {
     
     // Get the created user with role-specific ID
     $userId = $conn->lastInsertId();
+    
+    // If role is student, create a student record
+    if ($data['role'] === 'student') {
+        // Generate a unique student ID (you can modify this format as needed)
+        $studentId = 'STU' . date('Y') . str_pad($userId, 4, '0', STR_PAD_LEFT);
+        
+        $studentQuery = "INSERT INTO students (user_id, student_id) VALUES (:user_id, :student_id)";
+        $studentStmt = $conn->prepare($studentQuery);
+        $studentStmt->bindParam(':user_id', $userId);
+        $studentStmt->bindParam(':student_id', $studentId);
+        
+        if (!$studentStmt->execute()) {
+            error_log("Failed to create student record: " . print_r($studentStmt->errorInfo(), true));
+            throw new Exception("Failed to create student record");
+        }
+    }
+    
     $stmt = $conn->prepare("
         SELECT id, email, first_name, last_name, role, status, token
         FROM users 
