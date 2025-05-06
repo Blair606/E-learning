@@ -1,10 +1,15 @@
 <?php
-header('Content-Type: application/json');
+require_once '../config/cors.php';
 require_once '../config/database.php';
-require_once '../auth/authenticate.php';
+require_once '../middleware/auth.php';
+
+// Handle CORS
+handleCORS();
+
+header('Content-Type: application/json');
 
 // Verify token and get user
-$user = authenticate();
+$user = AuthMiddleware::authenticate();
 if (!$user || $user['role'] !== 'teacher') {
     http_response_code(401);
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);

@@ -1,12 +1,15 @@
 <?php
 require_once '../config/cors.php';
-header('Content-Type: application/json');
 require_once '../config/database.php';
 require_once '../middleware/auth.php';
 
+// Handle CORS
+handleCORS();
+
+header('Content-Type: application/json');
+
 // Verify JWT token
-$auth = new Auth();
-$user = $auth->verifyToken();
+$user = AuthMiddleware::authenticate();
 
 if (!$user || $user['role'] !== 'teacher') {
     http_response_code(401);

@@ -3,6 +3,9 @@ require_once '../config/database.php';
 require_once '../config/cors.php';
 require_once '../middleware/AuthMiddleware.php';
 
+// Handle CORS
+handleCORS();
+
 header('Content-Type: application/json');
 
 try {

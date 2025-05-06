@@ -2,6 +2,9 @@
 require_once '../config/cors.php';
 require_once '../config/database.php';
 
+// Handle CORS
+handleCORS();
+
 header('Content-Type: application/json');
 
 try {
