@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { getDiscussionGroups } from '../../services/discussionService';
 import {
   BookOpenIcon,
   CalendarIcon,
@@ -137,6 +138,8 @@ const StudentDashboard = () => {
   const [contentLoading, setContentLoading] = useState(false);
   const [scheduleData, setScheduleData] = useState<ScheduleData | null>(null);
   const [scheduleLoading, setScheduleLoading] = useState(true);
+  const [discussionGroups, setDiscussionGroups] = useState<DiscussionGroup[]>([]);
+  const [discussionLoading, setDiscussionLoading] = useState(false);
 
   useEffect(() => {
     const fetchStudentData = async () => {
@@ -496,72 +499,6 @@ const StudentDashboard = () => {
       status: 'upcoming'
     }
     // Add more sample classes as needed
-  ]);
-
-  // Add new state for discussions
-  const [discussionGroups] = useState<DiscussionGroup[]>([
-    {
-      id: 1,
-      name: 'ML Study Group',
-      course: 'Machine Learning',
-      courseCode: 'CS 301',
-      members: 15,
-      lastActive: '2 hours ago',
-      topics: [
-        { 
-          id: 1, 
-          title: 'Neural Networks Q&A',
-          lastMessage: 'Can someone explain backpropagation?',
-          replies: 8,
-          unread: 2,
-          timestamp: '1 hour ago'
-        },
-        { 
-          id: 2, 
-          title: 'Project Collaboration',
-          lastMessage: 'Looking for team members for the ML project',
-          replies: 12,
-          unread: 0,
-          timestamp: '3 hours ago'
-        }
-      ]
-    },
-    {
-      id: 2,
-      name: 'Network Security Discussion',
-      course: 'Network Security',
-      courseCode: 'CS 302',
-      members: 12,
-      lastActive: '30 minutes ago',
-      topics: [
-        {
-          id: 1,
-          title: 'Encryption Techniques',
-          lastMessage: 'Discussion about RSA implementation',
-          replies: 15,
-          unread: 3,
-          timestamp: '30 minutes ago'
-        }
-      ]
-    },
-    {
-      id: 3,
-      name: 'Neural Networks Lab Group',
-      course: 'Neural Networks',
-      courseCode: 'CS 303',
-      members: 10,
-      lastActive: '1 day ago',
-      topics: [
-        {
-          id: 1,
-          title: 'CNN Architecture Help',
-          lastMessage: 'Questions about convolutional layers',
-          replies: 5,
-          unread: 1,
-          timestamp: '1 day ago'
-        }
-      ]
-    }
   ]);
 
   const [selectedGroup, setSelectedGroup] = useState<DiscussionGroup | null>(null);
@@ -965,11 +902,28 @@ const StudentDashboard = () => {
     }
   };
 
+  // Add function to fetch discussion groups
+  const fetchDiscussionGroups = async (courseId: number) => {
+    try {
+      setDiscussionLoading(true);
+      const groups = await getDiscussionGroups(courseId);
+      setDiscussionGroups(groups);
+    } catch (error) {
+      console.error('Error fetching discussion groups:', error);
+      setError(error instanceof Error ? error.message : 'Failed to fetch discussion groups');
+    } finally {
+      setDiscussionLoading(false);
+    }
+  };
+
   // Update the handleViewDetails function
   const handleViewDetails = async (course: Course) => {
     setSelectedCourse(course);
     setIsCourseModalOpen(true);
-    await fetchCourseContent(course.id);
+    await Promise.all([
+      fetchCourseContent(course.id),
+      fetchDiscussionGroups(course.id)
+    ]);
   };
 
   // Add this new function to render the schedule section
@@ -2062,11 +2016,14 @@ const StudentDashboard = () => {
             setIsCourseModalOpen(false);
             setSelectedCourse(null);
             setCourseContent([]);
+            setDiscussionGroups([]);
           }}
           course={selectedCourse}
           content={courseContent}
           contentLoading={contentLoading}
           onEnroll={handleEnroll}
+          discussionGroups={discussionGroups}
+          discussionLoading={discussionLoading}
         />
       )}
     </div>

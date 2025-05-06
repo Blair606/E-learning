@@ -7,18 +7,15 @@ require_once '../middleware/auth.php';
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// Set CORS headers
-header("Access-Control-Allow-Origin: http://localhost:5173");
-header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header("Access-Control-Allow-Credentials: true");
+// Handle CORS
+handleCORS();
+
 header('Content-Type: application/json');
 
 try {
     // Authenticate the request
-    try {
-        AuthMiddleware::authenticate();
-    } catch (Exception $e) {
+    $user = AuthMiddleware::authenticate();
+    if (!$user) {
         http_response_code(401);
         echo json_encode([
             'success' => false,
