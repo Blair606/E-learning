@@ -47,6 +47,22 @@ export interface UpdateCourseData extends CreateCourseData {
 class CourseService {
     private baseUrl = 'http://localhost/E-learning/api/courses';
 
+    async enrollCourse(courseId: number, studentId: number): Promise<{ success: boolean; message: string }> {
+        try {
+            const response = await axios.post(`${this.baseUrl}/enroll.php`, {
+                course_id: courseId,
+                student_id: studentId,
+                enrollment_date: new Date().toISOString().split('T')[0] // Current date in YYYY-MM-DD format
+            });
+            return response.data;
+        } catch (error: any) {
+            if (error.response?.data) {
+                throw new Error(error.response.data.message);
+            }
+            throw new Error('Failed to enroll in course');
+        }
+    }
+
     async getCourses(): Promise<Course[]> {
         try {
             const response = await axios.get(`${this.baseUrl}/get_courses.php`, {

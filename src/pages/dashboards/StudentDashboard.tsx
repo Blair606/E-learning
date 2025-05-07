@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { getDiscussionGroups } from '../../services/discussionService';
+import { courseService } from '../../services/courseService';
+import { getMaterialsByClassId, downloadMaterial, ClassMaterial } from '../../services/materialService';
 import {
   BookOpenIcon,
   CalendarIcon,
@@ -22,9 +24,13 @@ import {
   DocumentTextIcon,
   ArrowRightOnRectangleIcon,
   Cog6ToothIcon,
+  ArrowDownTrayIcon, 
+  ArrowTopRightOnSquareIcon, 
+  LinkIcon
 } from '@heroicons/react/24/outline';
 import EditStudentProfileModal from '../../components/modals/EditStudentProfileModal';
 import CourseDetailsModal from '../../components/modals/CourseDetailsModal';
+import AddGuardianModal from '../../components/modals/AddGuardianModal';
 
 interface DiscussionTopic {
   id: number;
@@ -140,6 +146,9 @@ const StudentDashboard = () => {
   const [scheduleLoading, setScheduleLoading] = useState(true);
   const [discussionGroups, setDiscussionGroups] = useState<DiscussionGroup[]>([]);
   const [discussionLoading, setDiscussionLoading] = useState(false);
+  const [classMaterials, setClassMaterials] = useState<ClassMaterial[]>([]);
+  const [materialsLoading, setMaterialsLoading] = useState(false);
+  const [materialsError, setMaterialsError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchStudentData = async () => {
@@ -169,6 +178,35 @@ const StudentDashboard = () => {
   }, [user]);
 
   // Add this new useEffect for fetching courses
+  useEffect(() => {
+    const fetchMaterials = async () => {
+      if (!selectedCourse?.id) return;
+      
+      try {
+        setMaterialsLoading(true);
+        setMaterialsError(null);
+        const materials = await getMaterialsByClassId(selectedCourse.id);
+        setClassMaterials(materials);
+      } catch (error) {
+        console.error('Error fetching materials:', error);
+        setMaterialsError('Failed to load class materials');
+      } finally {
+        setMaterialsLoading(false);
+      }
+    };
+
+    fetchMaterials();
+  }, [selectedCourse?.id]);
+
+  const handleDownload = async (materialId: number) => {
+    try {
+      await downloadMaterial(materialId);
+    } catch (error) {
+      console.error('Error downloading material:', error);
+      // You might want to show a toast notification here
+    }
+  };
+
   useEffect(() => {
     const fetchCourses = async () => {
       try {
@@ -815,25 +853,12 @@ const StudentDashboard = () => {
       const enrollmentData = {
         course_id: courseId,
         student_id: studentData.data.id,
-        enrollment_date: new Date().toISOString().split('T')[0]
       };
 
       // Now enroll in the course
-      const response = await fetch('http://localhost/E-learning/api/courses/enroll.php', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify(enrollmentData)
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to enroll in course');
-      }
-
-      const data = await response.json();
-      if (data.success) {
+      const response = await courseService.enrollCourse(courseId, user.id);
+      
+      if (response.success) {
         // Update the courses list to reflect the enrollment
         setCourses(courses.map(course => 
           course.id === courseId ? { ...course, isEnrolled: true } : course
@@ -865,11 +890,11 @@ const StudentDashboard = () => {
         setIsCourseModalOpen(false);
         setSelectedCourse(null);
       } else {
-        throw new Error(data.message || 'Failed to enroll in course');
+        throw new Error(response.message || 'Failed to enroll in course');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error enrolling in course:', error);
-      throw error;
+      setError(error.message || 'Failed to enroll in course');
     }
   };
 
@@ -1146,7 +1171,7 @@ const StudentDashboard = () => {
 
             {/* Quick Actions Panel */}
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-xl shadow-sm">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Quick Actions</h3>
+              <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
               <div className="space-y-3">
                 <button className="w-full px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-colors">
                   Mark All as Read
@@ -1404,31 +1429,92 @@ const StudentDashboard = () => {
       case 'resources':
         return (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm">
-              <h2 className="text-xl font-semibold mb-6 flex items-center text-gray-800">
-                <BookmarkIcon className="w-5 h-5 mr-2 text-blue-500" />
-                Course Resources
-              </h2>
-              {currentUnits.map(course => (
-                <div key={course.id} className="mb-8">
-                  <h3 className="text-lg font-medium text-gray-800 mb-4">{course.name}</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {course.resources.map(resource => (
-                      <a
-                        key={resource.id}
-                        href={resource.downloadUrl}
-                        className="p-4 border rounded-lg hover:shadow-md transition-all duration-200 flex items-center space-x-3"
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <h2 className="text-xl font-semibold mb-6 flex items-center text-gray-800">
+                  <DocumentIcon className="h-6 w-6 mr-2 text-blue-600" />
+                  Course Resources
+                </h2>
+                  {materialsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    </div>
+                  ) : materialsError ? (
+                    <div className="text-center py-8">
+                      <p className="text-red-500">{materialsError}</p>
+                      <button
+                        onClick={() => fetchMaterials()}
+                        className="mt-2 text-sm text-blue-600 hover:text-blue-500"
                       >
-                        <DocumentIcon className="w-6 h-6 text-blue-500" />
-                        <div>
-                          <p className="font-medium text-gray-800">{resource.title}</p>
-                          <p className="text-sm text-gray-500">Type: {resource.type}</p>
+                        Try Again
+                      </button>
+                    </div>
+                  ) : classMaterials.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      No materials available for this course yet
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {classMaterials.map((material) => (
+                        <div
+                          key={material.id}
+                          className="p-4 rounded-lg border border-gray-200 hover:border-blue-300 transition-all duration-200 group"
+                        >
+                          <div className="flex items-start space-x-3">
+                            <div className="p-2 bg-blue-50 rounded-lg group-hover:bg-blue-100 transition-colors">
+                              {material.material_type === 'file' ? (
+                                <DocumentIcon className="h-5 w-5 text-blue-600" />
+                              ) : (
+                                <LinkIcon className="h-5 w-5 text-blue-600" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-medium text-gray-900 truncate group-hover:text-blue-600">
+                                {material.title}
+                              </h4>
+                              {material.description && (
+                                <p className="mt-1 text-sm text-gray-500 line-clamp-2">
+                                  {material.description}
+                                </p>
+                              )}
+                              <div className="mt-2 flex items-center space-x-4">
+                                {material.file_type && (
+                                  <span className="text-xs text-gray-500 uppercase">
+                                    {material.file_type}
+                                  </span>
+                                )}
+                                {material.file_size && (
+                                  <span className="text-xs text-gray-500">
+                                    {(material.file_size / 1024 / 1024).toFixed(2)} MB
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          {material.material_type === 'file' ? (
+                            <button
+                              onClick={() => handleDownload(material.id)}
+                              className="mt-3 w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors group-hover:bg-blue-600 group-hover:text-white"
+                            >
+                              <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
+                              Download
+                            </button>
+                          ) : (
+                            <a
+                              href={material.file_url || '#'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="mt-3 w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors group-hover:bg-blue-600 group-hover:text-white"
+                            >
+                              <ArrowTopRightOnSquareIcon className="h-4 w-4 mr-2" />
+                              Open Link
+                            </a>
+                          )}
                         </div>
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              ))}
+                      ))}
+                    </div>
+                  )}
+              </div>
             </div>
 
             {/* Resource Filters */}
@@ -1439,18 +1525,29 @@ const StudentDashboard = () => {
                   <label className="text-sm font-medium text-gray-700">Resource Type</label>
                   <select className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                     <option>All Types</option>
-                    <option>PDF Documents</option>
-                    <option>Video Lectures</option>
-                    <option>Practice Materials</option>
+                    <option>Documents</option>
+                    <option>Videos</option>
+                    <option>Links</option>
                   </select>
                 </div>
+
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Course</label>
+                  <label className="text-sm font-medium text-gray-700">Sort By</label>
                   <select className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                    <option>All Courses</option>
-                    {currentUnits.map(course => (
-                      <option key={course.id}>{course.name}</option>
-                    ))}
+                    <option>Most Recent</option>
+                    <option>Name A-Z</option>
+                    <option>Name Z-A</option>
+                    <option>Size</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Date Added</label>
+                  <select className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    <option>All Time</option>
+                    <option>Last 7 Days</option>
+                    <option>Last 30 Days</option>
+                    <option>Last 90 Days</option>
                   </select>
                 </div>
               </div>
@@ -1467,13 +1564,21 @@ const StudentDashboard = () => {
               <div className="bg-white p-6 rounded-xl shadow-sm">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-2xl font-bold text-gray-800">Profile Information</h2>
-              <button
-                onClick={() => setIsProfileModalOpen(true)}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-              >
-                Edit Profile
-              </button>
-            </div>
+                  <div className="space-x-4">
+                    <button
+                      onClick={() => setIsProfileModalOpen(true)}
+                      className="text-sm font-medium text-blue-600 hover:text-blue-500"
+                    >
+                      Edit Profile
+                    </button>
+                    <button
+                      onClick={() => setIsGuardianModalOpen(true)}
+                      className="text-sm font-medium text-blue-600 hover:text-blue-500"
+                    >
+                      Add Guardian
+                    </button>
+                  </div>
+                </div>
 
                 {/* Profile Details */}
                 <div className="grid grid-cols-2 gap-6">
@@ -1979,11 +2084,17 @@ const StudentDashboard = () => {
       </main>
       {isProfileModalOpen && (
         <EditStudentProfileModal
-        isOpen={isProfileModalOpen}
-        onClose={() => setIsProfileModalOpen(false)}
-          onSubmit={handleProfileSave}
-        user={studentData}
-      />
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+          studentData={studentData}
+        />
+      )}
+      {isGuardianModalOpen && (
+        <AddGuardianModal
+          isOpen={isGuardianModalOpen}
+          onClose={() => setIsGuardianModalOpen(false)}
+          studentId={user?.id || 0}
+        />
       )}
       {isGuardianModalOpen && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">

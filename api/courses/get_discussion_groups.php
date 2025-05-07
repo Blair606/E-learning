@@ -28,22 +28,12 @@ try {
     // Get database connection
     $conn = getConnection();
 
-    // Get discussion groups for the course
-    $groups_query = "
-        SELECT 
-            dg.id,
-            dg.name,
-            c.name as course,
-            c.code as course_code,
-            COUNT(DISTINCT dgm.user_id) as members,
-            MAX(dt.created_at) as last_active
-        FROM discussion_groups dg
-        JOIN courses c ON dg.course_id = c.id
-        LEFT JOIN discussion_group_members dgm ON dg.id = dgm.group_id
-        LEFT JOIN discussion_topics dt ON dg.id = dt.group_id
-        WHERE dg.course_id = ?
-        GROUP BY dg.id, dg.name, c.name, c.code
-    ";
+    // Return empty array for now until discussion tables are created
+    echo json_encode([
+        'success' => true,
+        'data' => []
+    ]);
+    exit();
 
     $stmt = $conn->prepare($groups_query);
     $stmt->bind_param('i', $course_id);
@@ -92,7 +82,7 @@ try {
 
         $groups[] = [
             'id' => (int)$group['id'],
-            'name' => $group['name'],
+            'name' => $group['title'],
             'course' => $group['course'],
             'courseCode' => $group['course_code'],
             'members' => (int)$group['members'],
