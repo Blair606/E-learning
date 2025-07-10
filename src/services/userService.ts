@@ -210,7 +210,7 @@ class UserService {
 
   async getUserById(userId: string): Promise<User> {
     try {
-      const response = await api.get(`/users/${userId}`);
+      const response = await api.get(`/users/index.php?id=${userId}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching user:', error);
