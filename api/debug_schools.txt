@@ -68,3 +68,7 @@ schools endpoint hit at 2025-07-10T10:57:46+02:00
 schools endpoint hit at 2025-07-10T10:57:46+02:00
 schools endpoint hit at 2025-07-10T10:57:46+02:00
 schools endpoint hit at 2025-07-10T10:57:46+02:00
+schools endpoint hit at 2025-07-10T11:01:28+02:00
+schools endpoint hit at 2025-07-10T11:01:28+02:00
+schools endpoint hit at 2025-07-10T11:01:28+02:00
+schools endpoint hit at 2025-07-10T11:01:28+02:00

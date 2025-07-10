@@ -8,9 +8,6 @@ ini_set('error_log', __DIR__ . '/../logs/php_errors.log');
 // Include CORS configuration first
 include_once '../config/cors.php';
 
-// Handle CORS before any other operations
-handleCORS();
-
 // Set content type
 header('Content-Type: application/json');
 
