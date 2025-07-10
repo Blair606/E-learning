@@ -6,10 +6,10 @@ ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/../logs/php_errors.log');
 
 // Include CORS configuration first
-include_once '../config/cors.php';
+include_once __DIR__ . '/../config/cors.php';
 
 // Handle CORS before any other operations
-handleCORS();
+if (function_exists('handleCORS')) { handleCORS(); }
 
 // Set content type
 header('Content-Type: application/json');
@@ -124,6 +124,10 @@ switch($method) {
             if(!empty($data->password)) {
                 $query .= ", password = :password";
                 $params[":password"] = password_hash($data->password, PASSWORD_DEFAULT);
+            }
+            if(isset($data->status)) {
+                $query .= ", status = :status";
+                $params[":status"] = $data->status;
             }
             
             $query .= " WHERE id = :id";

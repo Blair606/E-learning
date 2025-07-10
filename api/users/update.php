@@ -1,6 +1,6 @@
 <?php
-// Include CORS headers
-require_once '../cors.php';
+require_once __DIR__ . '/../config/cors.php';
+if (function_exists('handleCORS')) { handleCORS(); }
 
 // Include database connection
 require_once '../config/database.php';
@@ -73,9 +73,6 @@ if (!empty($data->id)) {
                     "message" => "Unable to update user."
                 ));
             }
-                "success" => true,
-                "message" => "User was updated successfully."
-            ));
         } else {
             // Set response code - 503 service unavailable
             http_response_code(503);

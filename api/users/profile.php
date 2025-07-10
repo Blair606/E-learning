@@ -1,6 +1,6 @@
 <?php
-// Include CORS headers
-require_once '../cors.php';
+require_once __DIR__ . '/../config/cors.php';
+if (function_exists('handleCORS')) { handleCORS(); }
 
 // Include database connection
 require_once '../config/database.php';

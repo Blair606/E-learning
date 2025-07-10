@@ -20,7 +20,7 @@ import DashboardHeader from "../../components/DashboardHeader";
 import CreateCourseModal, {
   CourseFormData,
 } from "../../components/modals/CreateCourseModal";
-import { User, Student, Teacher } from "../../types/user";
+import { User } from "../../types/user";
 
 import "react-datepicker/dist/react-datepicker.css";
 
@@ -30,108 +30,50 @@ import Finance from "./admincomponents/Finance";
 import Departments from "./admincomponents/Departments";
 import CreateSchoolModal, { SchoolFormData } from "../../components/modals/CreateSchoolModal";
 import { schoolService } from '../../services/schoolService';
-import type { School, Department } from '../../types/school';
-import { courseService, Course } from '../../services/courseService';
+import { courseService } from '../../services/courseService';
 import { toast } from "react-hot-toast";
 import axios from "axios";
 
-interface UserFilters {
-  role: 'all' | 'teacher' | 'student' | 'admin';
-  status: 'all' | 'active' | 'inactive';
-  department: string;
-}
-
-interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-}
-
-// Add School interface
-interface School {
-  id: number;
-  name: string;
-  code: string;
-  description: string;
-  status: "active" | "inactive";
-  departments: Array<{
-    id: number;
-    name: string;
-  }>;
-}
-
-// Add Department interface
-interface Department {
-  id: string;
-  name: string;
-  code: string;
-  schoolId: string;
-  description: string;
-  status: "active" | "inactive";
-  createdAt: string;
-  updatedAt: string;
-}
-
-// Add new interfaces for settings
-interface SystemSettings {
-  general: {
-    schoolName: string;
-    academicYear: string;
-    currentTerm: number;
-    timezone: string;
-    dateFormat: string;
-    language: string;
-  };
-  notifications: {
-    emailNotifications: boolean;
-    smsNotifications: boolean;
-    paymentReminders: boolean;
-    assignmentNotifications: boolean;
-    systemUpdates: boolean;
-  };
-  security: {
-    passwordExpiration: number;
-    loginAttempts: number;
-    sessionTimeout: number;
-    twoFactorAuth: boolean;
-  };
-  academic: {
-    gradingSystem: "letter" | "percentage" | "gpa";
-    passingGrade: number;
-    attendanceThreshold: number;
-    lateSubmissionPolicy: "strict" | "flexible" | "none";
-  };
-}
-
-interface Course {
-  id: number;
-  code: string;
-  name: string;
-  title: string;
-  description: string;
-  department: string;
-  department_name: string;
-  teacher: string;
-  instructor_name: string;
-  students: number;
-  status: "active" | "inactive";
-  school_name: string;
-  enrollment_capacity: number;
-}
+// Remove local interface definitions for School, Department, and Course
+// Use types from services
+import { School } from '../../services/schoolService';
+import { Course } from '../../services/courseService';
 
 const AdminDashboard = () => {
   const { user } = useSelector((state: RootState) => state.auth);
   const [activeTab, setActiveTab] = useState("overview");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  const [systemStats] = useState({
-    totalStudents: 1250,
-    totalTeachers: 75,
-    activeCourses: 48,
-    departments: 12,
-    totalRevenue: 15000000,
-    pendingPayments: 2500000,
+  // 1. Replace hardcoded systemStats with real-time data
+  const [systemStats, setSystemStats] = useState({
+    totalStudents: 0,
+    totalTeachers: 0,
+    activeCourses: 0,
+    departments: 0,
+    totalRevenue: 0,
+    pendingPayments: 0,
   });
+
+  const fetchSystemStats = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get('http://localhost/E-learning/api/admin/stats.php', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.data.success) {
+        setSystemStats(response.data.stats);
+      } else {
+        throw new Error(response.data.error || 'Failed to fetch stats');
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+      toast.error('Failed to fetch system stats');
+    }
+  };
+
+  useEffect(() => {
+    fetchSystemStats();
+  }, []);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
@@ -139,10 +81,9 @@ const AdminDashboard = () => {
 
   const [users, setUsers] = useState<User[]>([]); // Initialize as an empty array
 
-  const [showUserModal, setShowUserModal] = useState(false);
   const [userModalType, setUserModalType] = useState<'student' | 'teacher'>('student');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [userModalMode, setUserModalMode] = useState<'create' | 'edit' | 'delete'>('create');
+  const [userModalMode, setUserModalMode] = useState<'create' | 'update' | 'delete'>('create');
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
 
   const [courses, setCourses] = useState<Course[]>([]);
@@ -154,9 +95,6 @@ const AdminDashboard = () => {
   const coursesPerPage = 10;
 
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
-  const [editCourseData, setEditCourseData] = useState<
-    CourseFormData | undefined
-  >();
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
 
   // Add state for schools
@@ -165,9 +103,6 @@ const AdminDashboard = () => {
   const [isSchoolModalOpen, setIsSchoolModalOpen] = useState(false);
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
 
-  // Add this state to track departments for the selected school
-  const [schoolDepartments, setSchoolDepartments] = useState<string[]>([]);
-
   const fetchCourses = async () => {
     try {
       const response = await axios.get('http://localhost/E-learning/api/courses/index.php', {
@@ -175,22 +110,29 @@ const AdminDashboard = () => {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
-      if (Array.isArray(response.data)) {
-        const transformedCourses = response.data.map((course: any) => ({
-          id: course.id,
-          code: course.code,
-          name: course.name,
-          title: course.name,
-          description: course.description,
-          department: course.department_name,
-          department_name: course.department_name,
-          teacher: course.instructor_name,
-          instructor_name: course.instructor_name,
-          students: course.current_enrollment || 0,
-          status: course.status,
-          school_name: course.school_name,
-          enrollment_capacity: course.enrollment_capacity || 0
+      // Accept both array and object with data property
+      const data = Array.isArray(response.data)
+        ? response.data
+        : response.data.courses || response.data.data || [];
+      if (Array.isArray(data)) {
+        const transformedCourses: Course[] = data.map((course: Record<string, unknown>) => ({
+          id: Number(course.id),
+          name: course.name as string || (course.title as string) || '',
+          code: course.code as string,
+          description: course.description as string,
+          credits: Number(course.credits) || 0,
+          status: (course.status as string) || 'active',
+          schedule: course.schedule || [],
+          prerequisites: course.prerequisites || [],
+          department: course.department_name as string || course.department as string || '',
+          school: course.school_name as string || course.school as string || '',
+          instructor: course.instructor_name as string || course.instructor as string || '',
+          instructorId: Number(course.instructor_id) || 0,
+          totalStudents: Number(course.totalStudents) || Number(course.students) || 0,
+          students: typeof course.students === 'number' ? course.students : undefined,
+          nextClass: typeof course.nextClass === 'string' ? course.nextClass : undefined,
+          progress: typeof course.progress === 'number' ? course.progress : undefined,
+          content: Array.isArray(course.content) ? course.content : undefined,
         }));
         setCourses(transformedCourses);
       } else {
@@ -220,19 +162,8 @@ const AdminDashboard = () => {
     fetchUsers();
   }, []);
 
-  const handleDeleteUser = async (userId: string) => {
-    try {
-      await userService.deleteUser(Number(userId));
-      setUsers(users.filter(user => user.id !== userId));
-      toast.success('User deleted successfully');
-    } catch (error) {
-      console.error('Error deleting user:', error);
-      toast.error('Failed to delete user');
-    }
-  };
-
   // Add settings state
-  const [systemSettings, setSystemSettings] = useState<SystemSettings>({
+  const [systemSettings, setSystemSettings] = useState({
     general: {
       schoolName: "International Academy",
       academicYear: "2023-2024",
@@ -286,10 +217,11 @@ const AdminDashboard = () => {
       if (!selectedCourse) return;
       await courseService.updateCourse({
         ...courseData,
-        id: selectedCourse.id
+        id: selectedCourse.id,
+        title: courseData.name, // Fix for UpdateCourseData
       });
       setCourses(courses.map(course =>
-        course.id === selectedCourse.id ? { ...course, ...courseData } : course
+        course.id === selectedCourse.id ? { ...course, ...courseData, id: selectedCourse.id } : course
       ));
       setIsCourseModalOpen(false);
       setSelectedCourse(null);
@@ -300,10 +232,10 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleDeleteCourse = async (courseId: string) => {
+  const handleDeleteCourse = async (courseId: number) => {
     if (window.confirm('Are you sure you want to delete this course?')) {
       try {
-        await courseService.deleteCourse(parseInt(courseId));
+        await courseService.deleteCourse(courseId);
         setCourses(courses.filter(course => course.id !== courseId));
         toast.success('Course deleted successfully');
       } catch (error) {
@@ -315,62 +247,65 @@ const AdminDashboard = () => {
 
   const handleUserAction = async (action: 'create' | 'update' | 'delete', userData?: Partial<User>) => {
     try {
-        switch (action) {
-            case 'create':
-                if (!userData) {
-                    toast.error('No user data provided');
-                    return;
-                }
-                const newUser = await userService.createUser({
-                    ...userData,
-                    status: 'active',
-                    role: userModalType
-                });
-                setUsers(prev => [...prev, newUser]);
-                setIsUserModalOpen(false);
-                setSelectedUser(null);
-                toast.success('User created successfully');
-                break;
-
-            case 'update':
-                if (!userData || !selectedUser?.id) {
-                    toast.error('No user data or selected user');
-                    return;
-                }
-                const updatedUser = await userService.updateUser(selectedUser.id, userData);
-                setUsers(prev => prev.map(user => 
-                    user.id === updatedUser.id ? updatedUser : user
-                ));
-                setIsUserModalOpen(false);
-                setSelectedUser(null);
-                toast.success('User updated successfully');
-                break;
-
-            case 'delete':
-                if (!selectedUser?.id) {
-                    toast.error('No user selected');
-                    return;
-                }
-                await userService.deleteUser(selectedUser.id);
-                setUsers(prev => prev.filter(user => user.id !== selectedUser.id));
-                setIsUserModalOpen(false);
-                setSelectedUser(null);
-                toast.success('User deleted successfully');
-                break;
+      switch (action) {
+        case 'create': {
+          if (!userData) {
+            toast.error('No user data provided');
+            return;
+          }
+          const newUser = await userService.createUser({
+            ...userData,
+            status: 'active',
+            role: userModalType,
+          });
+          setUsers(prev => [...prev, newUser]);
+          setIsUserModalOpen(false);
+          setSelectedUser(null);
+          toast.success('User created successfully');
+          break;
         }
+        case 'update': {
+          if (!userData || !selectedUser?.id) {
+            toast.error('No user data or selected user');
+            return;
+          }
+          const updatedUser = await userService.updateUser(Number(selectedUser.id), userData);
+          setUsers(prev => prev.map(user =>
+            user.id === updatedUser.id ? updatedUser : user
+          ));
+          setIsUserModalOpen(false);
+          setSelectedUser(null);
+          toast.success('User updated successfully');
+          break;
+        }
+        case 'delete': {
+          if (!selectedUser?.id) {
+            toast.error('No user selected');
+            return;
+          }
+          await userService.deleteUser(Number(selectedUser.id));
+          setUsers(prev => prev.filter(user => user.id !== selectedUser.id));
+          setIsUserModalOpen(false);
+          setSelectedUser(null);
+          toast.success('User deleted successfully');
+          break;
+        }
+      }
     } catch (error) {
-        console.error('Error in user action:', error);
-        if (error instanceof Error) {
-            toast.error(error.message);
-        } else {
-            toast.error('An unexpected error occurred');
-        }
+      console.error('Error in user action:', error);
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error('An unexpected error occurred');
+      }
     }
   };
 
   const handleCreateSchool = async (schoolData: SchoolFormData) => {
     try {
-      const response = await schoolService.createSchool(schoolData);
+      // Transform departments to string[] (names)
+      const departments = schoolData.departments.map(dep => dep.name);
+      await schoolService.createSchool({ ...schoolData, departments });
       const updatedSchools = await schoolService.getAllSchools();
       setSchools(updatedSchools);
       toast.success('School and departments created successfully');
@@ -385,12 +320,9 @@ const AdminDashboard = () => {
   const handleEditSchool = async (schoolData: SchoolFormData) => {
     try {
       if (!selectedSchool) return false;
-      
-      const response = await schoolService.updateSchool({
-        ...schoolData,
-        id: selectedSchool.id
-      });
-      
+      // Transform departments to string[] (names)
+      const departments = schoolData.departments.map(dep => dep.name);
+      await schoolService.updateSchool({ ...schoolData, id: selectedSchool.id, departments });
       const updatedSchools = await schoolService.getAllSchools();
       setSchools(updatedSchools);
       toast.success('School updated successfully');
@@ -402,10 +334,10 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleDeleteSchool = async (schoolId: string) => {
+  const handleDeleteSchool = async (schoolId: number) => {
     if (window.confirm("Are you sure you want to delete this school?")) {
       try {
-        const response = await schoolService.deleteSchool(parseInt(schoolId));
+        await schoolService.deleteSchool(schoolId);
         const updatedSchools = await schoolService.getAllSchools();
         setSchools(updatedSchools);
         toast.success('School deleted successfully');
@@ -422,14 +354,7 @@ const AdminDashboard = () => {
   // Add this function to handle school selection change
   const handleSchoolChange = (schoolId: string) => {
     setSchoolFilter(schoolId);
-    
-    // Find the selected school and update departments
-    const selectedSchool = schools.find(school => school.id === schoolId);
-    if (selectedSchool) {
-      setSchoolDepartments(selectedSchool.departments.map(dep => dep.name));
-    } else {
-      setSchoolDepartments([]);
-    }
+    // No setSchoolDepartments needed
   };
 
   const fetchSchools = async () => {
@@ -439,14 +364,22 @@ const AdminDashboard = () => {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
-      if (response.data.success) {
-        const formattedSchools = response.data.schools.map((school: any) => ({
-          ...school,
-          departments: school.departments.map((dep: any) => ({
-            id: dep.id,
-            name: dep.name
-          }))
+      // Accept both array and object with schools property
+      const schools = Array.isArray(response.data)
+        ? response.data
+        : response.data.schools || [];
+      if (Array.isArray(schools)) {
+        const formattedSchools: School[] = schools.map((school: Record<string, unknown>) => ({
+          id: Number(school.id),
+          name: String(school.name),
+          code: String(school.code),
+          description: String(school.description),
+          status: school.status === 'active' ? 'active' : 'inactive',
+          departments: Array.isArray(school.departments)
+            ? (school.departments as Array<{ name: string }> ).map(dep => dep.name)
+            : [],
+          created_at: String(school.created_at) || '',
+          updated_at: String(school.updated_at) || '',
         }));
         setSchools(formattedSchools);
       } else {
@@ -461,6 +394,19 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchSchools();
   }, []);
+
+  // 3. Add activate/deactivate user functionality in user management
+  const handleToggleUserStatus = async (user: User) => {
+    try {
+      const updatedStatus = user.status === 'active' ? 'inactive' : 'active';
+      await userService.updateUser(Number(user.id), { status: updatedStatus });
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, status: updatedStatus } : u));
+      toast.success(`User ${updatedStatus === 'active' ? 'activated' : 'deactivated'} successfully`);
+    } catch (error) {
+      console.error('Error toggling user status:', error);
+      toast.error('Failed to update user status');
+    }
+  };
 
   const renderContent = () => {
     switch (activeTab) {
@@ -553,7 +499,7 @@ const AdminDashboard = () => {
                       setUserModalType('student');
                       setSelectedUser(null);
                       setUserModalMode('create');
-                      setShowUserModal(true);
+                      setIsUserModalOpen(true);
                     }}
                     className="flex-1 sm:flex-none flex items-center justify-center px-3 sm:px-4 py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 text-sm sm:text-base"
                   >
@@ -565,7 +511,7 @@ const AdminDashboard = () => {
                       setUserModalType('teacher');
                       setSelectedUser(null);
                       setUserModalMode('create');
-                      setShowUserModal(true);
+                      setIsUserModalOpen(true);
                     }}
                     className="flex-1 sm:flex-none flex items-center justify-center px-3 sm:px-4 py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 text-sm sm:text-base"
                   >
@@ -658,7 +604,7 @@ const AdminDashboard = () => {
                               {/* Departments column: show names, comma separated, or a placeholder */}
                               {school.departments && school.departments.length > 0 ? (
                                 <span className="text-xs text-gray-700">
-                                  {school.departments.map((dep: any) => dep.name).join(', ')}
+                                  {school.departments.join(', ')}
                                 </span>
                               ) : (
                                 <span className="text-xs text-gray-400">No departments</span>
@@ -686,7 +632,7 @@ const AdminDashboard = () => {
                                 Edit
                               </button>
                               <button
-                                onClick={() => handleDeleteSchool(school.id.toString())}
+                                onClick={() => handleDeleteSchool(school.id)}
                                 className="text-red-600 hover:text-red-900"
                               >
                                 Delete
@@ -722,7 +668,13 @@ const AdminDashboard = () => {
                 }
                 setIsSchoolModalOpen(false);
               }}
-              editData={selectedSchool || undefined}
+              editData={selectedSchool ? {
+                name: selectedSchool.name,
+                code: selectedSchool.code,
+                description: selectedSchool.description,
+                status: selectedSchool.status,
+                departments: selectedSchool.departments.map(dep => ({ name: dep, code: '', description: '' })),
+              } : undefined}
             />
           </div>
         );
@@ -740,7 +692,7 @@ const AdminDashboard = () => {
                     setUserModalType('student');
                     setSelectedUser(null);
                     setUserModalMode('create');
-                    setShowUserModal(true);
+                    setIsUserModalOpen(true);
                   }}
                   className="flex-1 sm:flex-none flex items-center justify-center px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm sm:text-base"
                 >
@@ -752,7 +704,7 @@ const AdminDashboard = () => {
                     setUserModalType('teacher');
                     setSelectedUser(null);
                     setUserModalMode('create');
-                    setShowUserModal(true);
+                    setIsUserModalOpen(true);
                   }}
                   className="flex-1 sm:flex-none flex items-center justify-center px-3 sm:px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm sm:text-base"
                 >
@@ -888,28 +840,13 @@ const AdminDashboard = () => {
                             </span>
                           </td>
                           <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <div className="flex space-x-2">
-                              <button
-                                onClick={() => {
-                                  setSelectedUser(user);
-                                  setUserModalMode('edit');
-                                  setShowUserModal(true);
-                                }}
-                                className="text-indigo-600 hover:text-indigo-900"
-                              >
-                                <PencilIcon className="h-5 w-5" />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setSelectedUser(user);
-                                  setUserModalMode('delete');
-                                  setShowUserModal(true);
-                                }}
-                                className="text-red-600 hover:text-red-900"
-                              >
-                                <TrashIcon className="h-5 w-5" />
-                              </button>
-                            </div>
+                            <button
+                              onClick={() => handleToggleUserStatus(user)}
+                              className={user.status === 'active' ? 'text-gray-400 hover:text-gray-700' : 'text-green-600 hover:text-green-900'}
+                              title={user.status === 'active' ? 'Deactivate' : 'Activate'}
+                            >
+                              {user.status === 'active' ? 'Deactivate' : 'Activate'}
+                            </button>
                           </td>
                         </tr>
                       ))
@@ -1033,7 +970,7 @@ const AdminDashboard = () => {
                         if (!course) return false;
                         const matchesSearch = course.code?.toLowerCase().includes(courseSearchTerm.toLowerCase()) ||
                           course.name?.toLowerCase().includes(courseSearchTerm.toLowerCase());
-                        const matchesSchool = !schoolFilter || course.school_name === schoolFilter;
+                        const matchesSchool = !schoolFilter || course.school === schoolFilter;
                         const matchesStatus = !courseStatusFilter || course.status === courseStatusFilter;
                         return matchesSearch && matchesSchool && matchesStatus;
                       })
@@ -1044,17 +981,17 @@ const AdminDashboard = () => {
                             <div className="text-sm font-medium text-gray-900">{course.code}</div>
                           </td>
                           <td className="px-6 py-4">
-                            <div className="text-sm text-gray-900">{course.title}</div>
+                            <div className="text-sm text-gray-900">{course.name}</div>
                             <div className="text-sm text-gray-500">{course.description}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{course.school_name}</div>
+                            <div className="text-sm text-gray-900">{course.school}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{course.department_name}</div>
+                            <div className="text-sm text-gray-900">{course.department}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">{course.teacher}</div>
+                            <div className="text-sm text-gray-900">{course.instructor}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
@@ -1064,7 +1001,7 @@ const AdminDashboard = () => {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="text-sm text-gray-900">
-                              {course.students}/{course.enrollment_capacity}
+                              {course.totalStudents}/{course.content?.length || 0}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -1078,7 +1015,7 @@ const AdminDashboard = () => {
                               <PencilIcon className="w-5 h-5" />
                             </button>
                             <button
-                              onClick={() => handleDeleteCourse(course.id.toString())}
+                              onClick={() => handleDeleteCourse(course.id)}
                               className="text-red-600 hover:text-red-900"
                             >
                               <TrashIcon className="w-5 h-5" />
@@ -1161,7 +1098,21 @@ const AdminDashboard = () => {
                 }
                 setIsCourseModalOpen(false);
               }}
-              editData={selectedCourse || undefined}
+              editData={selectedCourse ? {
+                code: selectedCourse.code,
+                name: selectedCourse.name,
+                description: selectedCourse.description,
+                credits: selectedCourse.credits,
+                school_id: 0, // You may need to map school name to ID
+                department_id: 0, // You may need to map department name to ID
+                instructor_id: selectedCourse.instructorId,
+                status: selectedCourse.status as 'active' | 'inactive',
+                enrollment_capacity: 0, // Not available in Course, set default or map if available
+                start_date: '', // Not available in Course, set default or map if available
+                end_date: '', // Not available in Course, set default or map if available
+                schedule: [], // Not available in Course, set default or map if available
+                prerequisites: [], // Not available in Course, set default or map if available
+              } : undefined}
             />
           </div>
         );
@@ -1567,6 +1518,12 @@ const AdminDashboard = () => {
     }
   };
 
+  // When opening the modal for editing a user, set userModalMode to 'update' (never 'edit')
+  // Example: setUserModalMode('update')
+  const handleUserModalConfirm = (userData?: Partial<User>) => {
+    handleUserAction(userModalMode, userData);
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Mobile Menu Button - Moved outside the header and adjusted z-index */}
@@ -1584,7 +1541,7 @@ const AdminDashboard = () => {
       {/* Dashboard Header */}
       <DashboardHeader 
         userRole={user?.role || 'admin'} 
-        userName={`${user?.first_name || ''} ${user?.last_name || ''}`} 
+        userName={`${user?.firstName || ''} ${user?.lastName || ''}`} 
       />
 
       {/* Responsive Sidebar */}
@@ -1680,7 +1637,7 @@ const AdminDashboard = () => {
                         setUserModalType('student');
                         setSelectedUser(null);
                         setUserModalMode('create');
-                        setShowUserModal(true);
+                        setIsUserModalOpen(true);
                       }}
                       className="flex-1 sm:flex-none flex items-center justify-center px-3 sm:px-4 py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 text-sm sm:text-base"
                     >
@@ -1692,7 +1649,7 @@ const AdminDashboard = () => {
                         setUserModalType('teacher');
                         setSelectedUser(null);
                         setUserModalMode('create');
-                        setShowUserModal(true);
+                        setIsUserModalOpen(true);
                       }}
                       className="flex-1 sm:flex-none flex items-center justify-center px-3 sm:px-4 py-2 bg-white text-purple-600 rounded-lg hover:bg-purple-50 text-sm sm:text-base"
                     >
@@ -1715,9 +1672,9 @@ const AdminDashboard = () => {
           setIsUserModalOpen(false);
           setSelectedUser(null);
         }}
-        mode={userModalMode === 'create' ? 'edit' : userModalMode}
+        mode={userModalMode === 'update' ? 'edit' : userModalMode}
         user={selectedUser}
-        onConfirm={handleUserAction}
+        onConfirm={handleUserModalConfirm}
       />
     </div>
   );

@@ -18,11 +18,11 @@ function sendJsonResponse($success, $message, $data = null, $code = 200) {
     exit;
 }
 
-require_once '../config/cors.php';
-require_once '../config/database.php';
+// Include CORS configuration first
+require_once __DIR__ . '/../config/cors.php';
+if (function_exists('handleCORS')) { handleCORS(); }
 
-// Handle CORS first
-handleCORS();
+require_once '../config/database.php';
 
 // Log request method and headers
 error_log("Request Method: " . $_SERVER['REQUEST_METHOD']);

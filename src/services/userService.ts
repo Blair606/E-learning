@@ -168,7 +168,20 @@ class UserService {
 
   async updateUser(userId: number, userData: Partial<User>): Promise<User> {
     try {
-      const response = await api.put(`/users/index.php?id=${userId}`, userData);
+      // If only status is being updated, fetch the user first to get email and role
+      let payload = userData;
+      if (userData.status && (!userData.email || !userData.role)) {
+        const user = await this.getUserById(userId.toString());
+        payload = {
+          id: userId,
+          email: user.email,
+          role: user.role,
+          ...userData
+        };
+      } else {
+        payload = { id: userId, ...userData };
+      }
+      const response = await api.put(`/users/index.php?id=${userId}`, payload);
       return response.data;
     } catch (error) {
       console.error('Error in updateUser:', error);

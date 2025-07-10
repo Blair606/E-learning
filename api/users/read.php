@@ -1,6 +1,7 @@
 <?php
+require_once __DIR__ . '/../config/cors.php';
+if (function_exists('handleCORS')) { handleCORS(); }
 require_once '../config/database.php';
-require_once '../config/cors.php';
 
 // Enable error reporting for debugging
 error_reporting(E_ALL);

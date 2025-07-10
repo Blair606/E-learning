@@ -1,4 +1,5 @@
 <?php
+file_put_contents(__DIR__ . '/../debug_schools.txt', 'schools endpoint hit at ' . date('c') . PHP_EOL, FILE_APPEND);
 // Enable error reporting
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
@@ -9,7 +10,7 @@ ini_set('error_log', __DIR__ . '/../logs/php_errors.log');
 include_once '../config/cors.php';
 
 // Handle CORS before any other operations
-handleCORS();
+// handleCORS();
 
 // Set content type
 header('Content-Type: application/json');
