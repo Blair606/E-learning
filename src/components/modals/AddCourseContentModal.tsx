@@ -12,9 +12,10 @@ interface Question {
 interface AddCourseContentModalProps {
   isOpen: boolean;
   onClose: () => void;
+  courseId: number; // <-- Add this prop
 }
 
-const AddCourseContentModal = ({ isOpen, onClose }: AddCourseContentModalProps) => {
+const AddCourseContentModal = ({ isOpen, onClose, courseId }: AddCourseContentModalProps) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -28,7 +29,7 @@ const AddCourseContentModal = ({ isOpen, onClose }: AddCourseContentModalProps) 
     if (isOpen) {
       fetchContents();
     }
-    // eslint-disable-next-line
+     
   }, [isOpen]);
 
   const fetchContents = async () => {
@@ -67,6 +68,7 @@ const AddCourseContentModal = ({ isOpen, onClose }: AddCourseContentModalProps) 
     e.preventDefault();
     if (title.trim() && content.trim()) {
       const newContent = {
+        course_id: courseId, // <-- Include course_id in POST body
         title,
         content,
         questions

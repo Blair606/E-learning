@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { userService } from '../../services/userService';
-import { User } from '../../types/user';
 import { UserCircleIcon, LockClosedIcon, AcademicCapIcon, UserIcon } from '@heroicons/react/24/outline';
 
 interface SignUpError {
@@ -9,7 +7,6 @@ interface SignUpError {
 }
 
 const TeacherSignUp: React.FC = () => {
-    const navigate = useNavigate();
     const [formData, setFormData] = useState({
         email: '',
         password: '',

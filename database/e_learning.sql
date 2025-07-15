@@ -182,15 +182,17 @@ CREATE TABLE `course_content` (
   `title` varchar(255) NOT NULL,
   `content` text NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `status` enum('active','inactive') DEFAULT 'active'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `course_content`
 --
 
-INSERT INTO `course_content` (`id`, `course_id`, `title`, `content`, `created_at`, `updated_at`) VALUES
-(6, 6, 'the begining of the end ', '### Brief Notes on Introduction to JavaScript (JS)\n\n**1. What is JavaScript?**\n- A high-level, interpreted programming language primarily used for adding interactivity to web pages.\n- Runs in web browsers (client-side) and can also be used server-side (e.g., with Node.js).\n- Supports dynamic, event-driven, and functional programming.\n\n**2. Key Features**\n- **Lightweight**: Minimal memory footprint.\n- **Dynamic Typing**: Variables don’t require type declaration.\n- **Object-Oriented**: Uses objects and prototypes.\n- **Asynchronous**: Supports callbacks, promises, and async/await for non-blocking operations.\n- **Cross-Platform**: Runs on any device with a browser.\n\n**3. Basic Syntax**\n- **Variables**: Declared using `var`, `let`, or `const`.\n  ```javascript\n  let name = \"Alice\"; // mutable\n  const age = 25; // immutable\n  var x = 10; // older, less preferred\n  ```\n- **Data Types**: Primitive (number, string, boolean, null, undefined, symbol) and Objects (arrays, functions, etc.).\n- **Functions**:\n  ```javascript\n  function greet(name) {\n    return `Hello, ${name}!`;\n  }\n  // Arrow function (ES6)\n  const greetArrow = (name) => `Hello, ${name}!`;\n  ```\n- **Conditionals**:\n  ```javascript\n  if (age > 18) {\n    console.log(\"Adult\");\n  } else {\n    console.log(\"Minor\");\n  }\n  ```\n- **Loops**:\n  ```javascript\n  for (let i = 0; i < 5; i++) {\n    console.log(i);\n  }\n  ```\n\n**4. Working with the DOM**\n- JavaScript manipulates HTML/CSS for dynamic web content.\n  ```javascript\n  document.getElementById(\"myDiv\").innerHTML = \"Hello, World!\";\n  document.querySelector(\".myClass\").style.color = \"blue\";\n  ```\n\n**5. Events**\n- Responds to user actions (clicks, keypresses, etc.).\n  ```javascript\n  document.getElementById(\"myButton\").addEventListener(\"click\", () => {\n    alert(\"Button clicked!\");\n  });\n  ```\n\n**6. Modern JavaScript (ES6+)**\n- **Arrow Functions**: Concise syntax for functions.\n- **Destructuring**:\n  ```javascript\n  const [a, b] = [1, 2]; // a = 1, b = 2\n  ```\n- **Spread/Rest Operator**:\n  ```javascript\n  const arr = [1, 2, ...[3, 4]]; // [1, 2, 3, 4]\n  ```\n- **Modules**:\n  ```javascript\n  // Export\n  export const myFunction = () => {};\n  // Import\n  import { myFunction } from \"./module.js\";\n  ```\n\n**7. Tools and Environment**\n- **Running JS**: In browsers (via `<script>` tags or console), Node.js, or online editors (e.g., CodePen, JSFiddle).\n- **Debugging**: Use browser DevTools (Chrome, Firefox) or `console.log()`.\n- **Frameworks/Libraries**: React, Vue, Angular for advanced applications.\n\n**8. Best Practices**\n- Use `let`/`const` over `var`.\n- Write modular, reusable code.\n- Handle errors with `try/catch`.\n- Comment code for clarity.\n- Follow naming conventions (e.g., camelCase for variables).\n\n**9. Resources**\n- MDN Web Docs (developer.mozilla.org)\n- FreeCodeCamp\n- Eloquent JavaScript (book)\n\nThis covers the essentials to get started with JavaScript. Let me know if you want a deeper dive into any topic!', '2025-05-06 14:08:01', '2025-05-06 14:09:00');
+INSERT INTO `course_content` (`id`, `course_id`, `title`, `content`, `created_at`, `updated_at`, `status`) VALUES
+(1, 6, 'Sample Content 1', 'This is a test content for course 6.', NOW(), NOW(), 'active'),
+(2, 6, 'Sample Content 2', 'Another content for course 6.', NOW(), NOW(), 'active');
 
 -- --------------------------------------------------------
 
@@ -576,6 +578,24 @@ INSERT INTO `users` (`id`, `email`, `password`, `first_name`, `last_name`, `role
 (17, 'johndoe@gmail.com', '$2y$10$zLoRlSBu0uVnuc4P4TUBSu6k.RdEhszi6QMZRvrBtRwpYXJF5xcLi', 'johnte ', 'ofubwa', 'student', 'active', '8ba9259f20c89b8acac3903d35371101939244d1e8aef6d25420f2d477f908a3', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-05-07 13:12:21', '2025-05-07 13:12:30', NULL, NULL),
 (18, 'Edydan@gmail.com', '$2y$10$euiOxZAK5PUpfY5UQZyi3OOV5rqdh4ruq8ulyHmVWdtUGXRsgGlbG', 'Blair', 'Grace', 'teacher', 'active', '1a3ca328903c4d6c6082c226bdda8e38f512cf9637bab8317b7a448cc4a70f9d', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-05-07 13:20:39', '2025-05-07 13:20:49', NULL, NULL);
 
+-- --------------------------------------------------------
+--
+-- Table structure for table `notifications`
+--
+
+CREATE TABLE `notifications` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `user_id` INT(11) NOT NULL,
+  `title` VARCHAR(255) NOT NULL,
+  `message` TEXT NOT NULL,
+  `type` VARCHAR(50) DEFAULT NULL,
+  `is_read` TINYINT(1) DEFAULT 0,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 --
 -- Indexes for dumped tables
 --
@@ -851,7 +871,7 @@ ALTER TABLE `courses`
 -- AUTO_INCREMENT for table `course_content`
 --
 ALTER TABLE `course_content`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `course_questions`

@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { setUser } from '../../store/slices/authSlice';
 import { userService } from '../../services/userService';
@@ -9,15 +8,7 @@ interface SignInError {
     message: string;
 }
 
-interface LocationState {
-    from?: {
-        pathname: string;
-    };
-}
-
 const TeacherSignIn: React.FC = () => {
-    const navigate = useNavigate();
-    const location = useLocation();
     const dispatch = useDispatch();
     const [formData, setFormData] = useState({
         email: '',

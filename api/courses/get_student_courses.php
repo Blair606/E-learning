@@ -71,6 +71,9 @@ try {
             s.name as school_name,
             CONCAT(u.first_name, ' ', u.last_name) as instructor_name,
             u.id as instructor_id,
+            (
+                SELECT oc.id FROM online_classes oc WHERE oc.course_id = c.id LIMIT 1
+            ) as class_id,
             CASE 
                 WHEN e.id IS NOT NULL THEN true 
                 ELSE false 
@@ -124,6 +127,7 @@ try {
                     'school' => $course['school_name'],
                     'instructor' => $course['instructor_name'],
                     'instructorId' => $course['instructor_id'],
+                    'classId' => $course['class_id'],
                     'isEnrolled' => (bool)$course['is_enrolled']
                 ];
             } catch (Exception $e) {

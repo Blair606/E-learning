@@ -52,7 +52,7 @@ const CreateSchoolModal: React.FC<CreateSchoolModalProps> = ({
     
     // If we have more than 3 letters, take first 3
     // If we have less than 3 letters, pad with first letter
-    let code = initials.length >= 3 
+    const code = initials.length >= 3 
         ? initials.slice(0, 3).toUpperCase()
         : (initials + initials[0].repeat(3 - initials.length)).toUpperCase();
 
@@ -76,7 +76,7 @@ const CreateSchoolModal: React.FC<CreateSchoolModalProps> = ({
     
     // If we have more than 3 letters, take first 3
     // If we have less than 3 letters, pad with first letter
-    let code = initials.length >= 3 
+    const code = initials.length >= 3 
         ? initials.slice(0, 3).toUpperCase()
         : (initials + initials[0].repeat(3 - initials.length)).toUpperCase();
 

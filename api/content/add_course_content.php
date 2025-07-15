@@ -23,10 +23,11 @@ $data = json_decode(file_get_contents('php://input'), true);
 
 if (
     !isset($data['title']) || !isset($data['content']) ||
-    !isset($data['questions']) || !is_array($data['questions'])
+    !isset($data['questions']) || !is_array($data['questions']) ||
+    !isset($data['course_id'])
 ) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Invalid input']);
+    echo json_encode(['success' => false, 'message' => 'Invalid input: course_id, title, content, and questions are required']);
     exit();
 }
 
@@ -35,8 +36,8 @@ try {
     $conn->beginTransaction();
 
     // Insert course content
-    $stmt = $conn->prepare("INSERT INTO course_content (title, content) VALUES (?, ?)");
-    $stmt->execute([$data['title'], $data['content']]);
+    $stmt = $conn->prepare("INSERT INTO course_content (course_id, title, content) VALUES (?, ?, ?)");
+    $stmt->execute([$data['course_id'], $data['title'], $data['content']]);
     $contentId = $conn->lastInsertId();
 
     // Insert questions

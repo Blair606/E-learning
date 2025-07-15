@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { userService } from '../../services/userService';
 import { User } from '../../types/user';
 import { UserGroupIcon } from '@heroicons/react/24/outline';
@@ -9,7 +8,6 @@ interface SignUpError {
 }
 
 const ParentSignUp: React.FC = () => {
-    const navigate = useNavigate();
     const [formData, setFormData] = useState({
         email: '',
         password: '',

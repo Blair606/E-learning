@@ -15,7 +15,15 @@ $db = $database->connect();
 $material = new Material($db);
 
 // Get class ID from URL
-$class_id = isset($_GET['class_id']) ? $_GET['class_id'] : die();
+$class_id = isset($_GET['class_id']) ? $_GET['class_id'] : null;
+if (!$class_id) {
+    http_response_code(400);
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Class ID is required.'
+    ]);
+    exit;
+}
 
 // Get materials
 $result = $material->getMaterialsByClassId($class_id);
@@ -58,7 +66,8 @@ if($num > 0) {
     echo json_encode(
         array(
             'status' => 'success',
-            'materials' => array()
+            'materials' => array(),
+            'message' => 'No materials found for this class.'
         )
     );
 }

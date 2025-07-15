@@ -377,7 +377,7 @@ const TeacherDashboard: React.FC = () => {
         // Fetch student analytics
         const transformedClasses: ClassData[] = [];
         (analyticsData.studentAnalytics || []).forEach((curr: any) => {
-          let existingClass = transformedClasses.find(c => c.id === curr.class_id);
+          const existingClass = transformedClasses.find(c => c.id === curr.class_id);
           if (existingClass) {
             existingClass.students.push(curr);
           } else {

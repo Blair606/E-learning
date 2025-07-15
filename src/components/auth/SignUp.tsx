@@ -1,14 +1,8 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { userService } from '../../services/userService';
 import { User } from '../../types/user';
 
-interface SignUpError {
-    message: string;
-}
-
 const SignUp: React.FC = () => {
-    const navigate = useNavigate();
     const [formData, setFormData] = useState({
         email: '',
         password: '',

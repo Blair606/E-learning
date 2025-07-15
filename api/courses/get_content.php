@@ -30,10 +30,29 @@ try {
     
     // Get course ID from query parameters
     if (!isset($_GET['course_id'])) {
-        throw new Exception("Course ID is required");
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Course ID is required'
+        ]);
+        exit;
     }
     
     $courseId = $_GET['course_id'];
+    
+    // Check if the course exists
+    $checkQuery = "SELECT id FROM courses WHERE id = :course_id";
+    $checkStmt = $conn->prepare($checkQuery);
+    $checkStmt->bindParam(':course_id', $courseId, PDO::PARAM_INT);
+    $checkStmt->execute();
+    if ($checkStmt->rowCount() === 0) {
+        http_response_code(404);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Course not found'
+        ]);
+        exit;
+    }
     
     // Get course content
     $contentQuery = "
@@ -41,20 +60,28 @@ try {
             id,
             title,
             content,
-            order_number,
             status,
             created_at,
             updated_at
         FROM course_content
         WHERE course_id = :course_id
         AND status = 'active'
-        ORDER BY order_number ASC
+        ORDER BY id ASC
     ";
     
     $contentStmt = $conn->prepare($contentQuery);
     $contentStmt->bindParam(':course_id', $courseId, PDO::PARAM_INT);
     $contentStmt->execute();
     $content = $contentStmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    if (empty($content)) {
+        echo json_encode([
+            'success' => true,
+            'data' => [],
+            'message' => 'No course content found for this course.'
+        ]);
+        exit;
+    }
     
     // Format the response
     $response = [
@@ -64,7 +91,6 @@ try {
                 'id' => $item['id'],
                 'title' => $item['title'],
                 'content' => $item['content'],
-                'order' => $item['order_number'],
                 'status' => $item['status'],
                 'created_at' => $item['created_at'],
                 'updated_at' => $item['updated_at']

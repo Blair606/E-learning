@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+// import { useAuth } from '../../contexts/AuthContext';
 
 interface User {
   id: number;
@@ -10,6 +10,8 @@ interface User {
   address?: string;
   school_id?: number;
   department_id?: number;
+  grade_level?: string;
+  student_id?: string;
 }
 
 interface EditStudentProfileModalProps {
@@ -25,7 +27,7 @@ const EditStudentProfileModal: React.FC<EditStudentProfileModalProps> = ({
   onSubmit,
   user
 }) => {
-  const { user: authUser } = useAuth();
+  // const { user: authUser } = useAuth(); // Unused
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [schools, setSchools] = useState<Array<{ id: number; name: string }>>([]);
@@ -38,13 +40,14 @@ const EditStudentProfileModal: React.FC<EditStudentProfileModalProps> = ({
     address: user?.address || '',
     schoolId: user?.school_id || '',
     departmentId: user?.department_id || '',
+    // gradeLevel and studentId removed
   });
 
   useEffect(() => {
     if (isOpen) {
       fetchSchools();
       if (formData.schoolId) {
-        fetchDepartments(formData.schoolId);
+        fetchDepartments(Number(formData.schoolId));
       }
     }
   }, [isOpen, formData.schoolId]);
@@ -57,7 +60,7 @@ const EditStudentProfileModal: React.FC<EditStudentProfileModalProps> = ({
       }
       const data = await response.json();
       if (data.success && data.schools) {
-        setSchools(data.schools.map((school: any) => ({
+        setSchools(data.schools.map((school: { id: number; name: string }) => ({
           id: school.id,
           name: school.name
         })));
@@ -78,7 +81,7 @@ const EditStudentProfileModal: React.FC<EditStudentProfileModalProps> = ({
       }
       const data = await response.json();
       if (Array.isArray(data)) {
-        setDepartments(data.map((dept: any) => ({
+        setDepartments(data.map((dept: { id: number; name: string; school_id: number }) => ({
           id: dept.id,
           name: dept.name,
           school_id: dept.school_id
@@ -110,7 +113,8 @@ const EditStudentProfileModal: React.FC<EditStudentProfileModalProps> = ({
         phone: formData.phone,
         address: formData.address,
         school_id: schoolId,
-        department_id: departmentId
+        department_id: departmentId,
+        // grade_level and student_id removed
       };
 
       console.log('Sending data:', requestData); // Debug log
@@ -151,7 +155,7 @@ const EditStudentProfileModal: React.FC<EditStudentProfileModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl p-8 shadow-lg w-full max-w-lg">
+      <div className="bg-white rounded-xl p-8 shadow-lg w-full max-w-lg max-h-full overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-800">Edit Profile</h2>
           <button
@@ -264,6 +268,29 @@ const EditStudentProfileModal: React.FC<EditStudentProfileModalProps> = ({
               ))}
             </select>
           </div>
+
+          {/* Remove gradeLevel and studentId fields from the form JSX */}
+          {/*
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Grade Level</label>
+            <input
+              type="text"
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              value={formData.gradeLevel}
+              onChange={(e) => setFormData(prev => ({ ...prev, gradeLevel: e.target.value }))}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Student ID</label>
+            <input
+              type="text"
+              className="w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              value={formData.studentId}
+              onChange={(e) => setFormData(prev => ({ ...prev, studentId: e.target.value }))}
+            />
+          </div>
+          */}
 
           <div className="flex justify-end space-x-4">
             <button
