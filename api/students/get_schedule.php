@@ -5,7 +5,9 @@ require_once '../middleware/auth.php';
 
 // Enable error reporting
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+// Disable error display for production
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
 
 // Handle CORS
 handleCORS();
@@ -144,13 +146,11 @@ try {
     
 } catch (Exception $e) {
     error_log("Error in get_schedule.php: " . $e->getMessage());
-    error_log("Stack trace: " . $e->getTraceAsString());
-    
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'error' => $e->getMessage(),
-        'details' => 'An error occurred while fetching schedule. Please check the server logs for more information.'
+        'error' => $e->getMessage()
     ]);
+    exit;
 }
 ?> 

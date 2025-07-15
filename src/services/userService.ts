@@ -268,6 +268,11 @@ class UserService {
     }
   }
 
+  async getPendingUsers(): Promise<User[]> {
+    const allUsers = await this.getAllUsers();
+    return allUsers.filter((u) => u.status === 'pending');
+  }
+
   isAxiosError(error: unknown): error is import('axios').AxiosError {
     return (error as import('axios').AxiosError).isAxiosError === true;
   }

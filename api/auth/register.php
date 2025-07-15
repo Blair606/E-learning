@@ -1,9 +1,6 @@
 <?php
-require_once '../config/cors.php';
+require_once __DIR__ . '/../config/cors.php';
 require_once '../config/database.php';
-
-// Handle CORS first
-handleCORS();
 
 // Set content type
 header('Content-Type: application/json');
@@ -94,7 +91,7 @@ try {
     
     // Prepare insert query
     $query = "INSERT INTO users (email, password, first_name, last_name, role, status) 
-              VALUES (:email, :password, :first_name, :last_name, :role, 'active')";
+              VALUES (:email, :password, :first_name, :last_name, :role, 'pending')";
     
     $stmt = $conn->prepare($query);
     
@@ -128,6 +125,29 @@ try {
             error_log("Failed to create student record: " . print_r($studentStmt->errorInfo(), true));
             throw new Exception("Failed to create student record");
         }
+    }
+    
+    // Notify admin(s) of new registration
+    // Find all admin users
+    $adminStmt = $conn->prepare("SELECT id FROM users WHERE role = 'admin'");
+    $adminStmt->execute();
+    $admins = $adminStmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($admins as $admin) {
+        $notification = [
+            'user_id' => $admin['id'],
+            'title' => 'New User Registration',
+            'message' => 'A new user (' . $data['email'] . ') has registered and is awaiting approval.',
+            'type' => 'info'
+        ];
+        // Call notification creation endpoint internally
+        $notificationUrl = __DIR__ . '/../notifications/create.php';
+        $ch = curl_init('http://localhost/E-learning/api/notifications/create.php');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($notification));
+        curl_exec($ch);
+        curl_close($ch);
     }
     
     $stmt = $conn->prepare("

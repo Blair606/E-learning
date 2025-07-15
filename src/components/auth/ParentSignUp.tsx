@@ -19,6 +19,7 @@ const ParentSignUp: React.FC = () => {
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [success, setSuccess] = useState('');
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -31,6 +32,7 @@ const ParentSignUp: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+        setSuccess('');
 
         if (formData.password !== formData.confirmPassword) {
             setError('Passwords do not match');
@@ -47,11 +49,10 @@ const ParentSignUp: React.FC = () => {
                 email: formData.email,
                 firstName: formData.firstName,
                 lastName: formData.lastName,
-                role: 'parent',
-                status: 'active'
+                role: 'parent'
             };
             await userService.createUser(userData);
-            navigate('/signin/parent');
+            setSuccess('Registration successful! Your account is pending admin approval. You will receive an email once approved.');
         } catch (err) {
             const error = err as SignUpError;
             setError(error.message || 'Failed to create account');
@@ -81,6 +82,11 @@ const ParentSignUp: React.FC = () => {
                     {error && (
                         <div className="rounded-lg bg-red-50 p-4 border border-red-200">
                             <div className="text-sm text-red-700">{error}</div>
+                        </div>
+                    )}
+                    {success && (
+                        <div className="rounded-lg bg-green-50 p-4 border border-green-200">
+                            <div className="text-sm text-green-700">{success}</div>
                         </div>
                     )}
 

@@ -52,7 +52,11 @@ const AdminSignIn: React.FC = () => {
             }
         } catch (err) {
             const error = err as SignInError;
-            setError(error.message || 'Failed to sign in');
+            if (error.message === 'Account is pending admin approval') {
+                setError('Your account is pending admin approval. Please wait for an email notification.');
+            } else {
+                setError(error.message || 'Failed to sign in');
+            }
         } finally {
             setLoading(false);
         }

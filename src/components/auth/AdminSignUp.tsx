@@ -50,15 +50,10 @@ const AdminSignUp: React.FC = () => {
                 password: formData.password,
                 firstName: formData.firstName,
                 lastName: formData.lastName,
-                role: 'admin' as const,
-                status: 'active' as const
+                role: 'admin' as const
             };
             await userService.createUser(userData);
-            setSuccess('Account created successfully! Redirecting to dashboard...');
-            // Wait for 2 seconds to show the success message
-            setTimeout(() => {
-                navigate('/admin/dashboard');
-            }, 2000);
+            setSuccess('Registration successful! Your account is pending admin approval. You will receive an email once approved.');
         } catch (err) {
             const error = err as SignUpError;
             setError(error.message || 'Failed to create account');

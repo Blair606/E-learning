@@ -1,9 +1,7 @@
 <?php
-require_once '../config/database.php';
 require_once '../config/cors.php';
-
-// Handle CORS
 handleCORS();
+require_once '../config/database.php';
 
 header('Content-Type: application/json');
 
@@ -37,7 +35,11 @@ try {
 
     // Check if user is active
     if ($user['status'] !== 'active') {
-        throw new Exception('Account is not active');
+        if ($user['status'] === 'pending') {
+            throw new Exception('Account is pending admin approval');
+        } else {
+            throw new Exception('Account is not active');
+        }
     }
 
     // Generate token

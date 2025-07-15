@@ -7,6 +7,7 @@ class AuthMiddleware {
         $headers = getallheaders();
         
         if (!isset($headers['Authorization'])) {
+            if (function_exists('handleCORS')) { handleCORS(); }
             echo ApiResponse::error('No token provided', 401);
             exit;
         }
@@ -14,6 +15,7 @@ class AuthMiddleware {
         $token = str_replace('Bearer ', '', $headers['Authorization']);
         
         if (empty($token)) {
+            if (function_exists('handleCORS')) { handleCORS(); }
             echo ApiResponse::error('Empty token provided', 401);
             exit;
         }
@@ -34,6 +36,7 @@ class AuthMiddleware {
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if (!$user) {
+            if (function_exists('handleCORS')) { handleCORS(); }
             echo ApiResponse::error('Invalid or expired token', 401);
             exit;
         }
@@ -49,6 +52,7 @@ class AuthMiddleware {
         $payload = self::authenticate();
         
         if (!in_array($payload['role'], $allowedRoles)) {
+            if (function_exists('handleCORS')) { handleCORS(); }
             echo ApiResponse::error('Unauthorized access - Invalid role', 403);
             exit;
         }

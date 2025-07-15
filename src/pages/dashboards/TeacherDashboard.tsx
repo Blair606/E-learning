@@ -35,13 +35,13 @@ import { setUser } from '../../store/slices/authSlice';
 import axios from 'axios';
 import { Department } from '../../services/departmentService';
 import { teacherService } from '../../services/teacherService';
-import type { Assignment, Notification, StudentAnalytics, CourseContent } from '../../services/teacherService';
+import type { Assignment, Notification, CourseContent, Course } from '../../services/teacherService';
+import type { StudentAnalytics } from '../../services/analyticsService';
 import type { User } from '../../store/slices/authSlice';
-import { courseService, type Course } from '../../services/courseService';
 import { createDiscussionGroups, fetchDiscussionGroups } from '../../store/slices/discussionSlice';
 import ScheduleClassModal from '../../components/modals/ScheduleClassModal';
 import UploadClassMaterialModal from '../../components/modals/UploadClassMaterialModal';
-import { analyticsService, type AnalyticsData } from '../../services/analyticsService';
+import { analyticsService, type AnalyticsData, type ClassAnalytics, type AssignmentAnalytics, type DiscussionAnalytics } from '../../services/analyticsService';
 import AnalyticsDetailModal from '../../components/modals/AnalyticsDetailModal';
 
 interface ClassData {
@@ -51,29 +51,6 @@ interface ClassData {
   totalStudents: number;
   averagePerformance: number;
   students: StudentAnalytics[];
-}
-
-interface DiscussionGroupData {
-  title: string;
-  course: string;
-  numberOfGroups: number;
-  description?: string;
-  dueDate: string;
-}
-
-interface DiscussionGroup {
-  id: number;
-  title: string;
-  courseId: number;
-  courseName: string;
-  description: string;
-  dueDate: string;
-  numberOfGroups: number;
-  memberCount: number;
-  topicCount: number;
-  createdBy: string;
-  createdAt: string;
-  updatedAt: string;
 }
 
 interface NotificationFormData {
@@ -94,20 +71,7 @@ interface ScheduledClass {
   recording?: string;
 }
 
-interface UpcomingTask {
-  id: number;
-  type: string;
-  task: string;
-  deadline: string;
-  count: number;
-}
-
-interface ExtendedCourse extends Course {
-    students?: number;
-    nextClass?: string;
-    progress?: number;
-    content?: CourseContent[];
-}
+// Remove ExtendedCourse type entirely and use Course everywhere
 
 // Move NotificationModal interface outside
 interface NotificationModalProps {
@@ -215,7 +179,6 @@ const TeacherDashboard: React.FC = () => {
   const { user } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch();
   const [teacherName, setTeacherName] = useState<string>('');
-  const [department, setDepartment] = useState<string>('');
   const [departments, setDepartments] = useState<Department[]>([]);
   const [activeTab, setActiveTab] = useState('overview');
   const [courses, setCourses] = useState<Course[]>([]);
@@ -223,13 +186,6 @@ const TeacherDashboard: React.FC = () => {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [classes, setClasses] = useState<ClassData[]>([]);
-  const [studentStats, setStudentStats] = useState({
-    totalStudents: 0,
-    averageAttendance: 0,
-    averageGrade: '0',
-    activeDiscussions: 0
-  });
-  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [showIndividualStudent, setShowIndividualStudent] = useState(false);
   const [selectedClassOverview, setSelectedClassOverview] = useState<ClassData | null>(null);
@@ -239,7 +195,7 @@ const TeacherDashboard: React.FC = () => {
   const [isDiscussionModalOpen, setIsDiscussionModalOpen] = useState(false);
   const [isScheduleClassModalOpen, setIsScheduleClassModalOpen] = useState(false);
   const [isAddContentModalOpen, setIsAddContentModalOpen] = useState(false);
-  const [selectedCourse, setSelectedCourse] = useState<ExtendedCourse | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [scheduledClasses, setScheduledClasses] = useState<ScheduledClass[]>([]);
   const [pendingTasks, setPendingTasks] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -303,35 +259,28 @@ const TeacherDashboard: React.FC = () => {
           if (teacherData.department_id && departments.length > 0) {
             const dept = departments.find(d => d.id === teacherData.department_id);
             if (dept) {
-              setDepartment(dept.name);
+              // setDepartment(dept.name); // This line is removed as per the edit hint
             } else {
-              setDepartment('No Department');
+              // setDepartment('No Department'); // This line is removed as per the edit hint
             }
           } else {
-            setDepartment('No Department');
+            // setDepartment('No Department'); // This line is removed as per the edit hint
           }
           
-          console.log('Fetched teacherData:', teacherData);
           dispatch(setUser({
             ...teacherData,
             firstName: teacherData.first_name,
             lastName: teacherData.last_name,
           }));
-          console.log('Redux user after setUser:', {
-            ...teacherData,
-            firstName: teacherData.first_name,
-            lastName: teacherData.last_name,
-          });
         }
       } catch (error) {
         console.error('Error fetching teacher data:', error);
-        if (user?.first_name && user?.last_name) {
-          setTeacherName(`${user.first_name} ${user.last_name}`);
-          setDepartment(user.department_id ? 'No Department' : 'No Department');
+        if (user?.firstName && user?.lastName) {
+          setTeacherName(`${user.firstName} ${user.lastName}`);
           dispatch(setUser({
             ...user,
-            firstName: user.first_name,
-            lastName: user.last_name,
+            firstName: user.firstName,
+            lastName: user.lastName,
           }));
         }
       }
@@ -368,7 +317,11 @@ const TeacherDashboard: React.FC = () => {
         }
       } catch (error: any) {
         console.error('Error fetching assignments:', error);
-        setError(error.response?.data?.error || 'Failed to fetch assignments. Please try again.');
+        if (error instanceof Error) {
+          setError(error.message);
+        } else {
+          setError('Failed to fetch assignments. Please try again.');
+        }
       } finally {
         setLoading(false);
       }
@@ -414,35 +367,30 @@ const TeacherDashboard: React.FC = () => {
         const coursesData = await teacherService.getCourses();
         setCourses(coursesData.courses || []);
 
-        setStudentStats({
-          totalStudents: coursesData.stats?.totalStudents || 0,
-          averageAttendance: 92,
-          averageGrade: coursesData.stats?.averageGrade.toFixed(1) || '0',
-          activeDiscussions: reduxDiscussionGroups.length || 0
-        });
+        const analyticsData = await analyticsService.getTeacherAnalytics();
+        setAnalyticsData(analyticsData);
 
         // Fetch notifications
         const notificationsData = await teacherService.getNotifications();
         setNotifications(notificationsData.notifications || []);
 
         // Fetch student analytics
-        const analyticsData = await teacherService.getStudentAnalytics();
-        const transformedClasses = (analyticsData.analytics || []).reduce((acc: ClassData[], curr: StudentAnalytics) => {
-          const existingClass = acc.find(c => c.id === curr.courseId);
+        const transformedClasses: ClassData[] = [];
+        (analyticsData.studentAnalytics || []).forEach((curr: any) => {
+          let existingClass = transformedClasses.find(c => c.id === curr.class_id);
           if (existingClass) {
             existingClass.students.push(curr);
           } else {
-            acc.push({
-              id: curr.courseId,
+            transformedClasses.push({
+              id: curr.class_id,
               year: 1,
-              className: curr.courseName,
-              totalStudents: 0,
-              averagePerformance: curr.averageGrade,
+              className: curr.class_name,
+              totalStudents: curr.total_assignments || 0,
+              averagePerformance: curr.grade || 0,
               students: [curr]
             });
           }
-          return acc;
-        }, []);
+        });
         setClasses(transformedClasses);
 
       } catch (error) {
@@ -451,17 +399,13 @@ const TeacherDashboard: React.FC = () => {
     };
 
     fetchDashboardData();
-  }, [reduxDiscussionGroups.length]);
+  }, [analyticsData]);
 
   // Fetch real-time pending tasks (assignments) when assignments change
   useEffect(() => {
     // Filter assignments for those that are not completed
     setPendingTasks(assignments.filter(a => a.status !== 'Completed'));
   }, [assignments]);
-
-  console.log('TeacherDashboard user:', user);
-  console.log('User role:', user?.role);
-  console.log('Is admin?', user?.role === 'admin');
 
   const GRADE_COLORS = ['#4CAF50', '#8BC34A', '#FFC107', '#FF9800', '#F44336'];
 
@@ -497,7 +441,7 @@ const TeacherDashboard: React.FC = () => {
     }
   };
 
-  const handleCreateDiscussionGroup = async (groupData: DiscussionGroupData) => {
+  const handleCreateDiscussionGroup = async (groupData: { title: string; course: string; numberOfGroups: number; description?: string; dueDate: string }) => {
     try {
       const selectedCourse = courses.find(c => c.id.toString() === groupData.course);
       if (!selectedCourse) {
@@ -547,7 +491,7 @@ const TeacherDashboard: React.FC = () => {
     setNotifications([newNotification, ...notifications]);
   };
 
-  const handleAddContent = (course: ExtendedCourse) => {
+  const handleAddContent = (course: Course) => {
     setSelectedCourse(course);
     setSelectedCourseId(course.id);
     setIsAddContentModalOpen(true);
@@ -560,7 +504,7 @@ const TeacherDashboard: React.FC = () => {
     };
     dispatch(setUser(userWithStatus));
     if (updatedProfile.department_id) {
-      console.log('Profile updated, refreshing courses for department:', updatedProfile.department_id);
+      // console.log('Profile updated, refreshing courses for department:', updatedProfile.department_id);
     }
   };
 
@@ -588,7 +532,7 @@ const TeacherDashboard: React.FC = () => {
 
   const handleEditAssignment = (assignment: Assignment) => {
     // TODO: Implement edit functionality
-    console.log('Edit assignment:', assignment);
+    // console.log('Edit assignment:', assignment);
   };
 
   const handleDeleteAssignment = async (assignmentId: number) => {
@@ -1086,7 +1030,7 @@ const TeacherDashboard: React.FC = () => {
                   <UsersIcon className="w-12 h-12 text-blue-500" />
                   <div className="ml-4">
                     <h3 className="text-sm font-medium text-gray-500">Total Students</h3>
-                    <p className="text-2xl font-semibold text-gray-800">{studentStats.totalStudents}</p>
+                    <p className="text-2xl font-semibold text-gray-800">{analyticsData?.classAnalytics?.reduce((sum, c) => sum + (c.total_students || 0), 0) || 0}</p>
                   </div>
                 </div>
               </div>
@@ -1095,7 +1039,7 @@ const TeacherDashboard: React.FC = () => {
                   <CalendarIcon className="w-12 h-12 text-green-500" />
                   <div className="ml-4">
                     <h3 className="text-sm font-medium text-gray-500">Avg. Attendance</h3>
-                    <p className="text-2xl font-semibold text-gray-800">{studentStats.averageAttendance}%</p>
+                    <p className="text-2xl font-semibold text-gray-800">{analyticsData?.classAnalytics.reduce((sum, c) => sum + c.average_attendance, 0) / (analyticsData?.classAnalytics.length || 1) || 0}%</p>
                   </div>
                 </div>
               </div>
@@ -1104,7 +1048,7 @@ const TeacherDashboard: React.FC = () => {
                   <AcademicCapIcon className="w-12 h-12 text-purple-500" />
                   <div className="ml-4">
                     <h3 className="text-sm font-medium text-gray-500">Avg. Grade</h3>
-                    <p className="text-2xl font-semibold text-gray-800">{studentStats.averageGrade}</p>
+                    <p className="text-2xl font-semibold text-gray-800">{analyticsData?.classAnalytics.reduce((sum, c) => sum + c.average_grade, 0) / (analyticsData?.classAnalytics.length || 1) || 0}%</p>
                   </div>
                 </div>
               </div>
@@ -1113,7 +1057,7 @@ const TeacherDashboard: React.FC = () => {
                   <ChatBubbleLeftRightIcon className="w-12 h-12 text-yellow-500" />
                   <div className="ml-4">
                     <h3 className="text-sm font-medium text-gray-500">Active Discussions</h3>
-                    <p className="text-2xl font-semibold text-gray-800">{studentStats.activeDiscussions}</p>
+                    <p className="text-2xl font-semibold text-gray-800">{analyticsData?.discussionAnalytics.length || 0}</p>
                   </div>
                 </div>
               </div>
@@ -1149,7 +1093,7 @@ const TeacherDashboard: React.FC = () => {
                           </div>
                           <div className="flex flex-col md:flex-row gap-2 md:gap-4 mt-4 md:mt-0 md:ml-8">
                             <button
-                              onClick={() => handleAddContent(course as ExtendedCourse)}
+                              onClick={() => handleAddContent(course as Course)}
                               className="px-4 py-2 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 font-medium text-sm transition whitespace-nowrap"
                             >
                               Add Content
@@ -1202,14 +1146,14 @@ const TeacherDashboard: React.FC = () => {
                     id: classData.id,
                     year: 1,
                     className: classData.name,
-                    totalStudents: classData.students,
-                    averagePerformance: classData.progress,
+                    totalStudents: classData.students || 0,
+                    averagePerformance: classData.progress || 0,
                     students: []
                   })}
                 >
                   <h3 className="text-xl font-bold mb-4">{classData.name}</h3>
-                  <p>Total Students: {classData.students}</p>
-                  <p>Average Performance: {classData.progress}%</p>
+                  <p>Total Students: {classData.students || 0}</p>
+                  <p>Average Performance: {classData.progress || 0}%</p>
                 </div>
               ))}
             </div>
@@ -1269,7 +1213,7 @@ const TeacherDashboard: React.FC = () => {
                   <UsersIcon className="w-12 h-12 text-blue-500" />
                   <div className="ml-4">
                     <h3 className="text-sm font-medium text-gray-500">Total Students</h3>
-                    <p className="text-2xl font-semibold text-gray-800">{studentStats.totalStudents}</p>
+                    <p className="text-2xl font-semibold text-gray-800">{analyticsData?.classAnalytics.reduce((sum, c) => sum + c.total_students, 0) || 0}</p>
                   </div>
                 </div>
               </div>
@@ -1278,7 +1222,7 @@ const TeacherDashboard: React.FC = () => {
                   <CalendarIcon className="w-12 h-12 text-green-500" />
                   <div className="ml-4">
                     <h3 className="text-sm font-medium text-gray-500">Avg. Attendance</h3>
-                    <p className="text-2xl font-semibold text-gray-800">{studentStats.averageAttendance}%</p>
+                    <p className="text-2xl font-semibold text-gray-800">{analyticsData?.classAnalytics.reduce((sum, c) => sum + c.average_attendance, 0) / (analyticsData?.classAnalytics.length || 1) || 0}%</p>
                   </div>
                 </div>
               </div>
@@ -1287,7 +1231,7 @@ const TeacherDashboard: React.FC = () => {
                   <AcademicCapIcon className="w-12 h-12 text-purple-500" />
                   <div className="ml-4">
                     <h3 className="text-sm font-medium text-gray-500">Avg. Grade</h3>
-                    <p className="text-2xl font-semibold text-gray-800">{studentStats.averageGrade}</p>
+                    <p className="text-2xl font-semibold text-gray-800">{analyticsData?.classAnalytics.reduce((sum, c) => sum + c.average_grade, 0) / (analyticsData?.classAnalytics.length || 1) || 0}%</p>
                   </div>
                 </div>
               </div>
@@ -1296,7 +1240,7 @@ const TeacherDashboard: React.FC = () => {
                   <ChatBubbleLeftRightIcon className="w-12 h-12 text-yellow-500" />
                   <div className="ml-4">
                     <h3 className="text-sm font-medium text-gray-500">Active Discussions</h3>
-                    <p className="text-2xl font-semibold text-gray-800">{studentStats.activeDiscussions}</p>
+                    <p className="text-2xl font-semibold text-gray-800">{analyticsData?.discussionAnalytics.length || 0}</p>
                   </div>
                 </div>
               </div>
@@ -1310,16 +1254,16 @@ const TeacherDashboard: React.FC = () => {
                     <div key={course.id} className="border p-4 rounded-lg hover:border-blue-500 transition-colors">
                       <div className="flex justify-between items-center mb-2">
                         <h3 className="font-medium text-lg">{course.name}</h3>
-                        <span className="text-sm text-gray-500">{course.totalStudents} Students</span>
+                        <span className="text-sm text-gray-500">{course.totalStudents || 0} Students</span>
                       </div>
                       <div className="flex justify-between items-center text-sm text-gray-500">
                         <span>Next Class: {course.nextClass}</span>
-                        <span>Progress: {course.progress}%</span>
+                        <span>Progress: {course.progress || 0}%</span>
                       </div>
                       <div className="mt-2 bg-gray-200 rounded-full h-2">
                         <div
                           className="bg-blue-600 h-2 rounded-full"
-                          style={{ width: `${course.progress}%` }}
+                          style={{ width: `${course.progress || 0}%` }}
                         />
                       </div>
                     </div>
@@ -1361,14 +1305,14 @@ const TeacherDashboard: React.FC = () => {
                     id: classData.id,
                     year: 1,
                     className: classData.name,
-                    totalStudents: classData.students,
-                    averagePerformance: classData.progress,
+                    totalStudents: classData.students || 0,
+                    averagePerformance: classData.progress || 0,
                     students: []
                   })}
                 >
                   <h3 className="text-xl font-bold mb-4">{classData.name}</h3>
-                  <p>Total Students: {classData.students}</p>
-                  <p>Average Performance: {classData.progress}%</p>
+                  <p>Total Students: {classData.students || 0}</p>
+                  <p>Average Performance: {classData.progress || 0}%</p>
                 </div>
               ))}
             </div>
@@ -1533,7 +1477,7 @@ const TeacherDashboard: React.FC = () => {
                 <BellIcon className="w-5 h-5 text-gray-500" />
                 <UserCircleIcon className="w-7 h-7 text-gray-600" />
                 <div className="text-left hidden sm:block">
-                  <div className="font-medium text-gray-800 leading-tight">{teacherName || (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : 'Teacher')}</div>
+                  <div className="font-medium text-gray-800 leading-tight">{teacherName || ''}</div>
                   <div className="text-xs text-gray-500">{user?.role || 'teacher'}</div>
                 </div>
               </button>
@@ -1623,7 +1567,7 @@ const TeacherDashboard: React.FC = () => {
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 sm:p-8 rounded-2xl shadow-lg">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                  <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Welcome back, {teacherName || (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : 'Teacher')}! 👋</h1>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">Welcome back, {teacherName || ''}! 👋</h1>
                   <p className="text-blue-100">You have {courses.length} classes scheduled for today.</p>
                 </div>
                 <button

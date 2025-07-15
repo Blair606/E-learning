@@ -5,6 +5,10 @@ require_once '../config/database.php';
 // Handle CORS
 handleCORS();
 
+// Disable error display for production
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+
 header('Content-Type: application/json');
 
 try {
@@ -42,5 +46,6 @@ try {
         'status' => 'error',
         'message' => $e->getMessage()
     ]);
+    exit;
 }
 ?> 

@@ -50,15 +50,10 @@ const StudentSignUp: React.FC = () => {
                 password: formData.password,
                 first_name: formData.first_name,
                 last_name: formData.last_name,
-                role: 'student' as const,
-                status: 'active' as const
+                role: 'student' as const
             };
             await userService.register(userData);
-            setSuccess('Account created successfully! Redirecting to dashboard...');
-            // Wait for 2 seconds to show the success message
-            setTimeout(() => {
-                navigate('/student/dashboard');
-            }, 2000);
+            setSuccess('Registration successful! Your account is pending admin approval. You will receive an email once approved.');
         } catch (err) {
             const error = err as SignUpError;
             setError(error.message || 'Failed to create account');

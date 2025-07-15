@@ -20,6 +20,7 @@ const SignUp: React.FC = () => {
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [success, setSuccess] = useState('');
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -52,7 +53,7 @@ const SignUp: React.FC = () => {
             console.log('Sending registration data:', registrationData);
             
             await userService.register(registrationData);
-            navigate(`/signin/${formData.role}`);
+            setSuccess('Registration successful! Your account is pending admin approval. You will receive an email once approved.');
         } catch (err) {
             console.error('Registration error:', err);
             const error = err as Error;
@@ -71,6 +72,11 @@ const SignUp: React.FC = () => {
                     </h2>
                 </div>
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+                    {success && (
+                        <div className="rounded-md bg-green-50 p-4">
+                            <div className="text-sm text-green-700">{success}</div>
+                        </div>
+                    )}
                     {error && (
                         <div className="rounded-md bg-red-50 p-4">
                             <div className="text-sm text-red-700">{error}</div>

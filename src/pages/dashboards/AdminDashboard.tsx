@@ -162,6 +162,34 @@ const AdminDashboard = () => {
     fetchUsers();
   }, []);
 
+  // Add state for pending users
+  const [pendingUsers, setPendingUsers] = useState<User[]>([]);
+
+  // Fetch pending users
+  const fetchPendingUsers = async () => {
+    try {
+      const allUsers = await userService.getAllUsers();
+      setPendingUsers(allUsers.filter((u) => u.status === 'pending'));
+    } catch (error) {
+      toast.error('Failed to fetch pending users');
+    }
+  };
+
+  useEffect(() => {
+    fetchPendingUsers();
+  }, []);
+
+  // Approve user
+  const handleApproveUser = async (user: User) => {
+    try {
+      await userService.updateUser(user.id, { status: 'active' });
+      toast.success('User approved and notified by email!');
+      fetchPendingUsers();
+    } catch (error) {
+      toast.error('Failed to approve user');
+    }
+  };
+
   // Add settings state
   const [systemSettings, setSystemSettings] = useState({
     general: {
@@ -1664,6 +1692,42 @@ const AdminDashboard = () => {
 
           {/* Render content based on active tab */}
           {renderContent()}
+
+          {/* Pending User Approvals */}
+          <section className="mt-8">
+            <h2 className="text-xl font-bold mb-4">Pending User Approvals</h2>
+            {pendingUsers.length === 0 ? (
+              <div className="text-gray-500">No users pending approval.</div>
+            ) : (
+              <table className="min-w-full bg-white border border-gray-200 rounded-lg">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-2">Name</th>
+                    <th className="px-4 py-2">Email</th>
+                    <th className="px-4 py-2">Role</th>
+                    <th className="px-4 py-2">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingUsers.map((user) => (
+                    <tr key={user.id}>
+                      <td className="px-4 py-2">{user.firstName || user.first_name} {user.lastName || user.last_name}</td>
+                      <td className="px-4 py-2">{user.email}</td>
+                      <td className="px-4 py-2">{user.role}</td>
+                      <td className="px-4 py-2">
+                        <button
+                          className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded"
+                          onClick={() => handleApproveUser(user)}
+                        >
+                          Approve
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
         </div>
       </main>
       <UserManagementModal

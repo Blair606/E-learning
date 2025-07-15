@@ -7,6 +7,7 @@ ini_set('error_log', __DIR__ . '/../logs/php_errors.log');
 
 // Include CORS configuration first
 include_once '../config/cors.php';
+handleCORS();
 
 // Set content type
 header('Content-Type: application/json');
@@ -113,7 +114,7 @@ switch($method) {
                 }
                 
                 http_response_code(200);
-                echo json_encode($courses);
+                echo json_encode(["success" => true, "courses" => $courses]);
             } else if(isset($_GET['department_id'])) {
                 // Get courses by department
                 $query = "SELECT c.*, s.name as school_name, d.name as department_name, u.first_name as instructor_name 
@@ -134,7 +135,7 @@ switch($method) {
                 }
                 
                 http_response_code(200);
-                echo json_encode($courses);
+                echo json_encode(["success" => true, "courses" => $courses]);
             } else {
                 // Get all courses with related data
                 $query = "SELECT c.*, s.name as school_name, d.name as department_name, u.first_name as instructor_name 
@@ -153,7 +154,7 @@ switch($method) {
                 }
                 
                 http_response_code(200);
-                echo json_encode($courses);
+                echo json_encode(["success" => true, "courses" => $courses]);
             }
         } catch (Exception $e) {
             error_log("Error in GET request: " . $e->getMessage());
@@ -168,18 +169,18 @@ switch($method) {
             $data = json_decode(file_get_contents("php://input"));
             error_log("Received data for course creation: " . print_r($data, true));
             
-            if(!empty($data->code) && !empty($data->title) && !empty($data->school_id) && !empty($data->department_id)) {
+            if(!empty($data->code) && !empty($data->name) && !empty($data->school_id) && !empty($data->department_id)) {
                 // Insert course
-                $query = "INSERT INTO courses (code, title, description, credits, school_id, department_id, 
+                $query = "INSERT INTO courses (code, name, description, credits, school_id, department_id, 
                          instructor_id, status, enrollment_capacity, current_enrollment, start_date, end_date, 
                          schedule, prerequisites) 
-                         VALUES (:code, :title, :description, :credits, :school_id, :department_id, 
+                         VALUES (:code, :name, :description, :credits, :school_id, :department_id, 
                          :instructor_id, :status, :enrollment_capacity, 0, :start_date, :end_date, 
                          :schedule, :prerequisites)";
                          
                 $stmt = $db->prepare($query);
                 $stmt->bindParam(":code", $data->code);
-                $stmt->bindParam(":title", $data->title);
+                $stmt->bindParam(":name", $data->name);
                 $stmt->bindParam(":description", $data->description);
                 $stmt->bindParam(":credits", $data->credits);
                 $stmt->bindParam(":school_id", $data->school_id);
@@ -253,7 +254,7 @@ switch($method) {
                 // Update course
                 $query = "UPDATE courses SET 
                          code = :code,
-                         title = :title,
+                         name = :name,
                          description = :description,
                          credits = :credits,
                          school_id = :school_id,
@@ -270,7 +271,7 @@ switch($method) {
                          
                 $stmt = $db->prepare($query);
                 $stmt->bindParam(":code", $data->code);
-                $stmt->bindParam(":title", $data->title);
+                $stmt->bindParam(":name", $data->name);
                 $stmt->bindParam(":description", $data->description);
                 $stmt->bindParam(":credits", $data->credits);
                 $stmt->bindParam(":school_id", $data->school_id);

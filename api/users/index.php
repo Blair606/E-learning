@@ -134,6 +134,24 @@ switch($method) {
             $stmt = $db->prepare($query);
             
             if($stmt->execute($params)) {
+                // If status is being set to active, send email notification
+                if(isset($data->status) && $data->status === 'active') {
+                    // Fetch user email
+                    $emailQuery = "SELECT email, first_name FROM users WHERE id = :id";
+                    $emailStmt = $db->prepare($emailQuery);
+                    $emailStmt->bindParam(":id", $data->id);
+                    $emailStmt->execute();
+                    $userRow = $emailStmt->fetch(PDO::FETCH_ASSOC);
+                    if ($userRow) {
+                        $to = $userRow['email'];
+                        $subject = 'Your account has been approved';
+                        $message = 'Hello ' . $userRow['first_name'] . ",\n\nYour account has been approved by the admin. You can now log in to the E-learning platform.\n\nRegards,\nE-learning Team";
+                        $headers = 'From: noreply@e-learning.com' . "\r\n" .
+                                   'Reply-To: noreply@e-learning.com' . "\r\n" .
+                                   'X-Mailer: PHP/' . phpversion();
+                        @mail($to, $subject, $message, $headers);
+                    }
+                }
                 http_response_code(200);
                 echo json_encode(array("message" => "User updated successfully."));
             } else {

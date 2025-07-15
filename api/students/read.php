@@ -10,6 +10,10 @@ require_once '../config/cors.php';
 
 handleCORS();
 
+// Disable error display for production
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+
 try {
     // Get database connection
     $conn = getConnection();
@@ -51,5 +55,6 @@ try {
         "status" => "error",
         "message" => "Database error: " . $e->getMessage()
     ]);
+    exit;
 }
 ?> 
