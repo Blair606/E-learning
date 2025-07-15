@@ -502,32 +502,41 @@ const StudentDashboard = () => {
     }
 
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+    const dayColors = [
+      'bg-gradient-to-br from-blue-50 to-blue-100',
+      'bg-gradient-to-br from-green-50 to-green-100',
+      'bg-gradient-to-br from-yellow-50 to-yellow-100',
+      'bg-gradient-to-br from-pink-50 to-pink-100',
+      'bg-gradient-to-br from-purple-50 to-purple-100',
+    ];
     const hours = Array.from({ length: 9 }, (_, i) => i + 9); // 9 AM to 5 PM
 
     return (
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-800">Weekly Schedule</h2>
+      <div className="rounded-2xl shadow-xl overflow-hidden border border-gray-200 bg-white">
+        <div className="p-8 border-b border-gray-100 bg-gradient-to-r from-blue-600 to-indigo-600">
+          <h2 className="text-2xl font-extrabold text-white flex items-center gap-3">
+            <CalendarIcon className="w-7 h-7 text-white" />
+            Weekly Schedule
+          </h2>
+          <p className="text-blue-100 mt-1">Here’s your personalized class timetable. Click on a class for more details!</p>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead>
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                {days.map(day => (
-                  <th key={day} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {day}
-                  </th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider bg-gray-50">Time</th>
+                {days.map((day, i) => (
+                  <th key={day} className={`px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider ${dayColors[i]}`}>{day}</th>
                 ))}
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white divide-y divide-gray-100">
               {hours.map(hour => (
-                <tr key={hour} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <tr key={hour} className="hover:bg-blue-50/40 transition-all">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-semibold">
                     {`${hour}:00 - ${hour + 1}:00`}
                   </td>
-                  {days.map(day => {
+                  {days.map((day, i) => {
                     // Find regular classes at this time
                     const regularClass = scheduleData.regular_schedule.find(course => {
                       return course.schedule.some(slot => {
@@ -545,25 +554,43 @@ const StudentDashboard = () => {
                     });
 
                     return (
-                      <td key={day} className="px-6 py-4 whitespace-nowrap">
+                      <td key={day} className={`px-6 py-4 whitespace-nowrap align-top transition-all duration-200 ${dayColors[i]} rounded-lg`}> 
                         {regularClass && (
-                          <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
-                            <p className="font-medium text-blue-800">{regularClass.name}</p>
-                            <p className="text-sm text-blue-600">{regularClass.code}</p>
-                            <p className="text-xs text-blue-500">{regularClass.instructor}</p>
+                          <div className="p-4 rounded-xl shadow-md bg-white/80 border border-blue-200 hover:scale-105 hover:shadow-lg transition-all cursor-pointer group">
+                            <div className="flex items-center gap-2 mb-1">
+                              <BookOpenIcon className="w-5 h-5 text-blue-500" />
+                              <span className="font-bold text-blue-900 group-hover:text-blue-700">{regularClass.name}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-blue-700 mb-1">
+                              <ClockIcon className="w-4 h-4" />
+                              {regularClass.schedule.map(slot => slot.day === day && slot.time === `${hour.toString().padStart(2, '0')}:00` ? `${slot.time}` : null)}
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <UserCircleIcon className="w-4 h-4" />
+                              {regularClass.instructor}
+                            </div>
                           </div>
                         )}
                         {onlineClass && (
-                          <div className="bg-green-50 p-3 rounded-lg border border-green-100 mt-2">
-                            <p className="font-medium text-green-800">{onlineClass.title}</p>
-                            <p className="text-sm text-green-600">{onlineClass.course_code}</p>
-                            <p className="text-xs text-green-500">{onlineClass.instructor}</p>
+                          <div className="p-4 rounded-xl shadow-md bg-green-50 border border-green-200 mt-2 hover:scale-105 hover:shadow-lg transition-all cursor-pointer group">
+                            <div className="flex items-center gap-2 mb-1">
+                              <VideoCameraIcon className="w-5 h-5 text-green-600" />
+                              <span className="font-bold text-green-900 group-hover:text-green-700">{onlineClass.title}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-green-700 mb-1">
+                              <ClockIcon className="w-4 h-4" />
+                              {onlineClass.time}
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <UserCircleIcon className="w-4 h-4" />
+                              {onlineClass.instructor}
+                            </div>
                             {onlineClass.meeting_link && (
                               <a
                                 href={onlineClass.meeting_link}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-xs text-green-600 hover:text-green-800 mt-1 inline-block"
+                                className="inline-block mt-1 text-xs text-green-700 underline hover:text-green-900"
                               >
                                 Join Meeting →
                               </a>

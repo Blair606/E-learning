@@ -15,6 +15,7 @@ import AdminDashboard from '../pages/dashboards/AdminDashboard';
 import ParentDashboard from '../pages/dashboards/ParentDashboard';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
 import Profile from '../components/Profile';
+import CoursePage from '../pages/CoursePage';
 
 const AppRoutes: React.FC = () => {
     return (
@@ -74,6 +75,14 @@ const AppRoutes: React.FC = () => {
                 element={
                     <ProtectedRoute allowedRoles={['parent']}>
                         <ParentDashboard />
+                    </ProtectedRoute>
+                }
+            />
+            <Route
+                path="/course/:id"
+                element={
+                    <ProtectedRoute allowedRoles={['student', 'teacher']}>
+                        <CoursePage />
                     </ProtectedRoute>
                 }
             />
