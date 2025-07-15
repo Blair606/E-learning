@@ -65,10 +65,9 @@ try {
         FROM courses c
         LEFT JOIN users u ON c.instructor_id = u.id
         INNER JOIN enrollments e ON c.id = e.course_id
-        WHERE e.student_id = :student_id
+        INNER JOIN students s ON (e.student_id = s.id OR e.student_id = s.user_id)
+        WHERE s.id = :student_id
         AND c.status = 'active'
-        AND c.schedule IS NOT NULL
-        AND c.schedule != '[]'
     ";
     
     error_log("Executing courses query: " . $coursesQuery);
@@ -77,6 +76,9 @@ try {
     $coursesStmt->execute();
     $courses = $coursesStmt->fetchAll(PDO::FETCH_ASSOC);
     error_log("Found " . count($courses) . " courses with schedules");
+    foreach ($courses as $course) {
+        error_log('Course ID: ' . $course['id'] . ' Schedule Raw: ' . $course['schedule']);
+    }
     
     // Get upcoming online classes
     $onlineClassesQuery = "
@@ -114,8 +116,13 @@ try {
             'regular_schedule' => array_map(function($course) {
                 $schedule = json_decode($course['schedule'], true);
                 if (!is_array($schedule)) {
-                    error_log("Invalid schedule format for course {$course['id']}: " . $course['schedule']);
-                    $schedule = [];
+                    // Try to fix double-escaped JSON
+                    $fixed = stripslashes($course['schedule']);
+                    $schedule = json_decode($fixed, true);
+                    if (!is_array($schedule)) {
+                        error_log("Invalid schedule format for course {$course['id']}: " . $course['schedule']);
+                        $schedule = [];
+                    }
                 }
                 return [
                     'id' => $course['id'],

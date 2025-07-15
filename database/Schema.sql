@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: May 19, 2025 at 11:38 AM
+-- Generation Time: Jul 16, 2025 at 12:42 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -47,8 +47,7 @@ CREATE TABLE `assignments` (
 --
 
 INSERT INTO `assignments` (`id`, `course_id`, `title`, `description`, `type`, `file_path`, `file_name`, `due_date`, `created_at`, `updated_at`, `status`, `total_marks`) VALUES
-(9, 5, 'Tell me about c++ and whatever we can fucking do with it ', 'its all about critical thinking, put your brain into work please ', 'text', NULL, NULL, '2025-05-20 16:00:00', '2025-05-05 11:51:57', '2025-05-05 11:51:57', 'draft', 30),
-(10, 6, 'this is for the fools in this class', 'the hel were you people thinking ', 'text', NULL, NULL, '2025-05-30 10:00:00', '2025-05-05 17:10:54', '2025-05-05 17:10:54', 'draft', 20);
+(11, 9, 'the dawn is near', 'what the fuck men', 'text', NULL, NULL, '2025-07-20 23:59:00', '2025-07-15 19:33:47', '2025-07-15 19:33:47', 'draft', 30);
 
 -- --------------------------------------------------------
 
@@ -168,7 +167,7 @@ CREATE TABLE `courses` (
 --
 
 INSERT INTO `courses` (`id`, `name`, `code`, `description`, `school_id`, `department_id`, `instructor_id`, `credits`, `schedule`, `prerequisites`, `status`, `created_at`, `updated_at`) VALUES
-(6, 'introduction to computing', 'SPA035CSC3554230', 'The pure basics of computing ', 10, 12, 14, 3, '[{\"day\":\"Tuesday\",\"time\":\"09:00\",\"duration\":60}]', '[]', 'active', '2025-05-05 17:06:49', '2025-05-05 17:06:49');
+(9, 'introduction to programing', 'SPA035CSC3557757', 'do the necessary ', 10, 12, 20, 3, '[{\"day\":\"Monday\",\"time\":\"09:00\",\"duration\":60}]', '[]', 'active', '2025-07-15 19:15:52', '2025-07-15 19:15:52');
 
 -- --------------------------------------------------------
 
@@ -183,7 +182,7 @@ CREATE TABLE `course_content` (
   `content` text NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  `status` enum('active','inactive') DEFAULT 'active'
+  `status` enum('active','inactive','draft') DEFAULT 'active'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
@@ -191,8 +190,7 @@ CREATE TABLE `course_content` (
 --
 
 INSERT INTO `course_content` (`id`, `course_id`, `title`, `content`, `created_at`, `updated_at`, `status`) VALUES
-(1, 6, 'Sample Content 1', 'This is a test content for course 6.', NOW(), NOW(), 'active'),
-(2, 6, 'Sample Content 2', 'Another content for course 6.', NOW(), NOW(), 'active');
+(8, 9, 'the beginning of the end ', 'Here are some concise notes on **Introduction to Computing**, covering fundamental concepts for beginners:\n\n### 1. **What is Computing?**\n- **Definition**: Computing is the process of using computer systems to perform tasks, process data, and solve problems through the manipulation of information.\n- Involves hardware (physical components) and software (programs and instructions).\n- Core goal: Transform data into meaningful information.\n\n### 2. **Key Components of a Computer System**\n- **Hardware**:\n  - **CPU (Central Processing Unit)**: The \"brain\" of the computer, executes instructions.\n  - **Memory**:\n    - **RAM (Random Access Memory)**: Temporary storage for active data.\n    - **ROM (Read-Only Memory)**: Permanent storage for essential instructions.\n  - **Storage**: Hard drives (HDD), Solid-State Drives (SSD) for long-term data.\n  - **Input Devices**: Keyboard, mouse, microphone, etc.\n  - **Output Devices**: Monitor, printer, speakers, etc.\n- **Software**:\n  - **System Software**: Operating systems (e.g., Windows, macOS, Linux) manage hardware and provide a platform for applications.\n  - **Application Software**: Programs for specific tasks (e.g., web browsers, word processors).\n  - **Firmware**: Software embedded in hardware (e.g., BIOS).\n\n### 3. **Basic Concepts**\n- **Binary System**: Computers use binary (0s and 1s) to represent data.\n  - Bits (binary digits) and bytes (8 bits) are fundamental units.\n- **Data Representation**:\n  - Text: Encoded using standards like ASCII or Unicode.\n  - Numbers: Stored as binary integers or floating-point.\n  - Images/Videos: Represented as pixels with color values.\n- **Algorithms**: Step-by-step procedures to solve problems (e.g., sorting, searching).\n- **Programming**: Writing instructions (code) for computers using languages like Python, Java, or C++.\n\n### 4. **Types of Computers**\n- **Personal Computers (PCs)**: Desktops, laptops for individual use.\n- **Servers**: Powerful computers providing services (e.g., web hosting).\n- **Mainframes**: Large systems for bulk data processing.\n- **Supercomputers**: High-performance systems for complex computations (e.g., scientific simulations).\n- **Embedded Systems**: Specialized computers in devices (e.g., cars, appliances).\n\n### 5. **Operating Systems**\n- Manages hardware and software resources.\n- Examples: Windows, macOS, Linux, Android, iOS.\n- Functions: File management, process management, memory allocation, user interface.\n\n### 6. **Computer Networks**\n- **Definition**: Interconnected computers sharing resources and data.\n- **Types**:\n  - LAN (Local Area Network): Small area, like an office.\n  - WAN (Wide Area Network): Large area, like the internet.\n- **Internet**: Global network enabling communication, data transfer, and access to services.\n  - Protocols: TCP/IP, HTTP, FTP govern data exchange.\n\n### 7. **Software Development**\n- **Steps**:\n  1. Problem definition\n  2. Algorithm design\n  3. Coding\n  4. Testing\n  5. Maintenance\n- **Programming Paradigms**:\n  - Procedural: Step-by-step instructions (e.g., C).\n  - Object-Oriented: Based on objects and classes (e.g., Java, Python).\n  - Functional: Based on mathematical functions (e.g., Haskell).\n\n### 8. **Data and Information**\n- **Data**: Raw facts (e.g., numbers, text).\n- **Information**: Processed, meaningful data.\n- **Databases**: Organized data storage (e.g., SQL databases).\n- **Big Data**: Large, complex datasets requiring advanced processing.\n\n### 9. **Security and Ethics**\n- **Cybersecurity**:\n  - Threats: Viruses, malware, phishing.\n  - Protection: Firewalls, encryption, antivirus software.\n- **Ethics**:\n  - Privacy: Respect user data.\n  - Intellectual Property: Avoid piracy, respect copyrights.\n  - Digital Divide: Address unequal access to technology.\n\n### 10. **Trends in Computing**\n- **Cloud Computing**: Storing and accessing data/services over the internet (e.g., AWS, Google Cloud).\n- **Artificial Intelligence (AI)**: Systems that mimic human intelligence (e.g., machine learning, neural networks).\n- **Internet of Things (IoT)**: Connected devices (e.g., smart homes).\n- **Quantum Computing**: Emerging field using quantum mechanics for faster processing.\n\n### 11. **Basic Skills for Beginners**\n- **Typing and Navigation**: Familiarity with keyboard, mouse, and file systems.\n- **Software Usage**: Learn basic tools (e.g., word processors, spreadsheets).\n- **Problem-Solving**: Break down tasks logically.\n- **Coding Basics**: Start with simple languages like Python or Scratch.\n\n### Resources for Further Learning\n- **Online Platforms**: Codecademy, Coursera, Khan Academy.\n- **Books**: \"Computer Science Illuminated\" by Nell Dale, \"Introduction to Computing Systems\" by Patt & Patel.\n- **Practice**: Experiment with basic coding or explore open-source software.\n\nIf you’d like a deeper dive into any topic (e.g., programming, hardware, or a specific concept), let me know! I can also search for recent resources or analyze specific content if you provide it.', '2025-07-15 21:10:48', '2025-07-15 21:10:48', 'active');
 
 -- --------------------------------------------------------
 
@@ -359,6 +357,13 @@ CREATE TABLE `enrollments` (
   `completed_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Dumping data for table `enrollments`
+--
+
+INSERT INTO `enrollments` (`id`, `student_id`, `course_id`, `status`, `enrolled_at`, `completed_at`) VALUES
+(2, 19, 9, 'active', '2025-07-15 20:47:53', NULL);
+
 -- --------------------------------------------------------
 
 --
@@ -409,6 +414,23 @@ CREATE TABLE `guardian_students` (
   `is_primary` tinyint(1) DEFAULT 0,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `notifications`
+--
+
+CREATE TABLE `notifications` (
+  `id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `message` text NOT NULL,
+  `type` varchar(50) DEFAULT NULL,
+  `is_read` tinyint(1) DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- --------------------------------------------------------
 
@@ -497,7 +519,8 @@ CREATE TABLE `students` (
 
 INSERT INTO `students` (`id`, `user_id`, `student_id`, `grade_level`, `created_at`, `updated_at`) VALUES
 (2, 16, 'STU20250016', NULL, '2025-05-05 17:22:21', '2025-05-05 17:22:21'),
-(3, 17, 'STU20250017', NULL, '2025-05-07 13:12:21', '2025-05-07 13:12:21');
+(3, 17, 'STU20250017', NULL, '2025-05-07 13:12:21', '2025-05-07 13:12:21'),
+(4, 19, 'STU20250019', NULL, '2025-07-15 18:28:39', '2025-07-15 18:28:39');
 
 -- --------------------------------------------------------
 
@@ -572,29 +595,9 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `email`, `password`, `first_name`, `last_name`, `role`, `status`, `token`, `phone`, `address`, `school`, `department`, `specialization`, `education`, `experience`, `created_at`, `updated_at`, `school_id`, `department_id`) VALUES
-(13, 'daisygrace606@gmail.com', '$2y$10$VKGe46KfqJci7g8NCVU1c.DwJHNP6HRTZMaKiD9D1XG2hRvIhsNji', 'Daisy', 'Grace', 'admin', 'active', 'e0d6b53f78267b6764b3f5e44ff8c16885c7741c4430b26b639754af09e20867', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-05-05 17:00:51', '2025-05-08 19:02:54', NULL, NULL),
-(14, 'chichilasty@gmail.com', '$2y$10$JTwJonIacvUsOuPOJzLeT.EENXIp1G68iHvWRNITULjLZ6xnFroAC', 'charity', 'Apondi', 'teacher', 'active', '6d8edaa7b115a91cd86ecbfa9822980fc7897c3ce2fb12542ca8267b44820a26', '+25479937753', '4010', 'School of pure and applied science', 'computer science', 'computer science ', 'masters in computing ', 'masters in computing ', '2025-05-05 17:04:19', '2025-05-07 13:11:37', 10, 12),
-(16, 'bobbyziggler606@gmail.com', '$2y$10$P3FkB.Oacp/2MdZNOakIYONx/g4/Zg/ze42A1qdMJdJ3uV.aBuBfK', 'Bildard', 'odhiambo', 'student', 'active', 'a3c5a714201acfcdac2724e825e56e8c2329f7c435bedb81ad8a1f9a041e7a77', '079900948', '4100', NULL, NULL, NULL, NULL, NULL, '2025-05-05 17:22:21', '2025-05-09 08:14:45', 10, 12),
-(17, 'johndoe@gmail.com', '$2y$10$zLoRlSBu0uVnuc4P4TUBSu6k.RdEhszi6QMZRvrBtRwpYXJF5xcLi', 'johnte ', 'ofubwa', 'student', 'active', '8ba9259f20c89b8acac3903d35371101939244d1e8aef6d25420f2d477f908a3', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-05-07 13:12:21', '2025-05-07 13:12:30', NULL, NULL),
-(18, 'Edydan@gmail.com', '$2y$10$euiOxZAK5PUpfY5UQZyi3OOV5rqdh4ruq8ulyHmVWdtUGXRsgGlbG', 'Blair', 'Grace', 'teacher', 'active', '1a3ca328903c4d6c6082c226bdda8e38f512cf9637bab8317b7a448cc4a70f9d', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-05-07 13:20:39', '2025-05-07 13:20:49', NULL, NULL);
-
--- --------------------------------------------------------
---
--- Table structure for table `notifications`
---
-
-CREATE TABLE `notifications` (
-  `id` INT(11) NOT NULL AUTO_INCREMENT,
-  `user_id` INT(11) NOT NULL,
-  `title` VARCHAR(255) NOT NULL,
-  `message` TEXT NOT NULL,
-  `type` VARCHAR(50) DEFAULT NULL,
-  `is_read` TINYINT(1) DEFAULT 0,
-  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `user_id` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+(13, 'daisygrace606@gmail.com', '$2y$10$VKGe46KfqJci7g8NCVU1c.DwJHNP6HRTZMaKiD9D1XG2hRvIhsNji', 'Daisy', 'Grace', 'admin', 'active', 'bb799ebe90684903f959769eb7ad7e8c4f392384ec79fb7e09c5affe486ffa15', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-05-05 17:00:51', '2025-07-15 22:20:26', NULL, NULL),
+(19, 'bobbyziggler606@gmail.com', '$2y$10$mIThDrK81LYgCNbK1wMVq.gpY96iALvkuUh26vOzY14Oyp8gcTf6K', 'Bildard ', 'Blair', 'student', 'active', 'df9aeda1ae159ad7372e460c8f6ed36b4d410c8c4c8c55096f2bce0fdc48e065', '+254799377583', '40100', NULL, NULL, NULL, NULL, NULL, '2025-07-15 18:28:39', '2025-07-15 22:31:21', 10, 12),
+(20, 'chichilasty@gmail.com', '$2y$10$7ffjeShtHe8hpyVbBtpyM.hDiSyM0Qu/Hy6bUkxlMVsBZL8X1yuUu', 'charity', 'Apondi', 'teacher', 'active', '67e946f436f4a8807bc687f9b0288d3df7616582e539ffdd3592a7ef32446ea9', '+25479937753', '40100', 'School of pure and applied science', 'computer science', 'computer science ', 'Masters in computing ', '20 years in teaching ', '2025-07-15 18:35:04', '2025-07-15 22:03:06', 10, 12);
 
 --
 -- Indexes for dumped tables
@@ -760,6 +763,13 @@ ALTER TABLE `guardian_students`
   ADD KEY `student_id` (`student_id`);
 
 --
+-- Indexes for table `notifications`
+--
+ALTER TABLE `notifications`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `user_id` (`user_id`);
+
+--
 -- Indexes for table `online_classes`
 --
 ALTER TABLE `online_classes`
@@ -829,7 +839,7 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `assignments`
 --
 ALTER TABLE `assignments`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `assignment_submissions`
@@ -865,13 +875,13 @@ ALTER TABLE `class_recordings`
 -- AUTO_INCREMENT for table `courses`
 --
 ALTER TABLE `courses`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `course_content`
 --
 ALTER TABLE `course_content`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `course_questions`
@@ -925,7 +935,7 @@ ALTER TABLE `discussion_topics`
 -- AUTO_INCREMENT for table `enrollments`
 --
 ALTER TABLE `enrollments`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `grades`
@@ -946,6 +956,12 @@ ALTER TABLE `guardian_students`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `notifications`
+--
+ALTER TABLE `notifications`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `online_classes`
 --
 ALTER TABLE `online_classes`
@@ -961,7 +977,7 @@ ALTER TABLE `schools`
 -- AUTO_INCREMENT for table `students`
 --
 ALTER TABLE `students`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `student_assignments`
@@ -979,7 +995,7 @@ ALTER TABLE `submissions`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
 
 --
 -- Constraints for dumped tables
