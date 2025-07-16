@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { getDiscussionGroups } from '../../services/discussionService';
 import { courseService } from '../../services/courseService';
 import { getMaterialsByClassId, downloadMaterial, ClassMaterial } from '../../services/materialService';
+import { fetchStudentAssignments, submitAssignment, StudentAssignment } from '../../services/assignmentService';
 import {
   BookOpenIcon,
   CalendarIcon,
@@ -27,6 +28,7 @@ import EditStudentProfileModal from '../../components/modals/EditStudentProfileM
 import CourseDetailsModal from '../../components/modals/CourseDetailsModal';
 import AddGuardianModal from '../../components/modals/AddGuardianModal';
 import type { User } from '../../types/user';
+import AssignmentDetailsModal from '../../components/modals/AssignmentDetailsModal';
 
 const menuItems = [
   { id: 'courses', icon: BookOpenIcon, label: 'Courses' },
@@ -38,6 +40,7 @@ const menuItems = [
   { id: 'financial', icon: BanknotesIcon, label: 'Financial Status' },
   { id: 'resources', icon: BookmarkIcon, label: 'Resources' },
   { id: 'online-classes', icon: VideoCameraIcon, label: 'Online Classes' },
+  { id: 'assignments', icon: DocumentIcon, label: 'Assignments' },
 ];
 
 interface DiscussionTopic {
@@ -194,6 +197,14 @@ const StudentDashboard = () => {
   const [guardians, setGuardians] = useState<Guardian[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<DiscussionGroup | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<DiscussionTopic | null>(null);
+  const [assignments, setAssignments] = useState<StudentAssignment[]>([]);
+  const [assignmentsLoading, setAssignmentsLoading] = useState(false);
+  const [assignmentsError, setAssignmentsError] = useState<string | null>(null);
+  const [submittingAssignmentId, setSubmittingAssignmentId] = useState<number | null>(null);
+  const [submissionText, setSubmissionText] = useState<{ [assignmentId: number]: string }>({});
+  const [submissionFile, setSubmissionFile] = useState<{ [assignmentId: number]: File | null }>({});
+  const [selectedAssignment, setSelectedAssignment] = useState<StudentAssignment | null>(null);
+  const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchStudentData = async () => {
@@ -512,7 +523,7 @@ const StudentDashboard = () => {
             <CalendarIcon className="w-7 h-7 text-white" />
             Weekly Schedule
           </h2>
-          <p className="text-blue-100 mt-1">Here’s your personalized class timetable. Click on a class for more details!</p>
+          <p className="text-blue-100 mt-1">Here's your personalized class timetable. Click on a class for more details!</p>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -1426,7 +1437,7 @@ const StudentDashboard = () => {
                           <span className="font-medium">John Doe</span>
                           <span className="text-gray-500 text-sm">2 hours ago</span>
                         </div>
-                        <p className="mt-1 text-gray-800">{selectedTopic?.lastMessage}</p>
+                        <p className="mt-1 text-gray-800">{selectedTopic && 'lastMessage' in selectedTopic ? selectedTopic.lastMessage : ''}</p>
                       </div>
                     </div>
 
@@ -1475,7 +1486,7 @@ const StudentDashboard = () => {
                           <span className="font-medium">John Doe</span>
                           <span className="text-gray-500 text-sm">2 hours ago</span>
                         </div>
-                        <p className="mt-1 text-gray-800">{selectedTopic?.lastMessage}</p>
+                        <p className="mt-1 text-gray-800">{selectedTopic && 'lastMessage' in selectedTopic ? selectedTopic.lastMessage : ''}</p>
                       </div>
                     </div>
 
@@ -1495,6 +1506,67 @@ const StudentDashboard = () => {
                   </div>
                 </div>
               </div>
+            )}
+          </div>
+        );
+
+      case 'assignments':
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-semibold mb-6">Assignments</h2>
+            {assignmentsLoading ? (
+              <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+              </div>
+            ) : assignmentsError ? (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-red-600">{assignmentsError}</p>
+              </div>
+            ) : assignments.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500">No assignments available.</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {assignments.map(assignment => (
+                  <div key={assignment.id} className="bg-white rounded-xl shadow-sm p-6 cursor-pointer hover:shadow-md transition" onClick={() => { setSelectedAssignment(assignment); setIsAssignmentModalOpen(true); }}>
+                    <div className="flex justify-between items-center mb-2">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-800">{assignment.title}</h3>
+                        <p className="text-sm text-gray-500">Due: {new Date(assignment.due_date).toLocaleString()}</p>
+                      </div>
+                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">{assignment.type === 'text' ? 'Text' : assignment.type === 'file' ? 'File' : assignment.type}</span>
+                    </div>
+                    <p className="text-gray-700 mb-2 line-clamp-2">{assignment.description}</p>
+                    {assignment.submission_status ? (
+                      <div className="mt-4">
+                        <span className="inline-block px-3 py-1 rounded-full bg-green-100 text-green-800 font-medium mr-2">Submitted</span>
+                        {assignment.marks_obtained !== null && assignment.marks_obtained !== undefined && !isNaN(Number(assignment.marks_obtained)) ? (
+                          <span className="inline-block px-3 py-1 rounded-full bg-blue-100 text-blue-800 font-medium mr-2">Marks: {assignment.marks_obtained}</span>
+                        ) : (
+                          <span className="inline-block px-3 py-1 rounded-full bg-blue-100 text-blue-800 font-medium mr-2">Marks: -</span>
+                        )}
+                        {assignment.graded_at && (
+                          <span className="inline-block px-3 py-1 rounded-full bg-yellow-100 text-yellow-800 font-medium">Graded</span>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            )}
+            {isAssignmentModalOpen && selectedAssignment && (
+              <AssignmentDetailsModal
+                isOpen={isAssignmentModalOpen}
+                onClose={() => { setIsAssignmentModalOpen(false); setSelectedAssignment(null); }}
+                assignment={selectedAssignment}
+                onSubmit={handleAssignmentSubmit}
+                submittingAssignmentId={submittingAssignmentId}
+                submissionText={submissionText}
+                setSubmissionText={setSubmissionText}
+                submissionFile={submissionFile}
+                setSubmissionFile={setSubmissionFile}
+              />
             )}
           </div>
         );
@@ -1530,20 +1602,16 @@ const StudentDashboard = () => {
   };
 
   // Add a handler for saving profile changes
-  const handleProfileSave = async (updatedData: User) => {
-    try {
-      setStudentData(updatedData);
-      setIsProfileModalOpen(false);
-    } catch (error) {
-      console.error('Error updating profile:', error);
-    }
+  const handleProfileSave = (data: User) => {
+    setStudentData(data);
+    setIsProfileModalOpen(false);
   };
 
   // Add placeholder removeGuardian and handleGuardianRegistration
   const removeGuardian = (index: number) => {
     setGuardians(prev => prev.filter((_, i) => i !== index));
   };
-  const handleGuardianRegistration = (e: React.FormEvent) => {
+  const handleGuardianRegistration = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     // Placeholder: add a dummy guardian
     setGuardians(prev => [
@@ -1560,6 +1628,71 @@ const StudentDashboard = () => {
     ]);
     setIsGuardianModalOpen(false);
   };
+
+  const handleAssignmentSubmit = async (assignment: StudentAssignment) => {
+    setSubmittingAssignmentId(assignment.id);
+    try {
+      await submitAssignment({
+        assignmentId: assignment.id,
+        type: assignment.type,
+        submissionText: assignment.type === 'text' ? submissionText[assignment.id] : undefined,
+        file: assignment.type === 'file' && submissionFile[assignment.id] !== null && submissionFile[assignment.id] !== undefined ? submissionFile[assignment.id] : undefined,
+      });
+      // Refresh assignments
+      const updated = await fetchStudentAssignments();
+      setAssignments(updated);
+      setSubmissionText(prev => ({ ...prev, [assignment.id]: '' }));
+      setSubmissionFile(prev => ({ ...prev, [assignment.id]: null }));
+    } catch (err: unknown) {
+      let message = 'Failed to submit assignment';
+      if (
+        typeof err === 'object' &&
+        err !== null &&
+        'response' in err &&
+        typeof (err as { response?: { data?: unknown } }).response?.data === 'string' &&
+        ((err as { response?: { data?: string } }).response?.data as string).startsWith('<')
+      ) {
+        message = 'Server error: Invalid response (possible PHP error). Check server logs.';
+      } else if (
+        typeof err === 'object' &&
+        err !== null &&
+        'message' in err &&
+        typeof (err as { message?: unknown }).message === 'string'
+      ) {
+        message = (err as { message: string }).message;
+      }
+      alert(message);
+    } finally {
+      setSubmittingAssignmentId(null);
+    }
+  };
+
+  // Fetch assignments for the student
+  useEffect(() => {
+    const fetchAssignments = async () => {
+      if (!user?.id) return;
+      setAssignmentsLoading(true);
+      setAssignmentsError(null);
+      try {
+        const data = await fetchStudentAssignments();
+        setAssignments(data);
+      } catch (err: unknown) {
+        let message = 'Failed to fetch assignments';
+        if (
+          typeof err === 'object' &&
+          err !== null &&
+          'message' in err &&
+          typeof (err as { message?: unknown }).message === 'string'
+        ) {
+          message = (err as { message: string }).message;
+        }
+        setAssignmentsError(message);
+      } finally {
+        setAssignmentsLoading(false);
+      }
+    };
+    fetchAssignments();
+  }, [user]);
 
   return (
     <div className="min-h-screen bg-gray-50">

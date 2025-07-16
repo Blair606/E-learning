@@ -1,11 +1,9 @@
 <?php
+require_once '../config/cors.php';
+handleCORS();
 require_once '../config/database.php';
 require_once '../middleware/auth.php';
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
-header('Access-Control-Allow-Credentials: true');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
@@ -26,7 +24,9 @@ try {
         !isset($_POST['due_date']) || !isset($_POST['total_marks']) || 
         !isset($_POST['course_id']) || !isset($_POST['type'])) {
         http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Missing required fields']);
+        $msg = 'Missing required fields.';
+        error_log('[create_assignment.php] 400: ' . $msg . ' POST: ' . json_encode($_POST));
+        echo json_encode(['success' => false, 'message' => $msg]);
         exit();
     }
 
@@ -35,7 +35,9 @@ try {
         !is_numeric($_POST['total_marks']) || !strtotime($_POST['due_date']) || 
         !is_numeric($_POST['course_id']) || !in_array($_POST['type'], ['text', 'file', 'quiz'])) {
         http_response_code(400);
-        echo json_encode(['success' => false, 'message' => 'Invalid data types']);
+        $msg = 'Invalid data types.';
+        error_log('[create_assignment.php] 400: ' . $msg . ' POST: ' . json_encode($_POST));
+        echo json_encode(['success' => false, 'message' => $msg]);
         exit();
     }
 
@@ -119,12 +121,14 @@ try {
 
 } catch (PDOException $e) {
     http_response_code(500);
+    error_log('[create_assignment.php] PDOException: ' . $e->getMessage());
     echo json_encode([
         'success' => false,
         'message' => 'Database error: ' . $e->getMessage()
     ]);
 } catch (Exception $e) {
     http_response_code(500);
+    error_log('[create_assignment.php] Exception: ' . $e->getMessage());
     echo json_encode([
         'success' => false,
         'message' => 'Server error: ' . $e->getMessage()

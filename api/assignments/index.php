@@ -5,17 +5,13 @@ ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/../logs/php_errors.log');
 
-// Include CORS configuration first
-include_once '../config/cors.php';
-
-// Handle CORS before any other operations
+require_once '../config/cors.php';
 handleCORS();
 
 // Set content type
 header('Content-Type: application/json');
 
-// Include database configuration
-include_once '../config/database.php';
+require_once '../config/database.php';
 
 $database = new Database();
 $db = $database->getConnection();
