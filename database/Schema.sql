@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jul 16, 2025 at 12:42 AM
+-- Generation Time: Jul 16, 2025 at 01:48 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -47,7 +47,7 @@ CREATE TABLE `assignments` (
 --
 
 INSERT INTO `assignments` (`id`, `course_id`, `title`, `description`, `type`, `file_path`, `file_name`, `due_date`, `created_at`, `updated_at`, `status`, `total_marks`) VALUES
-(11, 9, 'the dawn is near', 'what the fuck men', 'text', NULL, NULL, '2025-07-20 23:59:00', '2025-07-15 19:33:47', '2025-07-15 19:33:47', 'draft', 30);
+(12, 9, 'The beginning of the end ', 'this is why we dont give a fuck meen ', 'text', NULL, NULL, '2025-08-30 18:50:00', '2025-07-16 09:21:41', '2025-07-16 09:21:41', 'draft', 40);
 
 -- --------------------------------------------------------
 
@@ -67,6 +67,13 @@ CREATE TABLE `assignment_submissions` (
   `submitted_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `graded_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `assignment_submissions`
+--
+
+INSERT INTO `assignment_submissions` (`id`, `assignment_id`, `student_id`, `submission_text`, `file_path`, `marks_obtained`, `feedback`, `status`, `submitted_at`, `graded_at`) VALUES
+(2, 12, 19, 'yes mwalimu thank you for that', NULL, NULL, NULL, 'submitted', '2025-07-16 11:01:14', NULL);
 
 -- --------------------------------------------------------
 
@@ -400,6 +407,13 @@ CREATE TABLE `guardians` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Dumping data for table `guardians`
+--
+
+INSERT INTO `guardians` (`id`, `first_name`, `last_name`, `email`, `phone_number`, `national_id`, `password`, `status`, `created_at`, `updated_at`) VALUES
+(21, 'Ziporah ', 'Adum', 'zadum2015@gmail.com', '+254799377583', '39688690', '', '', '2025-07-15 23:12:55', '2025-07-15 23:12:55');
+
 -- --------------------------------------------------------
 
 --
@@ -414,6 +428,13 @@ CREATE TABLE `guardian_students` (
   `is_primary` tinyint(1) DEFAULT 0,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `guardian_students`
+--
+
+INSERT INTO `guardian_students` (`id`, `guardian_id`, `student_id`, `relationship`, `is_primary`, `created_at`) VALUES
+(1, 21, 19, 'parent', 0, '2025-07-15 23:12:55');
 
 -- --------------------------------------------------------
 
@@ -431,6 +452,13 @@ CREATE TABLE `notifications` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `notifications`
+--
+
+INSERT INTO `notifications` (`id`, `user_id`, `title`, `message`, `type`, `is_read`, `created_at`, `updated_at`) VALUES
+(1, 19, 'New Assignment: The beginning of the end ', 'A new assignment \"The beginning of the end \" has been posted in your course.', 'assignment', 0, '2025-07-16 09:21:41', '2025-07-16 09:21:41');
 
 -- --------------------------------------------------------
 
@@ -595,9 +623,10 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `email`, `password`, `first_name`, `last_name`, `role`, `status`, `token`, `phone`, `address`, `school`, `department`, `specialization`, `education`, `experience`, `created_at`, `updated_at`, `school_id`, `department_id`) VALUES
-(13, 'daisygrace606@gmail.com', '$2y$10$VKGe46KfqJci7g8NCVU1c.DwJHNP6HRTZMaKiD9D1XG2hRvIhsNji', 'Daisy', 'Grace', 'admin', 'active', 'bb799ebe90684903f959769eb7ad7e8c4f392384ec79fb7e09c5affe486ffa15', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-05-05 17:00:51', '2025-07-15 22:20:26', NULL, NULL),
-(19, 'bobbyziggler606@gmail.com', '$2y$10$mIThDrK81LYgCNbK1wMVq.gpY96iALvkuUh26vOzY14Oyp8gcTf6K', 'Bildard ', 'Blair', 'student', 'active', 'df9aeda1ae159ad7372e460c8f6ed36b4d410c8c4c8c55096f2bce0fdc48e065', '+254799377583', '40100', NULL, NULL, NULL, NULL, NULL, '2025-07-15 18:28:39', '2025-07-15 22:31:21', 10, 12),
-(20, 'chichilasty@gmail.com', '$2y$10$7ffjeShtHe8hpyVbBtpyM.hDiSyM0Qu/Hy6bUkxlMVsBZL8X1yuUu', 'charity', 'Apondi', 'teacher', 'active', '67e946f436f4a8807bc687f9b0288d3df7616582e539ffdd3592a7ef32446ea9', '+25479937753', '40100', 'School of pure and applied science', 'computer science', 'computer science ', 'Masters in computing ', '20 years in teaching ', '2025-07-15 18:35:04', '2025-07-15 22:03:06', 10, 12);
+(13, 'daisygrace606@gmail.com', '$2y$10$VKGe46KfqJci7g8NCVU1c.DwJHNP6HRTZMaKiD9D1XG2hRvIhsNji', 'Daisy', 'Grace', 'admin', 'active', '22f26ff31340887d7a9134dfb161fa3c87590421eb347ea0300173fc7abca773', NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-05-05 17:00:51', '2025-07-16 09:19:50', NULL, NULL),
+(19, 'bobbyziggler606@gmail.com', '$2y$10$mIThDrK81LYgCNbK1wMVq.gpY96iALvkuUh26vOzY14Oyp8gcTf6K', 'Bildard ', 'Blair', 'student', 'active', '355af7144e2bc06aa14f7cfc3ef43b71a81b063e8dc356f25bdeea0e267f620f', '+254799377583', '40100', NULL, NULL, NULL, NULL, NULL, '2025-07-15 18:28:39', '2025-07-16 09:26:06', 10, 12),
+(20, 'chichilasty@gmail.com', '$2y$10$7ffjeShtHe8hpyVbBtpyM.hDiSyM0Qu/Hy6bUkxlMVsBZL8X1yuUu', 'charity', 'Apondi', 'teacher', 'active', '9c09acc5ee27d9bc02a53f448c6b073048878c3cda78e4045b26f1380603282c', '+25479937753', '40100', 'School of pure and applied science', 'computer science', 'computer science ', 'Masters in computing ', '20 years in teaching ', '2025-07-15 18:35:04', '2025-07-16 11:06:25', 10, 12),
+(21, 'zadum2015@gmail.com', '$2y$10$s3w5ikUYUFQFxbbL3Gsv6.UkSJF94p8P3IBvvZ3Bhk28Nh.3fPFBG', 'Ziporah ', 'Adum', 'parent', 'active', NULL, '+254799377583', NULL, NULL, NULL, NULL, NULL, NULL, '2025-07-15 23:12:55', '2025-07-15 23:14:34', NULL, NULL);
 
 --
 -- Indexes for dumped tables
@@ -839,13 +868,13 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `assignments`
 --
 ALTER TABLE `assignments`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `assignment_submissions`
 --
 ALTER TABLE `assignment_submissions`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `class_chat_messages`
@@ -947,19 +976,19 @@ ALTER TABLE `grades`
 -- AUTO_INCREMENT for table `guardians`
 --
 ALTER TABLE `guardians`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
 
 --
 -- AUTO_INCREMENT for table `guardian_students`
 --
 ALTER TABLE `guardian_students`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `notifications`
 --
 ALTER TABLE `notifications`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `online_classes`
@@ -995,7 +1024,7 @@ ALTER TABLE `submissions`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
 
 --
 -- Constraints for dumped tables

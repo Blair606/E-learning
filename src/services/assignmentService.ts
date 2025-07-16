@@ -1,4 +1,5 @@
 import { api } from './api';
+import axios from 'axios';
 
 export interface StudentAssignment {
   id: number;
@@ -48,4 +49,24 @@ export async function submitAssignment({ assignmentId, type, submissionText, fil
     headers: { 'Content-Type': 'multipart/form-data' },
   });
   return response.data;
-} 
+}
+
+export const assignmentService = {
+  async getSubmissions(assignmentId: number, token: string) {
+    const response = await axios.get(`http://localhost/E-learning/api/assignments/get_submissions.php?assignment_id=${assignmentId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return response.data;
+  },
+
+  async gradeSubmission(submissionId: number, grade: number, feedback: string, token: string) {
+    const response = await axios.post(`http://localhost/E-learning/api/assignments/grade_submission.php`, {
+      submission_id: submissionId,
+      grade,
+      feedback
+    }, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    return response.data;
+  }
+}; 

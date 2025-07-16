@@ -26,7 +26,7 @@ import AddCourseContentModal from '../../components/modals/AddCourseContentModal
 import EditTeacherProfileModal from '../../components/modals/EditTeacherProfileModal';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import {
-  LineChart, Line, PieChart, Pie, Cell,
+  LineChart, Line,
 } from 'recharts';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../../store/store';
@@ -43,6 +43,7 @@ import ScheduleClassModal from '../../components/modals/ScheduleClassModal';
 import UploadClassMaterialModal from '../../components/modals/UploadClassMaterialModal';
 import { analyticsService, type AnalyticsData, type ClassAnalytics, type AssignmentAnalytics, type DiscussionAnalytics } from '../../services/analyticsService';
 import AnalyticsDetailModal from '../../components/modals/AnalyticsDetailModal';
+import { assignmentService } from '../../services/assignmentService';
 
 interface ClassData {
   id: number;
@@ -174,6 +175,13 @@ const NotificationModal: React.FC<NotificationModalProps> = ({
   );
 };
 
+// Add this mapping above the TeacherDashboard component
+const statusDisplayMap = {
+  draft: { label: 'Draft', color: 'bg-yellow-100 text-yellow-800' },
+  published: { label: 'Published', color: 'bg-green-100 text-green-800' },
+  closed: { label: 'Closed', color: 'bg-gray-100 text-gray-800' }
+};
+
 const TeacherDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useSelector((state: RootState) => state.auth);
@@ -186,8 +194,6 @@ const TeacherDashboard: React.FC = () => {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [classes, setClasses] = useState<ClassData[]>([]);
-  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
-  const [showIndividualStudent, setShowIndividualStudent] = useState(false);
   const [selectedClassOverview, setSelectedClassOverview] = useState<ClassData | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
@@ -214,6 +220,15 @@ const TeacherDashboard: React.FC = () => {
     assignmentAnalytics: AssignmentAnalytics[];
     discussionAnalytics: DiscussionAnalytics[];
   } | null>(null);
+
+  // Add state for submissions modal
+  const [isSubmissionsModalOpen, setIsSubmissionsModalOpen] = useState(false);
+  const [selectedAssignmentForSubmissions, setSelectedAssignmentForSubmissions] = useState<Assignment | null>(null);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [submissionsLoading, setSubmissionsLoading] = useState(false);
+  const [submissionsError, setSubmissionsError] = useState<string | null>(null);
+  const [grading, setGrading] = useState<{[submissionId: number]: boolean}>({});
+  const [gradeInputs, setGradeInputs] = useState<{[submissionId: number]: {grade: string, feedback: string}}>({});
 
   // Get discussions state from Redux
   const discussionsState = useSelector((state: RootState) => state.discussions);
@@ -407,8 +422,6 @@ const TeacherDashboard: React.FC = () => {
     setPendingTasks(assignments.filter(a => a.status !== 'Completed'));
   }, [assignments]);
 
-  const GRADE_COLORS = ['#4CAF50', '#8BC34A', '#FFC107', '#FF9800', '#F44336'];
-
   const navItems = [
     { id: 'overview', icon: BookOpenIcon, label: 'Overview' },
     { id: 'discussions', icon: ChatBubbleLeftRightIcon, label: 'Discussions' },
@@ -475,7 +488,6 @@ const TeacherDashboard: React.FC = () => {
   }, [selectedCourseId, dispatch]);
 
   const selectedClass = classes.find(c => c.id === selectedClassId);
-  const selectedStudent = selectedClass?.students.find(s => s.id === selectedStudentId);
 
   const handleSendNotification = async (data: NotificationFormData) => {
     const newNotification: Notification = {
@@ -668,30 +680,18 @@ const TeacherDashboard: React.FC = () => {
             ) : (
               <div className="bg-white rounded-xl shadow-sm">
                 <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Assignment
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Due Date
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Type
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Submissions
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Actions
-                        </th>
+                  <table className="w-full text-sm rounded-xl overflow-hidden shadow">
+                    <thead>
+                      <tr className="bg-blue-100 text-blue-800">
+                        <th className="px-6 py-4 text-left">Title</th>
+                        <th className="px-6 py-4 text-left">Due Date</th>
+                        <th className="px-6 py-4 text-left">Type</th>
+                        <th className="px-6 py-4 text-left">Status</th>
+                        <th className="px-6 py-4 text-left">Submissions</th>
+                        <th className="px-6 py-4 text-left">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white divide-y divide-gray-100">
                       {assignments.length === 0 ? (
                         <tr>
                           <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
@@ -700,37 +700,34 @@ const TeacherDashboard: React.FC = () => {
                         </tr>
                       ) : (
                         assignments.map((assignment) => (
-                          <tr key={assignment.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="font-medium text-gray-900">{assignment.title}</div>
-                              <div className="text-sm text-gray-500">{assignment.description}</div>
+                          <tr key={assignment.id} className="hover:bg-gray-50 transition">
+                            <td className="px-6 py-4 min-w-[180px]">
+                              <div className="font-semibold text-gray-800 text-base">{assignment.title}</div>
+                              <div className="text-xs text-gray-500 mt-1 line-clamp-2">{assignment.description}</div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {new Date(assignment.dueDate).toLocaleDateString()}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-6 py-4 min-w-[120px]">{new Date(assignment.dueDate).toLocaleDateString()}</td>
+                            <td className="px-6 py-4">
                               <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
                                 {assignment.type}
                               </span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                assignment.status === 'Active' 
-                                  ? 'bg-green-100 text-green-800'
-                                  : assignment.status === 'Completed'
-                                  ? 'bg-gray-100 text-gray-800'
-                                  : 'bg-yellow-100 text-yellow-800'
-                              }`}>
-                                {assignment.status}
-                              </span>
+                            <td className="px-6 py-4">
+                              {(() => {
+                                const statusInfo = statusDisplayMap[assignment.status] || { label: assignment.status, color: 'bg-gray-100 text-gray-800' };
+                                return (
+                                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusInfo.color}`}>
+                                    {statusInfo.label}
+                                  </span>
+                                );
+                              })()}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td className="px-6 py-4 text-sm text-gray-500">
                               {assignment.submissions} / {assignment.totalStudents}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <td className="px-6 py-4 text-sm font-medium flex gap-2">
                               <button 
                                 onClick={() => handleEditAssignment(assignment)}
-                                className="text-blue-600 hover:text-blue-900 mr-3"
+                                className="text-blue-600 hover:text-blue-900"
                               >
                                 Edit
                               </button>
@@ -739,6 +736,12 @@ const TeacherDashboard: React.FC = () => {
                                 className="text-red-600 hover:text-red-900"
                               >
                                 Delete
+                              </button>
+                              <button 
+                                onClick={() => openSubmissionsModal(assignment)}
+                                className="text-indigo-600 hover:text-indigo-900 font-semibold"
+                              >
+                                View Submissions
                               </button>
                             </td>
                           </tr>
@@ -1440,6 +1443,63 @@ const TeacherDashboard: React.FC = () => {
     }
   };
 
+  const openSubmissionsModal = async (assignment: Assignment) => {
+    setSelectedAssignmentForSubmissions(assignment);
+    setIsSubmissionsModalOpen(true);
+    setSubmissionsLoading(true);
+    setSubmissionsError(null);
+    try {
+      const token = localStorage.getItem('token') || '';
+      const res = await assignmentService.getSubmissions(assignment.id, token);
+      if (res.success) {
+        setSubmissions(res.submissions);
+        // Initialize gradeInputs
+        const initialInputs: {[id: number]: {grade: string, feedback: string}} = {};
+        res.submissions.forEach((s: any) => {
+          initialInputs[s.submission_id] = { grade: s.grade !== null ? String(s.grade) : '', feedback: s.feedback || '' };
+        });
+        setGradeInputs(initialInputs);
+      } else {
+        setSubmissionsError(res.error || 'Failed to fetch submissions');
+      }
+    } catch (err: any) {
+      setSubmissionsError(err.message || 'Failed to fetch submissions');
+    } finally {
+      setSubmissionsLoading(false);
+    }
+  };
+
+  const handleGradeChange = (submissionId: number, field: 'grade' | 'feedback', value: string) => {
+    setGradeInputs(prev => ({
+      ...prev,
+      [submissionId]: {
+        ...prev[submissionId],
+        [field]: value
+      }
+    }));
+  };
+
+  const handleSubmitGrade = async (submissionId: number) => {
+    setGrading(prev => ({ ...prev, [submissionId]: true }));
+    try {
+      const token = localStorage.getItem('token') || '';
+      const { grade, feedback } = gradeInputs[submissionId];
+      const res = await assignmentService.gradeSubmission(submissionId, parseFloat(grade), feedback, token);
+      if (res.success) {
+        // After grading, re-fetch submissions for the assignment
+        if (selectedAssignmentForSubmissions) {
+          await openSubmissionsModal(selectedAssignmentForSubmissions);
+        }
+      } else {
+        alert(res.error || 'Failed to submit grade');
+      }
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to submit grade');
+    } finally {
+      setGrading(prev => ({ ...prev, [submissionId]: false }));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="fixed top-0 left-0 right-0 bg-white shadow-sm z-40">
@@ -1638,6 +1698,111 @@ const TeacherDashboard: React.FC = () => {
             <Cog6ToothIcon className="w-5 h-5 mr-2" />
             Access Admin Dashboard
           </button>
+        </div>
+      )}
+
+      {isSubmissionsModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="relative w-full max-w-3xl mx-auto bg-white rounded-2xl shadow-2xl p-0 overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex justify-between items-center px-8 py-6 bg-gradient-to-r from-blue-600 to-indigo-600">
+              <h3 className="text-2xl font-bold text-white">Submissions for: {selectedAssignmentForSubmissions?.title}</h3>
+              <button onClick={() => setIsSubmissionsModalOpen(false)} className="text-white hover:text-gray-200 transition"><XMarkIcon className="w-7 h-7" /></button>
+            </div>
+            {/* Modal Body */}
+            <div className="px-8 py-6 bg-gray-50">
+              {submissionsLoading ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500 mb-4"></div>
+                  <span className="text-gray-500">Loading submissions...</span>
+                </div>
+              ) : submissionsError ? (
+                <div className="text-red-600 py-8 text-center font-semibold">{submissionsError}</div>
+              ) : submissions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <span className="text-4xl mb-2">📭</span>
+                  <span className="text-gray-500">No submissions yet.</span>
+                </div>
+              ) : (
+                <div className="overflow-x-auto max-h-[60vh]">
+                  <table className="w-full text-sm rounded-xl overflow-hidden shadow">
+                    <thead>
+                      <tr className="bg-blue-100 text-blue-800">
+                        <th className="px-4 py-3 text-left">Student</th>
+                        <th className="px-4 py-3 text-left">Submitted At</th>
+                        <th className="px-4 py-3 text-left">Submission</th>
+                        <th className="px-4 py-3 text-left">Grade</th>
+                        <th className="px-4 py-3 text-left">Feedback</th>
+                        <th className="px-4 py-3 text-left">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-100">
+                      {submissions.map(sub => {
+                        // Avatar/initials
+                        const initials = `${(sub.first_name?.[0] || '').toUpperCase()}${(sub.last_name?.[0] || '').toUpperCase()}`;
+                        return (
+                          <tr key={sub.submission_id} className="hover:bg-gray-50 transition">
+                            <td className="px-4 py-3 flex items-center gap-3 min-w-[180px]">
+                              <div className="w-9 h-9 rounded-full bg-blue-200 flex items-center justify-center font-bold text-blue-700 text-lg">
+                                {initials}
+                              </div>
+                              <div>
+                                <div className="font-semibold text-gray-800">{sub.first_name} {sub.last_name}</div>
+                                <div className="text-xs text-gray-400">{sub.email}</div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 min-w-[120px]">{sub.submitted_at ? new Date(sub.submitted_at).toLocaleString() : '-'}</td>
+                            <td className="px-4 py-3 min-w-[180px]">
+                              {sub.submission_text ? (
+                                <div className="max-w-xs break-words bg-gray-100 rounded p-2 text-gray-700">{sub.submission_text}</div>
+                              ) : sub.file_path ? (
+                                <a href={sub.file_path} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline font-medium">Download File</a>
+                              ) : (
+                                <span className="text-gray-400">No submission</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 min-w-[80px]">
+                              <input
+                                type="number"
+                                min="0"
+                                max={selectedAssignmentForSubmissions?.total_marks || 100}
+                                value={gradeInputs[sub.submission_id]?.grade || ''}
+                                onChange={e => handleGradeChange(sub.submission_id, 'grade', e.target.value)}
+                                className="w-16 border rounded px-2 py-1 focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                                disabled={!!sub.graded_at}
+                              />
+                            </td>
+                            <td className="px-4 py-3 min-w-[120px]">
+                              <input
+                                type="text"
+                                value={gradeInputs[sub.submission_id]?.feedback || ''}
+                                onChange={e => handleGradeChange(sub.submission_id, 'feedback', e.target.value)}
+                                className="w-32 border rounded px-2 py-1 focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+                                disabled={!!sub.graded_at}
+                              />
+                            </td>
+                            <td className="px-4 py-3 min-w-[100px]">
+                              {sub.graded_at ? (
+                                <span className="inline-block px-3 py-1 rounded-full bg-green-100 text-green-700 font-semibold">Graded</span>
+                              ) : (
+                                <button
+                                  onClick={() => handleSubmitGrade(sub.submission_id)}
+                                  className="px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-semibold shadow"
+                                  disabled={grading[sub.submission_id] || !gradeInputs[sub.submission_id]?.grade}
+                                >
+                                  {grading[sub.submission_id] ? 'Saving...' : 'Submit Grade'}
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

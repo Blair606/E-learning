@@ -53,7 +53,8 @@ try {
                    s.submitted_at,
                    s.graded_at,
                    s.submission_text,
-                   s.file_path as student_file_path
+                   s.file_path as student_file_path,
+                   s.feedback
             FROM assignments a
             LEFT JOIN courses c ON a.course_id = c.id
             LEFT JOIN assignment_submissions s ON a.id = s.assignment_id AND s.student_id = ?
@@ -91,6 +92,7 @@ try {
             'graded_submissions' => $assignment['graded_submissions'] ?? null,
             'submission_text' => array_key_exists('submission_text', $assignment) ? $assignment['submission_text'] : null,
             'student_file_path' => array_key_exists('student_file_path', $assignment) ? $assignment['student_file_path'] : null,
+            'feedback' => $assignment['feedback'] ?? null,
         ];
     }, $assignments);
 
