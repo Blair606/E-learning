@@ -15,10 +15,9 @@ handleCORS();
 header('Content-Type: application/json');
 
 // Include database configuration
-include_once '../config/database.php';
+require_once __DIR__ . '/../config/database.php';
 
-$database = new Database();
-$db = $database->getConnection();
+$conn = getConnection();
 
 $method = $_SERVER['REQUEST_METHOD'];
 
@@ -32,7 +31,7 @@ if(!isset($headers['Authorization'])) {
 
 $token = str_replace('Bearer ', '', $headers['Authorization']);
 $query = "SELECT id, role FROM users WHERE token = :token";
-$stmt = $db->prepare($query);
+$stmt = $conn->prepare($query);
 $stmt->bindParam(":token", $token);
 $stmt->execute();
 
@@ -53,7 +52,7 @@ switch($method) {
                      JOIN users u ON g.student_id = u.id 
                      JOIN assignments a ON g.assignment_id = a.id 
                      WHERE g.assignment_id = :assignment_id";
-            $stmt = $db->prepare($query);
+            $stmt = $conn->prepare($query);
             $stmt->bindParam(":assignment_id", $_GET['assignment_id']);
             $stmt->execute();
             
@@ -71,7 +70,7 @@ switch($method) {
                      JOIN assignments a ON g.assignment_id = a.id 
                      JOIN courses c ON a.course_id = c.id 
                      WHERE g.student_id = :student_id";
-            $stmt = $db->prepare($query);
+            $stmt = $conn->prepare($query);
             $stmt->bindParam(":student_id", $_GET['student_id']);
             $stmt->execute();
             
@@ -104,7 +103,7 @@ switch($method) {
                          FROM assignments a 
                          JOIN courses c ON a.course_id = c.id 
                          WHERE a.id = :assignment_id";
-            $checkStmt = $db->prepare($checkQuery);
+            $checkStmt = $conn->prepare($checkQuery);
             $checkStmt->bindParam(":assignment_id", $data->assignment_id);
             $checkStmt->execute();
             
@@ -118,7 +117,7 @@ switch($method) {
                 
                 // Check if grade already exists
                 $gradeCheckQuery = "SELECT id FROM grades WHERE student_id = :student_id AND assignment_id = :assignment_id";
-                $gradeCheckStmt = $db->prepare($gradeCheckQuery);
+                $gradeCheckStmt = $conn->prepare($gradeCheckQuery);
                 $gradeCheckStmt->bindParam(":student_id", $data->student_id);
                 $gradeCheckStmt->bindParam(":assignment_id", $data->assignment_id);
                 $gradeCheckStmt->execute();
@@ -131,7 +130,7 @@ switch($method) {
                 
                 $query = "INSERT INTO grades (student_id, assignment_id, score, feedback) 
                          VALUES (:student_id, :assignment_id, :score, :feedback)";
-                $stmt = $db->prepare($query);
+                $stmt = $conn->prepare($query);
                 
                 $stmt->bindParam(":student_id", $data->student_id);
                 $stmt->bindParam(":assignment_id", $data->assignment_id);
@@ -142,7 +141,7 @@ switch($method) {
                     http_response_code(201);
                     echo json_encode(array(
                         "message" => "Grade created successfully.",
-                        "id" => $db->lastInsertId()
+                        "id" => $conn->lastInsertId()
                     ));
                 } else {
                     http_response_code(503);
@@ -175,7 +174,7 @@ switch($method) {
                          JOIN assignments a ON g.assignment_id = a.id 
                          JOIN courses c ON a.course_id = c.id 
                          WHERE g.id = :id";
-            $checkStmt = $db->prepare($checkQuery);
+            $checkStmt = $conn->prepare($checkQuery);
             $checkStmt->bindParam(":id", $data->id);
             $checkStmt->execute();
             
@@ -188,7 +187,7 @@ switch($method) {
                 }
                 
                 $query = "UPDATE grades SET score = :score, feedback = :feedback WHERE id = :id";
-                $stmt = $db->prepare($query);
+                $stmt = $conn->prepare($query);
                 
                 $stmt->bindParam(":id", $data->id);
                 $stmt->bindParam(":score", $data->score);

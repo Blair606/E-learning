@@ -76,18 +76,6 @@ interface CourseContent {
   completed?: boolean;
 }
 
-interface Unit {
-  id: number;
-  code: string;
-  name: string;
-  instructor: string;
-  progress: number;
-  nextClass: string;
-  content: CourseContent[];
-  resources: { id: number; title: string; type: string; downloadUrl: string; }[];
-  assignments: { id: number; title: string; dueDate: string; status: string; }[];
-}
-
 interface Course {
   id: number;
   name: string;
@@ -148,6 +136,8 @@ interface Notification {
   message: string;
   teacher?: string;
   time?: string;
+  type?: string; // Added type for assignment notifications
+  title?: string; // Added title for assignment notifications
 }
 interface Grade {
   course: string;
@@ -204,7 +194,6 @@ const StudentDashboard = () => {
   const [guardians, setGuardians] = useState<Guardian[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<DiscussionGroup | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<DiscussionTopic | null>(null);
-  const [scheduledClasses, setScheduledClasses] = useState<any[]>([]); // You can type this better if you have a class type
 
   useEffect(() => {
     const fetchStudentData = async () => {
@@ -234,26 +223,26 @@ const StudentDashboard = () => {
   }, [user]);
 
   // Add this new useEffect for fetching courses
+  const fetchMaterials = async () => {
+    if (!selectedCourse?.id) {
+      setClassMaterials([]);
+      return;
+    }
+    try {
+      setMaterialsLoading(true);
+      setMaterialsError(null);
+      const materials = await getMaterialsByClassId(selectedCourse.id);
+      setClassMaterials(materials);
+    } catch (error) {
+      console.error('Error fetching materials:', error);
+      setMaterialsError('Failed to load class materials');
+    } finally {
+      setMaterialsLoading(false);
+    }
+  };
   useEffect(() => {
-    const fetchMaterials = async () => {
-      if (!selectedCourse?.id) {
-        setClassMaterials([]);
-        return;
-      }
-      try {
-        setMaterialsLoading(true);
-        setMaterialsError(null);
-        const materials = await getMaterialsByClassId(selectedCourse.id);
-        setClassMaterials(materials);
-      } catch (error) {
-        console.error('Error fetching materials:', error);
-        setMaterialsError('Failed to load class materials');
-      } finally {
-        setMaterialsLoading(false);
-      }
-    };
-
     fetchMaterials();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCourse?.id]);
 
   const handleDownload = async (materialId: number) => {
@@ -344,7 +333,12 @@ const StudentDashboard = () => {
   // Fetch grades (academic results)
   useEffect(() => {
     if (!user?.id) return;
-    fetch(`http://localhost/E-learning/api/grades/index.php?student_id=${user.id}`)
+    fetch(`http://localhost/E-learning/api/grades/index.php?student_id=${user.id}`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Accept': 'application/json',
+      }
+    })
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) setGrades(data);
@@ -382,10 +376,10 @@ const StudentDashboard = () => {
       }
 
       // Create enrollment data object
-      const enrollmentData = {
-        course_id: courseId,
-        student_id: studentData.data.id,
-      };
+      // const enrollmentData = {
+      //   course_id: courseId,
+      //   student_id: studentData.data.id,
+      // };
 
       // Now enroll in the course
       const response = await courseService.enrollCourse(courseId, user.id);
@@ -711,15 +705,24 @@ const StudentDashboard = () => {
                 Recent Notifications
               </h2>
               <div className="space-y-4">
+                {notifications.length === 0 && (
+                  <div className="text-gray-500 text-center py-8">No notifications yet.</div>
+                )}
                 {notifications.map(notification => (
-                  <div key={notification.id} 
-                       className="group p-4 border-l-4 border-blue-500 bg-white hover:bg-blue-50/50 
-                                rounded-r-xl shadow-sm hover:shadow-md transition-all duration-200">
-                    <p className="text-gray-800 font-medium group-hover:text-blue-700 transition-colors">
-                      {notification.message}
+                  <div
+                    key={notification.id}
+                    className={`group p-4 border-l-4 rounded-r-xl shadow-sm hover:shadow-md transition-all duration-200 bg-white hover:bg-blue-50/50 
+                      ${notification.type === 'assignment' ? 'border-green-500 bg-green-50' : 'border-blue-500'}`}
+                  >
+                    <p className={`text-gray-800 font-medium group-hover:text-blue-700 transition-colors ${notification.type === 'assignment' ? 'text-green-800' : ''}`}>
+                      {notification.type === 'assignment' ? (
+                        <span><b>New Assignment:</b> {notification.title || notification.message}</span>
+                      ) : (
+                        notification.message
+                      )}
                     </p>
                     <div className="flex items-center mt-2 space-x-3">
-                      <span className="text-sm font-medium text-blue-600">{notification.teacher}</span>
+                      {notification.teacher && <span className="text-sm font-medium text-blue-600">{notification.teacher}</span>}
                       <span className="text-xs text-gray-400">•</span>
                       <span className="text-sm text-gray-500">{notification.time}</span>
                     </div>
@@ -871,7 +874,7 @@ const StudentDashboard = () => {
                   <div className="p-4 bg-gray-50 rounded-lg">
                     <div className="flex justify-between items-center mb-2">
                       <span className="font-medium">Semester Fee</span>
-                      <span className="text-lg font-bold">KSH {financialStatus?.semesterFee.toLocaleString()}</span>
+                      <span className="text-lg font-bold">KSH {financialStatus?.semesterFee?.toLocaleString?.() || '0'}</span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-gray-600">Due by {financialStatus?.nextPaymentDeadline}</span>
@@ -885,7 +888,7 @@ const StudentDashboard = () => {
                   <div className="p-4 bg-gray-50 rounded-lg">
                     <div className="flex justify-between items-center mb-2">
                       <span className="font-medium">Hostel Fee (Optional)</span>
-                      <span className="text-lg font-bold">KSH {financialStatus?.hostelFee?.amount.toLocaleString()}</span>
+                      <span className="text-lg font-bold">KSH {financialStatus?.hostelFee?.amount?.toLocaleString?.() || '0'}</span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-gray-600">Due by {financialStatus?.hostelFee?.deadline}</span>
@@ -953,17 +956,17 @@ const StudentDashboard = () => {
               <div className="space-y-3">
                 <div className="flex justify-between items-center py-2 border-b">
                   <span className="text-gray-600">Semester Fee</span>
-                  <span className="font-medium">KSH {financialStatus?.semesterFee.toLocaleString()}</span>
+                  <span className="font-medium">KSH {financialStatus?.semesterFee?.toLocaleString?.() || '0'}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b">
                   <span className="text-gray-600">Hostel Fee</span>
-                  <span className="font-medium">KSH {financialStatus?.hostelFee?.amount.toLocaleString()}</span>
+                  <span className="font-medium">KSH {financialStatus?.hostelFee?.amount?.toLocaleString?.() || '0'}</span>
                 </div>
                 {financialStatus?.retakesFee?.pendingUnits?.length > 0 && (
                   <div className="flex justify-between items-center py-2 border-b">
                     <span className="text-gray-600">Retake Fees</span>
                     <span className="font-medium">
-                      KSH {(financialStatus.retakesFee.pendingUnits.reduce((acc, unit) => acc + unit.amount, 0)).toLocaleString()}
+                      KSH {(financialStatus?.retakesFee?.pendingUnits?.reduce((acc, unit) => acc + unit.amount, 0) || 0).toLocaleString()}
                     </span>
                   </div>
                 )}
@@ -971,9 +974,9 @@ const StudentDashboard = () => {
                   <span>Total Due</span>
                   <span className="text-blue-600">
                     KSH {(
-                      financialStatus?.semesterFee +
-                      financialStatus?.hostelFee?.amount +
-                      financialStatus.retakesFee.pendingUnits.reduce((acc, unit) => acc + unit.amount, 0)
+                      (financialStatus?.semesterFee || 0) +
+                      (financialStatus?.hostelFee?.amount || 0) +
+                      (financialStatus?.retakesFee?.pendingUnits?.reduce((acc, unit) => acc + unit.amount, 0) || 0)
                     ).toLocaleString()}
                   </span>
                 </div>
@@ -1159,11 +1162,11 @@ const StudentDashboard = () => {
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-gray-500">School</h3>
-                    <p className="mt-1 text-lg text-gray-900">{studentData?.school_name || 'Not assigned'}</p>
+                    <p className="mt-1 text-lg text-gray-900">{studentData?.school || 'Not assigned'}</p>
                   </div>
                   <div>
                     <h3 className="text-sm font-medium text-gray-500">Department</h3>
-                    <p className="mt-1 text-lg text-gray-900">{studentData?.department_name || 'Not assigned'}</p>
+                    <p className="mt-1 text-lg text-gray-900">{studentData?.department || 'Not assigned'}</p>
                   </div>
                 </div>
               </div>
@@ -1275,52 +1278,52 @@ const StudentDashboard = () => {
             
             {/* Upcoming Classes */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {scheduledClasses.map((class_) => (
-                <div key={class_.id} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="font-semibold text-lg">{class_.title}</h3>
-                      <p className="text-gray-600">{class_.course}</p>
-                    </div>
-                    <span className={`px-3 py-1 rounded-full text-sm ${
-                      class_.status === 'upcoming' 
-                        ? 'bg-blue-100 text-blue-800'
-                        : class_.status === 'live'
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {class_.status.charAt(0).toUpperCase() + class_.status.slice(1)}
-                    </span>
-                  </div>
-                  
-                  <div className="space-y-2 text-sm text-gray-600">
-                    <div className="flex items-center">
-                      <CalendarIcon className="w-4 h-4 mr-2" />
-                      <span>{class_.date}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <ClockIcon className="w-4 h-4 mr-2" />
-                      <span>{class_.time}</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-4">
-                    {class_.status === 'live' ? (
-                      <button className="w-full px-3 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700">
-                        Join Class
-                      </button>
-                    ) : class_.status === 'upcoming' ? (
-                      <button className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
-                        Set Reminder
-                      </button>
-                    ) : (
-                      <button className="w-full px-3 py-2 text-sm bg-gray-100 text-gray-600 rounded hover:bg-gray-200">
-                        View Recording
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
+              {/* scheduledClasses.map((class_) => ( */}
+              {/*   <div key={class_.id} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all"> */}
+              {/*     <div className="flex justify-between items-start mb-4"> */}
+              {/*       <div> */}
+              {/*         <h3 className="font-semibold text-lg">{class_.title}</h3> */}
+              {/*         <p className="text-gray-600">{class_.course}</p> */}
+              {/*       </div> */}
+              {/*       <span className={`px-3 py-1 rounded-full text-sm ${ */}
+              {/*         class_.status === 'upcoming'  */}
+              {/*           ? 'bg-blue-100 text-blue-800' */}
+              {/*           : class_.status === 'live' */}
+              {/*           ? 'bg-green-100 text-green-800' */}
+              {/*           : 'bg-gray-100 text-gray-800' */}
+              {/*       }`}> */}
+              {/*         {class_.status.charAt(0).toUpperCase() + class_.status.slice(1)} */}
+              {/*       </span> */}
+              {/*     </div> */}
+              {/*     */}
+              {/*     <div className="space-y-2 text-sm text-gray-600"> */}
+              {/*       <div className="flex items-center"> */}
+              {/*         <CalendarIcon className="w-4 h-4 mr-2" /> */}
+              {/*         <span>{class_.date}</span> */}
+              {/*       </div> */}
+              {/*       <div className="flex items-center"> */}
+              {/*         <ClockIcon className="w-4 h-4 mr-2" /> */}
+              {/*         <span>{class_.time}</span> */}
+              {/*       </div> */}
+              {/*     </div> */}
+              {/*     */}
+              {/*     <div className="mt-4"> */}
+              {/*       {class_.status === 'live' ? ( */}
+              {/*         <button className="w-full px-3 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700"> */}
+              {/*           Join Class */}
+              {/*         </button> */}
+              {/*       ) : class_.status === 'upcoming' ? ( */}
+              {/*         <button className="w-full px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"> */}
+              {/*           Set Reminder */}
+              {/*         </button> */}
+              {/*       ) : ( */}
+              {/*         <button className="w-full px-3 py-2 text-sm bg-gray-100 text-gray-600 rounded hover:bg-gray-200"> */}
+              {/*           View Recording */}
+              {/*         </button> */}
+              {/*       )} */}
+              {/*     </div> */}
+              {/*   </div> */}
+              {/* ))} */}
             </div>
           </div>
         );
@@ -1423,7 +1426,7 @@ const StudentDashboard = () => {
                           <span className="font-medium">John Doe</span>
                           <span className="text-gray-500 text-sm">2 hours ago</span>
                         </div>
-                        <p className="mt-1 text-gray-800">{selectedTopic.lastMessage}</p>
+                        <p className="mt-1 text-gray-800">{selectedTopic?.lastMessage}</p>
                       </div>
                     </div>
 
@@ -1472,7 +1475,7 @@ const StudentDashboard = () => {
                           <span className="font-medium">John Doe</span>
                           <span className="text-gray-500 text-sm">2 hours ago</span>
                         </div>
-                        <p className="mt-1 text-gray-800">{selectedTopic.lastMessage}</p>
+                        <p className="mt-1 text-gray-800">{selectedTopic?.lastMessage}</p>
                       </div>
                     </div>
 
@@ -1520,15 +1523,14 @@ const StudentDashboard = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isProfileDropdownOpen]);
 
+  // Add logout handler
   const handleLogout = () => {
     localStorage.removeItem('token');
-    // If you use context or redux, also clear user state here
-    setIsProfileDropdownOpen(false);
     navigate('/login');
   };
 
   // Add a handler for saving profile changes
-  const handleProfileSave = async (updatedData: any) => {
+  const handleProfileSave = async (updatedData: User) => {
     try {
       setStudentData(updatedData);
       setIsProfileModalOpen(false);
@@ -1576,7 +1578,7 @@ const StudentDashboard = () => {
               <AcademicCapIcon className="h-8 w-8 text-blue-600" />
             </div>
           </div>
-          {/* Right side - Just student name and avatar (optional) */}
+          {/* Right side - Student name, avatar, and logout */}
           <div className="flex items-center justify-end flex-1 space-x-4">
             <div className="hidden sm:flex items-center space-x-2">
               <span className="text-sm text-gray-500">Spring 2024</span>
@@ -1591,6 +1593,14 @@ const StudentDashboard = () => {
                   {studentData?.first_name?.[0]}{studentData?.last_name?.[0]}
                 </span>
               </div>
+              {/* Logout button */}
+              <button
+                onClick={handleLogout}
+                className="ml-4 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors text-xs"
+                title="Logout"
+              >
+                Logout
+              </button>
             </div>
           </div>
         </div>

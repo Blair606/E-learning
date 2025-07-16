@@ -95,6 +95,22 @@ try {
 
     $assignmentId = $conn->lastInsertId();
 
+    // Notify all enrolled students
+    $notifTitle = 'New Assignment: ' . $_POST['title'];
+    $notifMsg = 'A new assignment "' . $_POST['title'] . '" has been posted in your course.';
+    $notifType = 'assignment';
+    $courseId = $_POST['course_id'];
+    // Get all students enrolled in this course
+    $enrollStmt = $conn->prepare('SELECT s.user_id FROM enrollments e INNER JOIN students s ON (e.student_id = s.id OR e.student_id = s.user_id) WHERE e.course_id = ?');
+    $enrollStmt->execute([$courseId]);
+    $students = $enrollStmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($students as $student) {
+        $userId = $student['user_id'];
+        error_log("Creating assignment notification for user_id: $userId, title: $notifTitle");
+        $notifStmt = $conn->prepare('INSERT INTO notifications (user_id, title, message, type, created_at) VALUES (?, ?, ?, ?, NOW())');
+        $notifStmt->execute([$userId, $notifTitle, $notifMsg, $notifType]);
+    }
+
     echo json_encode([
         'success' => true,
         'message' => 'Assignment created successfully',
